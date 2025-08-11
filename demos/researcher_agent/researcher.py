@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from pathlib import Path
 from textwrap import dedent
@@ -8,74 +7,48 @@ from agno.models.openai import OpenAIChat
 from agno.tools.exa import ExaTools
 from dotenv import load_dotenv
 
-from memori import Memori, create_memory_tool
+from memori import Memori, create_memory_tool, create_memory_search_tool
 
 # Load environment variables
 load_dotenv()
 
-# Create tmp directory for saving reports
-cwd = Path(__file__).parent.resolve()
-tmp = cwd.joinpath("tmp")
-if not tmp.exists():
-    tmp.mkdir(exist_ok=True, parents=True)
 
-today = datetime.now().strftime("%Y-%m-%d")
-
-
-# Initialize Memori (singleton pattern for Streamlit)
-def init_memori():
-    """Initialize Memori with memory capabilities"""
+def init_memori(database_path: str = "research_memori.db"):
+    """Initialize and return a Memori instance for the given database path"""
     memori = Memori(
-        database_connect="sqlite:///research_memori.db",
+        database_connect=f"sqlite:///{database_path}",
         conscious_ingest=True,  # Working memory
         auto_ingest=True,  # Dynamic search
-        verbose=False,
+        verbose=False
     )
     memori.enable()
     return memori
 
 
-# Create Memori tool functions
-def memory_search(query: str) -> str:
-    """Search memories for relevant research information and past queries."""
-    try:
-        memori = init_memori()
-        memory_tool = create_memory_tool(memori)
-        result = memory_tool.execute(query=query)
-        return str(result) if result else "No relevant research memories found."
-    except Exception as e:
-        return f"Memory search error: {str(e)}"
-
-
-def save_research_memory(research_topic: str, report_content: str) -> str:
-    """Save research information to memory for future reference."""
-    try:
-        init_memori()
-        from litellm import completion
-
-        research_conversation = [
-            {"role": "system", "content": "Recording research session"},
-            {"role": "user", "content": f"Research Topic: {research_topic}"},
-            {
-                "role": "assistant",
-                "content": f"Research Report Generated: {report_content[:500]}...",
-            },
-        ]
-        completion(model="gpt-4o-mini", messages=research_conversation, max_tokens=10)
-        return f"Research on '{research_topic}' saved to memory"
-    except Exception as e:
-        return f"Memory save error: {str(e)}"
-
-
 # Create the Research Agent with Memori capabilities
-def create_research_agent():
+def create_research_agent(
+    memori=None,
+    database_path: str = "research_memori.db",
+):
     """Create a research agent with Memori memory capabilities and Exa search"""
+
+    # Create memory search function using Memori's built-in function
+    memory_tool = create_memory_tool(memori)
+
+    # Create tmp directory for saving reports
+    cwd = Path(__file__).parent.resolve()
+    tmp = cwd.joinpath("tmp")
+    if not tmp.exists():
+        tmp.mkdir(exist_ok=True, parents=True)
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # Create the agent with tools
     agent = Agent(
         model=OpenAIChat(id="gpt-4o"),
         tools=[
             ExaTools(start_published_date=today, type="keyword"),
-            memory_search,
-            save_research_memory,
+            memory_tool,
         ],
         description=dedent(
             """\
@@ -98,7 +71,7 @@ def create_research_agent():
         instructions=dedent(
             """\
             RESEARCH WORKFLOW:
-            1. FIRST: Search your memory for any related previous research on this topic
+            1. FIRST: Search your memory for any related previous research on this topic using memory_search
             2. Run 3 distinct Exa searches to gather comprehensive current information
             3. Analyze and cross-reference sources for accuracy and relevance
             4. If you find relevant previous research, mention how this builds upon it
@@ -106,9 +79,9 @@ def create_research_agent():
             6. Include only verifiable facts with proper citations
             7. Create an engaging narrative that guides the reader through complex topics
             8. End with actionable takeaways and future implications
-            9. FINALLY: You MUST use save_research_memory to store BOTH the research question and the generated answer for every session, BEFORE presenting the answer to the user. This is a strict requirement.
 
             Always mention if you're building upon previous research sessions!
+            The memory_search tool will automatically save your research to memory.
         """
         ),
         expected_output=dedent(
@@ -154,15 +127,23 @@ def create_research_agent():
         add_datetime_to_instructions=True,
         save_response_to_file=str(tmp.joinpath("{message}.md")),
     )
+
     return agent
 
 
 # Create the Memory Assistant Agent
-def create_memory_agent():
+def create_memory_agent(memori=None, database_path: str = "research_memori.db"):
     """Create an agent specialized in retrieving research memories"""
+
+    # Create memory tool (full capabilities for memory agent)
+    memory_search_tool = create_memory_search_tool(memori)
+
+    # Create the agent with memory tools
     agent = Agent(
         model=OpenAIChat(id="gpt-4o-mini"),
-        tools=[memory_search],
+        tools=[
+            memory_search_tool,
+        ],
         description=dedent(
             """\
             You are the Research Memory Assistant, specialized in helping users recall their research history!
@@ -182,7 +163,7 @@ def create_memory_agent():
         instructions=dedent(
             """\
             When users ask about their research history:
-            1. Use memory_search to find relevant past research
+            1. Use your memory tool to search for relevant past research
             2. Organize the results chronologically or by topic
             3. Provide clear summaries of each research session
             4. Highlight key findings and connections between research
@@ -194,4 +175,6 @@ def create_memory_agent():
         markdown=True,
         show_tool_calls=True,
     )
+
     return agent
+
