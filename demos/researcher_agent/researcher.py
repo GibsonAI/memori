@@ -92,7 +92,7 @@ class ResearchAgent:
                 database_connect="sqlite:///research_memori.db",
                 conscious_ingest=True,  # Enable background analysis
                 auto_ingest=True,  # Enable dynamic search
-                verbose=True,
+                verbose=False,  # Enable it for detailed logging
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
                 namespace="researcher_agent",  # Separate namespace for research
             )
@@ -126,7 +126,6 @@ class ResearchAgent:
             model=OpenAIChat(id="gpt-4o"),
             tools=[
                 ExaTools(start_published_date=today, type="keyword"),
-                self.memory_tool,
                 memory_search_wrapper
             ],
             description=dedent(
@@ -218,7 +217,6 @@ class ResearchAgent:
         agent = Agent(
             model=OpenAIChat(id="gpt-4o-mini"),
             tools=[
-                self.memory_tool,
                 memory_search_wrapper,
             ],
             description=dedent(

@@ -51,7 +51,7 @@ def main():
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        st.header("� Conduct Research")
+        st.header("🧐 Conduct Research")
 
         # Research request input
         research_request = st.text_area(
@@ -148,7 +148,7 @@ def main():
         st.header("🧠 Your Research Memory")
 
         # Memory search
-        st.subheader("� Search Research History")
+        st.subheader("🔎 Search Research History")
         memory_query = st.text_input(
             "Ask about your research history:",
             placeholder="What was my last research? Show me AI research... Research on climate change...",
@@ -234,38 +234,6 @@ def main():
             st.success("✅ Exa search tools active")
         else:
             st.warning("⚠️ Agent not initialized")
-
-    # Quick Research Examples
-    st.markdown("---")
-    st.subheader("🎯 Quick Research Examples")
-    
-    col_ex1, col_ex2, col_ex3 = st.columns(3)
-    
-    with col_ex1:
-        if st.button("🧠 AI & Machine Learning"):
-            st.session_state["quick_research"] = "Research the latest breakthroughs in artificial intelligence and machine learning, focusing on large language models and their societal impact."
-    
-    with col_ex2:
-        if st.button("🌍 Climate Technology"):
-            st.session_state["quick_research"] = "Analyze recent innovations in climate technology, including carbon capture, renewable energy storage, and sustainable materials."
-    
-    with col_ex3:
-        if st.button("🧬 Biotechnology"):
-            st.session_state["quick_research"] = "Investigate current developments in biotechnology, particularly CRISPR gene editing, synthetic biology, and personalized medicine."
-
-    # Handle quick research selections
-    if "quick_research" in st.session_state and st.session_state["quick_research"]:
-        quick_request = st.session_state.pop("quick_research")
-        
-        with st.spinner("� Conducting quick research..."):
-            try:
-                result = st.session_state["research_agent"].conduct_research(quick_request)
-                st.success("🎉 Quick research completed!")
-                st.markdown("---")
-                st.markdown("### Research Results:")
-                st.markdown(result)
-            except Exception as e:
-                st.error(f"❌ Error in quick research: {str(e)}")
 
 
 if __name__ == "__main__":
