@@ -1,48 +1,201 @@
+"""
+Personalized Research Agent Streamlit App
+A clean UI for the Agno-powered research assistant with Memori memory integration
+"""
+
 import os
+import sqlite3
 
 import streamlit as st
-from researcher import (
-    create_memory_agent,
-    create_research_agent
-)
+from researcher import ResearchAgent
 
 
 def main():
+    """Main Streamlit application"""
+
     st.set_page_config(
-        page_title="Research Agent with Memory", page_icon="🔬", layout="wide"
+        page_title="🔬 Personalized Research Agent", page_icon="🧠", layout="wide"
     )
 
-    st.title("🔬 Research Agent with Persistent Memory")
-    st.markdown("### AI Research Assistant that Remembers Everything")
+    st.title("🔬 Personalized Research Agent")
+    st.markdown("**AI-powered research assistant with memory of your research history**")
 
-    # Sidebar with navigation and info
-    with st.sidebar:
-        st.header("Navigation")
-        tab_choice = st.radio(
-            "Choose Mode:", ["🔬 Research Chat", "🧠 Memory Chat"], key="tab_choice"
+    # Initialize the research agent
+    if "research_agent" not in st.session_state:
+        try:
+            with st.spinner("🧠 Initializing research agent..."):
+                st.session_state["research_agent"] = ResearchAgent()
+                st.success("✅ Research agent initialized!")
+        except ValueError as e:
+            st.error(f"❌ Configuration Error: {str(e)}")
+            st.info("""
+            **Please set up your environment:**
+
+            1. Create a `.env` file in this directory with:
+            ```
+            OPENAI_API_KEY=sk-your-openai-key-here
+            EXA_API_KEY=your-exa-key-here
+            ```
+            
+            2. Get your API keys:
+            - 🔸 **OpenAI API Key**: Visit [OpenAI Platform](https://platform.openai.com/api-keys)
+            - 🔸 **Exa API Key**: Visit [Exa.ai](https://exa.ai) for web search capabilities
+            """)
+            return
+        except Exception as e:
+            st.error(f"❌ Initialization Error: {str(e)}")
+            st.info("Please check your .env file and dependencies.")
+            return
+
+    # Main interface
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.header("� Conduct Research")
+
+        # Research request input
+        research_request = st.text_area(
+            "What would you like me to research?",
+            placeholder="Research the latest developments in quantum computing and its potential impact on cryptography.",
+            height=100,
         )
 
-        st.header("About This Demo")
-        st.markdown(
-            """
-        This demo showcases:
-        - **Research Agent**: Uses Exa for real-time web research
-        - **Memori Integration**: Remembers all research sessions
-        - **Memory Chat**: Query your research history
+        # Additional preferences
+        st.subheader("🎯 Research Preferences")
 
-        The research agent can:
-        - 🔍 Conduct comprehensive research using Exa
-        - 🧠 Remember all previous research 
-        - 📚 Build upon past research
-        - 💾 Store findings for future reference
-        """
+        col_pref1, col_pref2 = st.columns(2)
+
+        with col_pref1:
+            research_depth = st.selectbox(
+                "Research Depth",
+                [
+                    "Quick Overview",
+                    "Comprehensive Analysis",
+                    "Deep Dive with Technical Details",
+                    "Academic-level Research",
+                ],
+            )
+
+            focus_area = st.selectbox(
+                "Primary Focus",
+                [
+                    "Current Developments",
+                    "Future Implications",
+                    "Technical Analysis",
+                    "Market Impact",
+                    "Historical Context",
+                    "Comparative Analysis",
+                    "Mixed Approach",
+                ],
+            )
+
+        with col_pref2:
+            source_preference = st.selectbox(
+                "Source Preference",
+                [
+                    "Academic Papers",
+                    "Industry Reports",
+                    "News & Articles",
+                    "Mixed Sources",
+                    "Technical Documentation",
+                ],
+            )
+
+            output_style = st.selectbox(
+                "Output Style",
+                [
+                    "Executive Summary",
+                    "Detailed Report",
+                    "Technical Paper",
+                    "Presentation Format",
+                    "Q&A Style",
+                ],
+            )
+
+        # Research button
+        if st.button("🚀 Conduct Research", type="primary"):
+            if not research_request.strip():
+                st.warning("Please describe what you'd like me to research!")
+                return
+
+            # Prepare preferences data
+            user_preferences = {
+                "research_depth": research_depth,
+                "focus_area": focus_area,
+                "source_preference": source_preference,
+                "output_style": output_style,
+            }
+
+            with st.spinner("🤖 AI research agent is gathering information and analyzing..."):
+                try:
+                    # Use the research agent to conduct research
+                    result = st.session_state["research_agent"].conduct_research(
+                        research_request, user_preferences
+                    )
+
+                    # Display results
+                    st.success("🎉 Your personalized research report is ready!")
+                    st.markdown("---")
+                    st.markdown(result)
+
+                except Exception as e:
+                    st.error(f"❌ Error conducting research: {str(e)}")
+                    st.info(
+                        "This might be due to API limits or connectivity issues. Please try again."
+                    )
+
+    with col2:
+        st.header("🧠 Your Research Memory")
+
+        # Memory search
+        st.subheader("� Search Research History")
+        memory_query = st.text_input(
+            "Ask about your research history:",
+            placeholder="What was my last research? Show me AI research... Research on climate change...",
         )
 
-        st.header("Research History")
-        if st.button("🗑️ Clear All Memory", type="secondary"):
-            import sqlite3
-            db_path = os.path.join(os.path.dirname(__file__), "research_memori.db")
+        if st.button("Search Memory"):
+            if memory_query and "research_agent" in st.session_state:
+                try:
+                    with st.spinner("🧠 Searching your research memory..."):
+                        results = st.session_state["research_agent"].search_memory(
+                            memory_query
+                        )
+                    st.markdown(results)
+                except Exception as e:
+                    st.error(f"Search error: {str(e)}")
+            elif not memory_query:
+                st.warning("Please enter a question about your research history!")
+
+        # Add example queries for better user experience
+        with st.expander("💡 Example Memory Questions"):
+            st.markdown("""
+            **Try asking questions like:**
+            - "What was my last research topic?"
+            - "Show me all my AI research"
+            - "What have I studied about climate change?"
+            - "My recent quantum computing research"
+            - "Research on biotechnology"
+            - "What topics have I explored?"
+            - "Findings about renewable energy"
+            - "My research patterns"
+            """)
+
+        # Memory stats
+        st.subheader("📊 Memory Stats")
+        if "research_agent" in st.session_state:
             try:
+                stats = st.session_state["research_agent"].get_memory_stats()
+                for key, value in stats.items():
+                    st.write(f"🔸 **{key.replace('_', ' ').title()}**: {value}")
+            except:
+                st.write("Memory stats loading...")
+
+        # Clear memory option
+        st.subheader("🗑️ Memory Management")
+        if st.button("Clear All Research Memory", type="secondary"):
+            try:
+                db_path = os.path.join(os.path.dirname(__file__), "research_memori.db")
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
                 # Drop all tables 
@@ -52,163 +205,69 @@ def main():
                     cursor.execute(f"DROP TABLE IF EXISTS {table[0]}")
                 conn.commit()
                 conn.close()
-                st.success("Research memory cleared!")
+                st.success("✅ Research memory cleared!")
+                # Reinitialize the agent
+                del st.session_state["research_agent"]
+                st.rerun()
             except Exception as e:
                 st.error(f"Error clearing memory: {e}")
 
-    # Initialize agents
-    if "research_agent" not in st.session_state:
-        with st.spinner("Initializing Research Agent with Memory..."):
-            st.session_state.research_agent = create_research_agent()
+        # Quick tips
+        st.subheader("💡 Tips")
+        st.info("""
+        **This AI remembers:**
+        - Your research topics and questions
+        - Key findings and insights
+        - Research preferences and patterns
+        - Historical research sessions
+        - Citations and sources
 
-    if "memory_agent" not in st.session_state:
-        with st.spinner("Initializing Memory Assistant..."):
-            st.session_state.memory_agent = create_memory_agent( )
+        **The more you research, the better it gets at building upon your previous work!**
+        """)
 
-    # Initialize chat histories
-    if "research_messages" not in st.session_state:
-        st.session_state.research_messages = []
-    if "memory_messages" not in st.session_state:
-        st.session_state.memory_messages = []
+        # Environment status
+        st.subheader("⚙️ Configuration")
+        if "research_agent" in st.session_state:
+            st.success("✅ Environment variables loaded")
+            st.success("✅ Memori memory active")
+            st.success("✅ Agno research agent ready")
+            st.success("✅ Exa search tools active")
+        else:
+            st.warning("⚠️ Agent not initialized")
 
-    # Research Chat Tab
-    if tab_choice == "🔬 Research Chat":
-        st.header("🔬 Research Agent")
-        st.markdown(
-            "*Ask me to research any topic and I'll create comprehensive reports while remembering everything!*"
-        )
+    # Quick Research Examples
+    st.markdown("---")
+    st.subheader("🎯 Quick Research Examples")
+    
+    col_ex1, col_ex2, col_ex3 = st.columns(3)
+    
+    with col_ex1:
+        if st.button("🧠 AI & Machine Learning"):
+            st.session_state["quick_research"] = "Research the latest breakthroughs in artificial intelligence and machine learning, focusing on large language models and their societal impact."
+    
+    with col_ex2:
+        if st.button("🌍 Climate Technology"):
+            st.session_state["quick_research"] = "Analyze recent innovations in climate technology, including carbon capture, renewable energy storage, and sustainable materials."
+    
+    with col_ex3:
+        if st.button("🧬 Biotechnology"):
+            st.session_state["quick_research"] = "Investigate current developments in biotechnology, particularly CRISPR gene editing, synthetic biology, and personalized medicine."
 
-        # Display research chat messages
-        for message in st.session_state.research_messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        # Research chat input
-        if research_prompt := st.chat_input("What would you like me to research?"):
-            st.session_state.research_messages.append({"role": "user", "content": research_prompt})
-            with st.chat_message("user"):
-                st.markdown(research_prompt)
-            with st.chat_message("assistant"):
-                with st.spinner("🔍 Conducting research and searching memory..."):
-                    try:
-                        response = st.session_state.research_agent.run(research_prompt)
-                        st.markdown(response.content)
-                        st.session_state.research_messages.append({"role": "assistant", "content": response.content})
-                    except Exception as e:
-                        error_message = f"Sorry, I encountered an error: {str(e)}"
-                        st.error(error_message)
-                        st.session_state.research_messages.append({"role": "assistant", "content": error_message})
-
-        # Research example prompts
-        if not st.session_state.research_messages:
-            st.markdown("### 🔬 Example Research Topics:")
-            col1, col2 = st.columns(2)
-
-            def set_research_chat_input(prompt):
-                st.session_state.research_chat_quick_input = prompt
-
-            with col1:
-                if st.button("🧠 Brain-Computer Interfaces"):
-                    set_research_chat_input("Research the latest developments in brain-computer interfaces")
-                if st.button("🔋 Solid-State Batteries"):
-                    set_research_chat_input("Analyze the current state of solid-state batteries")
-
-            with col2:
-                if st.button("🧬 CRISPR Gene Editing"):
-                    set_research_chat_input("Research recent breakthroughs in CRISPR gene editing")
-                if st.button("🚗 Autonomous Vehicles"):
-                    set_research_chat_input("Investigate the development of autonomous vehicles")
-
-            # If a quick action was selected, simulate chat input
-            if st.session_state.get("research_chat_quick_input"):
-                quick_prompt = st.session_state.pop("research_chat_quick_input")
-                st.session_state.research_messages.append({"role": "user", "content": quick_prompt})
-                with st.chat_message("user"):
-                    st.markdown(quick_prompt)
-                with st.chat_message("assistant"):
-                    with st.spinner("🔍 Conducting research and searching memory..."):
-                        try:
-                            response = st.session_state.research_agent.run(quick_prompt)
-                            st.markdown(response.content)
-                            st.session_state.research_messages.append({"role": "assistant", "content": response.content})
-                        except Exception as e:
-                            error_message = f"Sorry, I encountered an error: {str(e)}"
-                            st.error(error_message)
-                            st.session_state.research_messages.append({"role": "assistant", "content": error_message})
-
-    # Memory Chat Tab
-    elif tab_choice == "🧠 Memory Chat":
-        st.header("🧠 Research Memory Assistant")
-        st.markdown(
-            "*Ask me about your previous research sessions and I'll help you recall everything!*"
-        )
-
-        # Display memory chat messages
-        for message in st.session_state.memory_messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        # Memory chat input
-        if memory_prompt := st.chat_input("What would you like to know about your research history?"):
-            st.session_state.memory_messages.append({"role": "user", "content": memory_prompt})
-            with st.chat_message("user"):
-                st.markdown(memory_prompt)
-            with st.chat_message("assistant"):
-                with st.spinner("🧠 Searching through your research history..."):
-                    try:
-                        response = st.session_state.memory_agent.run(memory_prompt)
-                        st.markdown(response.content)
-                        st.session_state.memory_messages.append({"role": "assistant", "content": response.content})
-                    except Exception as e:
-                        error_message = f"Sorry, I encountered an error: {str(e)}"
-                        st.error(error_message)
-                        st.session_state.memory_messages.append({"role": "assistant", "content": error_message})
-
-        # Memory example prompts
-        if not st.session_state.memory_messages:
-            st.markdown("### 🧠 Example Memory Queries:")
-            col1, col2 = st.columns(2)
-
-
-            def set_memory_chat_input(prompt):
-                st.session_state.memory_chat_quick_input = prompt
-
-            with col1:
-                if st.button("📋 What were my last research topics?"):
-                    set_memory_chat_input("What were my last research topics?")
-                if st.button("🔍 Show my research on AI"):
-                    set_memory_chat_input("Show me all my previous research related to artificial intelligence")
-
-            with col2:
-                if st.button("📊 Summarize my research history"):
-                    set_memory_chat_input("Can you summarize my research history and main findings?")
-                if st.button("🧬 Find my biotech research"):
-                    set_memory_chat_input("Find all my research related to biotechnology and gene editing")
-
-            # If a quick action was selected, simulate chat input
-            if st.session_state.get("memory_chat_quick_input"):
-                quick_prompt = st.session_state.pop("memory_chat_quick_input")
-                st.session_state.memory_messages.append({"role": "user", "content": quick_prompt})
-                with st.chat_message("user"):
-                    st.markdown(quick_prompt)
-                with st.chat_message("assistant"):
-                    with st.spinner("🧠 Searching through your research history..."):
-                        try:
-                            response = st.session_state.memory_agent.run(quick_prompt)
-                            st.markdown(response.content)
-                            st.session_state.memory_messages.append({"role": "assistant", "content": response.content})
-                        except Exception as e:
-                            error_message = f"Sorry, I encountered an error: {str(e)}"
-                            st.error(error_message)
-                            st.session_state.memory_messages.append({"role": "assistant", "content": error_message})
+    # Handle quick research selections
+    if "quick_research" in st.session_state and st.session_state["quick_research"]:
+        quick_request = st.session_state.pop("quick_research")
+        
+        with st.spinner("� Conducting quick research..."):
+            try:
+                result = st.session_state["research_agent"].conduct_research(quick_request)
+                st.success("🎉 Quick research completed!")
+                st.markdown("---")
+                st.markdown("### Research Results:")
+                st.markdown(result)
+            except Exception as e:
+                st.error(f"❌ Error in quick research: {str(e)}")
 
 
 if __name__ == "__main__":
-    # Check for required environment variables
-    if not os.getenv("OPENAI_API_KEY"):
-        st.error("Please set your OPENAI_API_KEY environment variable")
-        st.stop()
-    if not os.getenv("EXA_API_KEY"):
-        st.error("Please set your EXA_API_KEY environment variable")
-        st.stop()
     main()
+
