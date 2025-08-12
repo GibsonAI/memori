@@ -20,6 +20,8 @@ memori = Memori(
     namespace="researcher_agent",
 )
 
+memori.enable()
+
 # Create the Research Agent with Memori capabilities
 def create_research_agent():
     """Create a research agent with Memori memory capabilities and Exa search"""
