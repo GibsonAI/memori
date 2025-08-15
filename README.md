@@ -371,6 +371,7 @@ Memori works seamlessly with popular AI frameworks:
 | 👥 [CrewAI](./examples/integrations/crewai_example.py) | Multi-agent system with shared memory across agent interactions | Collaborative agents with memory | Agent coordination, shared memory, task-based workflows |
 | 🌊 [Digital Ocean AI](./digital_ocean_example.py) | Memory-enhanced customer support using Digital Ocean's AI platform | Customer support assistant with conversation history | Context injection, session continuity, support analytics |
 | 🔗 [LangChain](./examples/integrations/langchain_example.py) | Enterprise-grade agent framework with advanced memory integration | AI assistant with LangChain tools and memory | Custom tools, agent executors, memory persistence, error handling |
+| 🚀 [Swarms](./examples/integrations/swarms_example.py) | Multi-agent system framework with persistent memory capabilities | Memory-enhanced Swarms agents with auto/conscious ingestion | Agent memory persistence, multi-agent coordination, contextual awareness |
 
 ## Interactive Demos
 
