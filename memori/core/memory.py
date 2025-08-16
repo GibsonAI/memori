@@ -4,6 +4,7 @@ Main Memori class - Pydantic-based memory interface v1.0
 
 import asyncio
 import uuid
+import threading
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -89,6 +90,8 @@ class Memori:
         self.search_engine = None
         self.conscious_agent = None
         self._background_task = None
+        self._background_thread = None
+        self._thread_lock = threading.Lock()
 
         if conscious_ingest or auto_ingest:
             try:
@@ -168,15 +171,50 @@ class Memori:
                 "Conscious-ingest: Starting conscious agent analysis at startup"
             )
 
-            # Run conscious agent analysis in background
-            if self._background_task is None or self._background_task.done():
-                self._background_task = asyncio.create_task(
-                    self._run_conscious_initialization()
-                )
-                logger.debug("Conscious-ingest: Background initialization task started")
+            # Check if we're in an async context
+            try:
+                loop = asyncio.get_running_loop()
+                # If a loop is running, create the task on it
+                if self._background_task is None or self._background_task.done():
+                    self._background_task = loop.create_task(self._run_conscious_initialization())
+                    logger.debug("Conscious-ingest: Background initialization task started on existing event loop")
+            except RuntimeError:
+                # No event loop running, start a new thread with its own loop
+                logger.info("No running event loop found. Starting conscious agent in a new thread.")
+                with self._thread_lock:
+                    if self._background_thread is None or not self._background_thread.is_alive():
+                        self._background_thread = threading.Thread(
+                            target=self._run_conscious_agent_in_thread, 
+                            daemon=True,
+                            name=f"memori-conscious-{self.namespace}"
+                        )
+                        self._background_thread.start()
+                        logger.info("Conscious-ingest: Background thread started")
 
         except Exception as e:
             logger.error(f"Failed to initialize conscious memory: {e}")
+
+    def _run_conscious_agent_in_thread(self):
+        """Runs the conscious agent initialization in a dedicated thread with its own event loop."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Add timeout to prevent hanging
+            loop.run_until_complete(
+                asyncio.wait_for(self._run_conscious_initialization(), timeout=300.0)
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Conscious agent initialization timed out after 5 minutes")
+        except asyncio.CancelledError:
+            logger.info("Conscious agent initialization in background thread cancelled.")
+        except Exception as e:
+            logger.error(f"Error in conscious agent background thread: {e}")
+        finally:
+            try:
+                loop.close()
+                logger.debug("Conscious agent background thread loop closed.")
+            except Exception as e:
+                logger.debug(f"Error closing event loop: {e}")
 
     async def _run_conscious_initialization(self):
         """Run conscious agent initialization in background"""
