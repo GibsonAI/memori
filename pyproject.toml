@@ -29,20 +29,23 @@ classifiers = [
 ]
 
 dependencies = [
-    "loguru>=0.6.0",
-    "pydantic>=2.0.0",
+    "loguru>=0.7.0",
+    "pydantic>=2.11.0",
     "python-dotenv>=1.0.0",
-    "click>=8.0.0",
+    "click>=8.1.0",
     "openai>=1.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "black>=23.0",
-    "ruff>=0.1.0",
-    "isort>=5.9.0",
-    "mypy>=1.0",
-    "pre-commit>=2.15",
+    "black>=24.0.0",
+    "ruff>=0.12.0",
+    "isort>=5.13.0",
+    "mypy>=1.17.0",
+    "bandit>=1.8.0",
+    "safety>=3.0.0",
+    "pip-audit>=2.7.0",
+    "pre-commit>=4.0.0",
     "types-PyYAML>=6.0.0",
 ]
 docs = [
@@ -56,23 +59,26 @@ postgres = ["psycopg2-binary>=2.9.0"]
 mysql = ["PyMySQL>=1.0.0"]
 integrations = [
     "litellm>=1.0.0",
-    "anthropic>=0.3.0",
+    "anthropic>=0.40.0",
 ]
 all = [
-    "black>=23.0",
-    "ruff>=0.1.0",
-    "isort>=5.9.0",
-    "mypy>=1.0",
-    "pre-commit>=2.15",
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
-    "mkdocs-git-revision-date-localized-plugin>=1.2.0",
-    "mkdocs-minify-plugin>=0.7.0",
+    "black>=24.0.0",
+    "ruff>=0.12.0",
+    "isort>=5.13.0",
+    "mypy>=1.17.0",
+    "bandit>=1.8.0",
+    "safety>=3.0.0",
+    "pip-audit>=2.7.0",
+    "pre-commit>=4.0.0",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocs-git-revision-date-localized-plugin>=1.3.0",
+    "mkdocs-minify-plugin>=0.8.0",
     "mkdocs-redirects>=1.2.0",
     "psycopg2-binary>=2.9.0",
-    "PyMySQL>=1.0.0",
+    "PyMySQL>=1.1.0",
     "litellm>=1.0.0",
-    "anthropic>=0.3.0",
+    "anthropic>=0.40.0",
 ]
 
 [project.urls]

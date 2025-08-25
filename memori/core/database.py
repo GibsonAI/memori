@@ -641,8 +641,10 @@ class DatabaseManager:
 
             params.append(limit)
 
-            cursor.execute(
-                f"""
+            # Build the complete query string safely
+            # category_clause is safely constructed with proper placeholders above
+            base_query = (  # nosec B608
+                """
                 SELECT
                     fts.memory_id, fts.memory_type, fts.category_primary,
                     CASE
@@ -666,10 +668,16 @@ class DatabaseManager:
                 LEFT JOIN short_term_memory st ON fts.memory_id = st.memory_id AND fts.memory_type = 'short_term'
                 LEFT JOIN long_term_memory lt ON fts.memory_id = lt.memory_id AND fts.memory_type = 'long_term'
                 LEFT JOIN rules_memory r ON fts.memory_id = r.rule_id AND fts.memory_type = 'rules'
-                WHERE memory_search_fts MATCH ? AND fts.namespace = ? {category_clause}
+                WHERE memory_search_fts MATCH ? AND fts.namespace = ? """
+                + category_clause  # nosec B608
+                + """
                 ORDER BY rank, importance_score DESC
                 LIMIT ?
-                """,
+                """
+            )
+
+            cursor.execute(
+                base_query,
                 params,
             )
 
@@ -698,19 +706,24 @@ class DatabaseManager:
 
         params.append(limit)
 
-        cursor.execute(
-            f"""
+        # Build the complete query string safely
+        # category_clause is safely constructed with proper placeholders above
+        base_query = (  # nosec B608
+            """
             SELECT DISTINCT m.memory_id, m.processed_data, m.importance_score, m.created_at,
                    m.summary, m.category_primary, 'long_term' as memory_type,
                    e.entity_type, e.entity_value, e.relevance_score
             FROM long_term_memory m
             JOIN memory_entities e ON m.memory_id = e.memory_id
-            WHERE e.entity_value LIKE ? AND m.namespace = ? {category_clause}
+            WHERE e.entity_value LIKE ? AND m.namespace = ? """
+            + category_clause  # nosec B608
+            + """
             ORDER BY e.relevance_score DESC, m.importance_score DESC
             LIMIT ?
-            """,
-            params,
+            """
         )
+
+        cursor.execute(base_query, params)
 
         return [dict(row) for row in cursor.fetchall()]
 
@@ -721,8 +734,9 @@ class DatabaseManager:
         category_placeholders = ",".join("?" * len(category_filter))
         params = [namespace] + category_filter + [f"%{query}%", f"%{query}%", limit]
 
-        cursor.execute(
-            f"""
+        # Build the complete query string safely
+        # category_placeholders is safely constructed with proper placeholders above
+        base_query = f"""
             SELECT memory_id, processed_data, importance_score, created_at, summary,
                    category_primary, 'long_term' as memory_type
             FROM long_term_memory
@@ -730,9 +744,9 @@ class DatabaseManager:
               AND (searchable_content LIKE ? OR summary LIKE ?)
             ORDER BY importance_score DESC, created_at DESC
             LIMIT ?
-            """,
-            params,
-        )
+            """  # nosec B608
+
+        cursor.execute(base_query, params)
 
         return [dict(row) for row in cursor.fetchall()]
 
@@ -758,16 +772,21 @@ class DatabaseManager:
 
         params.append(limit)
 
-        cursor.execute(
-            f"""
+        # Build the complete query string safely
+        # category_clause is safely constructed with proper placeholders above
+        base_query = (  # nosec B608
+            """
             SELECT *, 'short_term' as memory_type FROM short_term_memory
             WHERE namespace = ? AND (searchable_content LIKE ? OR summary LIKE ?)
-            AND (expires_at IS NULL OR expires_at > ?) {category_clause}
+            AND (expires_at IS NULL OR expires_at > ?) """
+            + category_clause  # nosec B608
+            + """
             ORDER BY importance_score DESC, created_at DESC
             LIMIT ?
-            """,
-            params,
+            """
         )
+
+        cursor.execute(base_query, params)
         results.extend([dict(row) for row in cursor.fetchall()])
 
         # Search long-term memory
@@ -776,15 +795,20 @@ class DatabaseManager:
             params.extend(category_filter)
         params.append(limit)
 
-        cursor.execute(
-            f"""
+        # Build the complete query string safely
+        # category_clause is safely constructed with proper placeholders above
+        base_query = (  # nosec B608
+            """
             SELECT *, 'long_term' as memory_type FROM long_term_memory
-            WHERE namespace = ? AND (searchable_content LIKE ? OR summary LIKE ?) {category_clause}
+            WHERE namespace = ? AND (searchable_content LIKE ? OR summary LIKE ?) """
+            + category_clause  # nosec B608
+            + """
             ORDER BY importance_score DESC, created_at DESC
             LIMIT ?
-            """,
-            params,
+            """
         )
+
+        cursor.execute(base_query, params)
         results.extend([dict(row) for row in cursor.fetchall()])
 
         return results

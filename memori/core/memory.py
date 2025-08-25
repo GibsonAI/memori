@@ -895,9 +895,12 @@ class Memori:
 
                     start_time_str = str(start_time)
                     end_time_str = str(end_time)
-            except Exception:
-                # If timing calculation fails, just skip it
-                pass
+            except Exception as e:
+                # If timing calculation fails, log and continue without timing data
+                logger.debug(f"Failed to calculate timing information: {e}")
+                duration_ms = None
+                start_time_str = None
+                end_time_str = None
 
             self.record_conversation(
                 user_input,
