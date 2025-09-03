@@ -17,10 +17,11 @@ Run: `pip install memorisdk agno` to install dependencies
 """
 
 from textwrap import dedent
-from dotenv import load_dotenv
+
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.tools.memori import MemoriTools
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()

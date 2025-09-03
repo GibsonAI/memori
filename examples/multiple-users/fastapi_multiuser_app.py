@@ -15,11 +15,12 @@ Then visit:
 
 from datetime import datetime
 from typing import Dict, List
-from pydantic import BaseModel
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
-from dotenv import load_dotenv
 from litellm import completion
+from pydantic import BaseModel
 
 from memori import Memori
 
