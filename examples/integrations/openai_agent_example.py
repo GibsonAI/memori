@@ -36,6 +36,11 @@ memory_system = Memori(
     conscious_ingest=True,
     verbose=False,
     namespace="openai_agent_example",
+    # api_type="custom",        # When using a third-party OpenAI-compatible interface, the parameters that need to be passed
+    # base_url=BASE_URL,
+    # api_key=API_KEY,
+    # openai_api_key=API_KEY,
+    # model=MODEL_NAME,
 )
 
 # Enable the memory system
