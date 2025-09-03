@@ -1,9 +1,15 @@
-name: Auto Format Code
+name: Code Formatting
 
 on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Target branch for formatting'
+        required: false
+        default: 'main'
 
 permissions:
   contents: write
@@ -44,31 +50,31 @@ jobs:
 
       - name: Run Black formatter
         run: |
-          echo "🎨 Running Black formatter..."
+          echo "Running Black formatter..."
           black memori/ tests/ examples/ scripts/ --line-length 88 --target-version py38
-          echo "✅ Black formatting complete"
+          echo "Black formatting complete"
 
       - name: Run isort
         run: |
-          echo "📦 Running isort for import sorting..."
+          echo "Running isort for import sorting..."
           isort memori/ tests/ examples/ scripts/ --profile black
-          echo "✅ Import sorting complete"
+          echo "Import sorting complete"
 
       - name: Run Ruff auto-fixes
         run: |
-          echo "🔧 Running Ruff auto-fixes..."
+          echo "Running Ruff auto-fixes..."
           ruff check memori/ tests/ examples/ scripts/ --fix --exit-zero
-          echo "✅ Ruff auto-fixes complete"
+          echo "Ruff auto-fixes complete"
 
       - name: Check for changes
         id: changes
         run: |
           if [[ -n $(git status --porcelain) ]]; then
             echo "changes=true" >> $GITHUB_OUTPUT
-            echo "📝 Code formatting changes detected"
+            echo "Code formatting changes detected"
           else
             echo "changes=false" >> $GITHUB_OUTPUT
-            echo "✨ No formatting changes needed"
+            echo "No formatting changes needed"
           fi
 
       - name: Commit and push changes
@@ -77,7 +83,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add -A
-          git commit -m "🎨 Auto-format code with Black, isort, and Ruff
+          git commit -m "Auto-format code with Black, isort, and Ruff
 
           - Applied Black formatting (line-length: 88)
           - Sorted imports with isort (black profile)
@@ -95,14 +101,14 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 🎨 Auto-Formatting Applied
+              body: `## Auto-Formatting Applied
 
               Your code has been automatically formatted with:
               - **Black** (line-length: 88)
               - **isort** (import sorting)
               - **Ruff** (auto-fixes)
 
-              The changes have been committed to this PR. Please review and continue with your development! ✨`
+              The changes have been committed to this PR. Please review and continue with your development!`
             });
 
       - name: Add success comment
@@ -114,12 +120,12 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## ✅ Code Formatting Check
+              body: `## Code Formatting Check
 
               Great job! Your code is already properly formatted according to our standards:
-              - Black formatting ✅
-              - Import sorting ✅  
-              - Ruff checks ✅
+              - Black formatting
+              - Import sorting  
+              - Ruff checks
 
-              No changes needed! 🎉`
+              No changes needed!`
             });
