@@ -13,6 +13,13 @@ on:
       - 'demos/**'
       - '*.md'
       - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Enable debug mode'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -54,34 +61,38 @@ jobs:
 
       - name: Check Black formatting
         run: |
-          echo "🎨 Checking Black formatting..."
+          echo "Checking Black formatting..."
           black --check --diff memori/ tests/ examples/ scripts/ --line-length 88
 
       - name: Check import sorting
         run: |
-          echo "📦 Checking import sorting..."
+          echo "Checking import sorting..."
           isort --check-only --diff memori/ tests/ examples/ scripts/ --profile black
 
       - name: Lint with Ruff
         run: |
-          echo "🔍 Running Ruff linter..."
+          echo "Running Ruff linter..."
           ruff check memori/ tests/ examples/ scripts/ --output-format=github
 
       - name: Type check with mypy
         run: |
-          echo "🏷️ Running mypy type checking..."
+          echo "Running mypy type checking..."
           mypy memori/ --ignore-missing-imports --show-error-codes
 
       - name: Security check with Bandit
         run: |
-          echo "🔒 Running Bandit security check..."
-          bandit -r memori/ -f json -o bandit-report.json || true
+          echo "Running Bandit security check..."
+          # Generate report (continue on error for report)
+          bandit -r memori/ -f json -o bandit-report.json || echo "Bandit report generation completed with warnings"
+          # Fail on medium+ severity issues
           bandit -r memori/ --severity-level medium
 
       - name: Dependency security check
         run: |
-          echo "🛡️ Checking dependencies for known vulnerabilities..."
-          safety check --json --output safety-report.json || true
+          echo "Checking dependencies for known vulnerabilities..."
+          # Generate report (continue on error for report)
+          safety check --json --output safety-report.json || echo "Safety report generation completed with warnings"
+          # Fail on actual vulnerabilities
           safety check
 
       - name: Upload security reports
@@ -134,77 +145,22 @@ jobs:
           pip install -r requirements.txt
           pip install -e ".[dev]"
 
-      - name: Test with pytest
+      - name: Skip tests (not implemented yet)
         run: |
-          echo "🧪 Test suite temporarily disabled - no tests available yet..."
-          echo "Creating minimal coverage report for CI compatibility..."
-          mkdir -p htmlcov
-          echo "No tests available yet" > htmlcov/index.html
-          echo "<?xml version='1.0' encoding='UTF-8'?><coverage version='6.0'><sources><source>memori</source></sources><packages/></coverage>" > coverage.xml
-          echo "<?xml version='1.0' encoding='utf-8'?><testsuites><testsuite name='pytest' tests='0' failures='0' errors='0' time='0'/></testsuites>" > pytest-results.xml
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: |
-            pytest-results.xml
-            htmlcov/
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: memori-coverage
-          fail_ci_if_error: false
+          echo "Test suite will be added in future versions..."
+          echo "Skipping test execution for now..."
 
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'push' || github.event.pull_request.base.ref == 'main'
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: testpass
-          POSTGRES_USER: testuser
-          POSTGRES_DB: memori_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
+      - name: Skip integration tests (not implemented yet)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install psycopg2-binary
-          pip install -e ".[dev]"
-
-      - name: Run integration tests
-        env:
-          MEMORI_DATABASE__CONNECTION_STRING: "postgresql://testuser:testpass@localhost:5432/memori_test"
-          OPENAI_API_KEY: "test-key-integration"
-        run: |
-          echo "🔗 Integration tests temporarily disabled - no tests available yet..."
-          echo "Skipping integration tests - will be added in future versions..."
+          echo "Integration tests will be added in future versions..."
+          echo "Skipping integration test execution for now..."
 
   build-package:
     name: Build Package
@@ -228,12 +184,12 @@ jobs:
 
       - name: Build package
         run: |
-          echo "📦 Building package..."
+          echo "Building package..."
           python -m build
 
       - name: Check package
         run: |
-          echo "🔍 Checking package..."
+          echo "Checking package..."
           twine check dist/*
 
       - name: Upload package artifacts
@@ -249,32 +205,10 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
+      - name: Skip performance tests (not implemented yet)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest-benchmark
-          pip install -e ".[dev]"
-
-      - name: Run performance tests
-        run: |
-          echo "⚡ Performance tests temporarily disabled - no tests available yet..."
-          echo "Creating minimal benchmark report for CI compatibility..."
-          echo '{"benchmarks": [], "commit": {"id": "test", "time": "'$(date -Iseconds)'"}}' > benchmark.json
-
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
-        with:
-          name: performance-results
-          path: benchmark.json
+          echo "Performance tests will be added in future versions..."
+          echo "Skipping performance test execution for now..."
 
   summary:
     name: CI Summary
@@ -285,20 +219,20 @@ jobs:
     steps:
       - name: Check workflow status
         run: |
-          echo "## 📊 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Quality | ${{ needs.quality-checks.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Tests | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Integration | ${{ needs.integration-tests.result == 'success' && '✅ Passed' || (needs.integration-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Package Build | ${{ needs.build-package.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Quality | ${{ needs.quality-checks.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests | ${{ needs.test.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration | ${{ needs.integration-tests.result == 'success' && 'Passed' || (needs.integration-tests.result == 'skipped' && 'Skipped' || 'Failed') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Package Build | ${{ needs.build-package.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [[ "${{ needs.quality-checks.result }}" == "success" && "${{ needs.test.result }}" == "success" && "${{ needs.build-package.result }}" == "success" ]]; then
-            echo "🎉 **All checks passed!** Ready for merge." >> $GITHUB_STEP_SUMMARY
+            echo "**All checks passed!** Ready for merge." >> $GITHUB_STEP_SUMMARY
             exit 0
           else
-            echo "❌ **Some checks failed.** Please review the logs above." >> $GITHUB_STEP_SUMMARY
+            echo "**Some checks failed.** Please review the logs above." >> $GITHUB_STEP_SUMMARY
             exit 1
           fi

@@ -27,7 +27,7 @@ When a Pull Request is opened with changes to files in the `examples/` directory
 - **Complete Coverage**: Overview, code, explanations, setup, use cases
 - **Framework-Specific**: Tailored content for each integration
 
-### 🔧 Automatic Integration
+### Automatic Integration
 - **Navigation Updates**: Adds new docs to mkdocs.yml automatically  
 - **PR Integration**: Works seamlessly with GitHub PR workflow
 - **Quality Assurance**: Follows established architectural DNA
@@ -177,7 +177,7 @@ I've automatically generated documentation for the new/updated example files...
 - Updated mkdocs.yml navigation with new integration examples  
 - Maintained architectural DNA across all integration docs
 
-🔧 Generated with Claude AI Code-Reciprocator Agent
+Generated with Claude AI Code-Reciprocator Agent
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```

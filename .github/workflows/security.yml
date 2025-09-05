@@ -1,0 +1,475 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan'
+        required: false
+        type: choice
+        default: 'full'
+        options:
+          - 'full'
+          - 'dependencies-only'
+          - 'code-only'
+
+# Define default permissions - FIXED: Added pull-requests write permission
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  security-events: write
+  actions: read
+
+env:
+  CACHE_VERSION: v1
+  SCAN_DIR: memori  # Configurable directory for scans
+
+jobs:
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == 'dependencies-only'
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-security-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+
+      - name: Check for requirements.txt
+        id: check-requirements
+        run: |
+          if [ -f requirements.txt ]; then
+            echo "result=found" >> $GITHUB_OUTPUT
+          else
+            echo "result=missing" >> $GITHUB_OUTPUT
+            echo "requirements.txt not found, skipping dependency installation"
+          fi
+
+      - name: Install dependencies
+        if: steps.check-requirements.outputs.result == 'found'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install safety pip-audit
+          pip install -e ".[dev]"
+
+      - name: Run Safety check
+        if: steps.check-requirements.outputs.result == 'found'
+        run: |
+          echo "Running Safety dependency scan..."
+          safety check --json --output safety-report.json --continue-on-error || true
+          safety check --short-report
+
+      - name: Run pip-audit
+        if: steps.check-requirements.outputs.result == 'found'
+        run: |
+          echo "Running pip-audit scan..."
+          pip-audit --format=json --output=pip-audit-report.json --progress-spinner=off || true
+          pip-audit --format=cyclonedx --output=sbom.json || true
+          pip-audit
+
+      - name: Create empty artifact files if scans skipped
+        if: steps.check-requirements.outputs.result == 'missing'
+        run: |
+          echo "No dependency scans performed due to missing requirements.txt" > safety-report.json
+          echo "No dependency scans performed due to missing requirements.txt" > pip-audit-report.json
+          echo "No dependency scans performed due to missing requirements.txt" > sbom.json
+
+      - name: Upload dependency scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-scan-results
+          path: |
+            safety-report.json
+            pip-audit-report.json
+            sbom.json
+          if-no-files-found: warn
+
+  code-security-scan:
+    name: Code Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == 'code-only'
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit[toml] semgrep
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Check for scan directory
+        id: check-scan-dir
+        run: |
+          if [ -d "${{ env.SCAN_DIR }}" ]; then
+            echo "result=found" >> $GITHUB_OUTPUT
+          else
+            echo "result=missing" >> $GITHUB_OUTPUT
+            echo "Directory ${{ env.SCAN_DIR }} not found, skipping code scans"
+          fi
+
+      - name: Run Bandit security linter
+        if: steps.check-scan-dir.outputs.result == 'found'
+        run: |
+          echo "Running Bandit security scan..."
+          bandit -r ${{ env.SCAN_DIR }}/ \
+            -f json \
+            -o bandit-report.json \
+            --severity-level medium \
+            --confidence-level medium \
+            --exclude tests/ || true
+          bandit -r ${{ env.SCAN_DIR }}/ \
+            --severity-level medium \
+            --confidence-level medium \
+            --exclude tests/
+
+      - name: Run Semgrep security scan
+        if: steps.check-scan-dir.outputs.result == 'found'
+        run: |
+          echo "Running Semgrep security scan..."
+          semgrep --config=auto ${{ env.SCAN_DIR }}/ \
+            --json \
+            --output=semgrep-report.json \
+            --severity=WARNING \
+            --severity=ERROR || true
+          semgrep --config=auto ${{ env.SCAN_DIR }}/ \
+            --severity=WARNING \
+            --severity=ERROR
+
+      - name: Create empty artifact files if scans skipped
+        if: steps.check-scan-dir.outputs.result == 'missing'
+        run: |
+          echo "No code scans performed due to missing directory ${{ env.SCAN_DIR }}" > bandit-report.json
+          echo "No code scans performed due to missing directory ${{ env.SCAN_DIR }}" > semgrep-report.json
+
+      - name: Upload code scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-security-scan-results
+          path: |
+            bandit-report.json
+            semgrep-report.json
+          if-no-files-found: warn
+
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog secrets scan
+        uses: trufflesecurity/trufflehog@v3.81.9
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+            pip install -e ".[dev]"
+          fi
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for Dockerfile
+        id: check-dockerfile
+        run: |
+          if [ -f Dockerfile ]; then
+            echo "result=found" >> $GITHUB_OUTPUT
+          else
+            echo "result=missing" >> $GITHUB_OUTPUT
+            echo "Dockerfile not found, skipping container scan"
+          fi
+
+      - name: Build Docker image
+        if: steps.check-dockerfile.outputs.result == 'found'
+        run: |
+          echo "Building Docker image for security scan..."
+          docker build -t memori:security-scan .
+
+      - name: Run Trivy vulnerability scanner
+        if: steps.check-dockerfile.outputs.result == 'found'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'memori:security-scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        if: always() && steps.check-dockerfile.outputs.result == 'found'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  security-scorecard:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      security-events: write
+      id-token: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code-scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, code-security-scan, secrets-scan]
+    if: always()
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      pull-requests: write  # FIXED: Added explicit PR write permission
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify permissions
+        id: check-permissions
+        run: |
+          echo "Checking GitHub token permissions..."
+          echo "Event: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "can_comment=true" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ github.event.number }}" >> $GITHUB_OUTPUT
+          else
+            echo "can_comment=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download dependency scan results
+        if: needs.dependency-scan.result == 'success' || needs.dependency-scan.result == 'failure'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: dependency-scan-results
+          path: dependency-scan-results
+
+      - name: Download code scan results
+        if: needs.code-security-scan.result == 'success' || needs.code-security-scan.result == 'failure'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: code-security-scan-results
+          path: code-security-scan-results
+
+      - name: Generate security summary
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan Type | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Scan | ${{ needs.dependency-scan.result == 'skipped' && 'Skipped' || (needs.dependency-scan.result == 'success' && 'Passed' || 'Failed') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Security | ${{ needs.code-security-scan.result == 'skipped' && 'Skipped' || (needs.code-security-scan.result == 'success' && 'Passed' || 'Failed') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets Scan | ${{ needs.secrets-scan.result == 'skipped' && 'Skipped' || (needs.secrets-scan.result == 'success' && 'Passed' || 'Failed') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.dependency-scan.result }}" == "success" && "${{ needs.code-security-scan.result }}" == "success" && "${{ needs.secrets-scan.result }}" == "success" ]]; then
+            echo "**All security scans passed!**" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.dependency-scan.result }}" == "skipped" && "${{ needs.code-security-scan.result }}" == "skipped" && "${{ needs.secrets-scan.result }}" == "skipped" ]]; then
+            echo "**All security scans were skipped.** Please check workflow conditions." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Some security scans failed, were skipped, or found issues.** Please review the detailed reports." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Scan Details" >> $GITHUB_STEP_SUMMARY
+          if [ -d "dependency-scan-results" ]; then
+            echo "- **Dependency vulnerabilities**: Check Safety and pip-audit reports in dependency-scan-results" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Dependency vulnerabilities**: No reports available (scan skipped or failed)" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -d "code-security-scan-results" ]; then
+            echo "- **Code security issues**: Check Bandit and Semgrep reports in code-security-scan-results" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Code security issues**: No reports available (scan skipped or failed)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Exposed secrets**: Check TruffleHog results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Download artifacts** to view detailed reports (if available)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR (with error handling)
+        if: steps.check-permissions.outputs.can_comment == 'true'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              const needs = ${{ toJson(needs) }};
+              let status = 'All security scans passed!';
+              let icon = 'Summary';
+              
+              if (needs['dependency-scan'].result !== 'success' || 
+                  needs['code-security-scan'].result !== 'success' || 
+                  needs['secrets-scan'].result !== 'success') {
+                status = 'Some security scans failed, were skipped, or found issues.';
+                icon = 'Warning';
+              }
+              
+              const body = `## ${icon} Security Scan Results
+              
+              ${status}
+              
+              | Scan Type | Status |
+              |-----------|---------|
+              | Dependency Scan | ${needs['dependency-scan'].result === 'skipped' ? '⏭️ Skipped' : (needs['dependency-scan'].result === 'success' ? '✅ Passed' : '❌ Failed')} |
+              | Code Security | ${needs['code-security-scan'].result === 'skipped' ? '⏭️ Skipped' : (needs['code-security-scan'].result === 'success' ? '✅ Passed' : '❌ Failed')} |
+              | Secrets Scan | ${needs['secrets-scan'].result === 'skipped' ? '⏭️ Skipped' : (needs['secrets-scan'].result === 'success' ? '✅ Passed' : '❌ Failed')} |
+              
+              View detailed reports in the workflow artifacts (if available).
+              
+              <details>
+              <summary>🔧 Workflow Information</summary>
+              
+              - **Workflow Run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+              - **Triggered by**: ${{ github.event_name }}
+              - **Branch**: ${{ github.head_ref || github.ref_name }}
+              - **Commit**: ${{ github.sha }}
+              </details>`;
+              
+              console.log('Attempting to create PR comment...');
+              
+              await github.rest.issues.createComment({
+                issue_number: ${{ steps.check-permissions.outputs.pr_number }},
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+              
+              console.log('PR comment created successfully!');
+              
+            } catch (error) {
+              console.error('Failed to create PR comment:', error.message);
+              console.error('Error details:', error);
+              
+              // Log error details for debugging
+              core.warning(`Failed to comment on PR: ${error.message}`);
+              
+              // Continue workflow execution despite comment failure
+              return;
+            }
+
+      - name: Fallback notification
+        if: failure() && steps.check-permissions.outputs.can_comment == 'true'
+        run: |
+          echo "PR comment failed, but security scans completed."
+          echo "Check the workflow summary and artifacts for detailed results."
+          echo "::warning::Security scan results are available in artifacts, but PR commenting failed due to permissions."

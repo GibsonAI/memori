@@ -64,11 +64,18 @@ nav:
     - Quick Start: getting-started/quick-start.md
     - Installation: getting-started/installation.md
     - Basic Usage: getting-started/basic-usage.md
-  - Features: features.md
-  - Architecture: architecture.md
+  - Open Source:
+    - Features: open-source/features.md
+    - Architecture: open-source/architecture.md
+    - Databases:
+      - Overview: open-source/databases/overview.md
+    - LLMs:
+      - Overview: open-source/llms/overview.md
+      - Configurations: open-source/llms/configurations.md
   - Configuration:
     - Settings: configuration/settings.md
     - Database Setup: configuration/database.md
+    - Providers: configuration/providers.md
   - Core Concepts:
     - Overview: core-concepts/overview.md
     - Agents: core-concepts/agents.md

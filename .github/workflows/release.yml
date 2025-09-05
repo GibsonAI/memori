@@ -58,22 +58,22 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
-            echo "❌ Invalid version format: $VERSION"
+            echo "Invalid version format: $VERSION"
             echo "Expected format: v1.0.0 or v1.0.0-alpha"
             exit 1
           fi
-          echo "✅ Version format valid: $VERSION"
+          echo "Version format valid: $VERSION"
 
       - name: Check if version exists
         id: validation
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           if git tag -l | grep -q "^${VERSION}$" && [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "❌ Version $VERSION already exists"
+            echo "Version $VERSION already exists"
             echo "should_publish=false" >> $GITHUB_OUTPUT
             exit 1
           else
-            echo "✅ Version $VERSION is new"
+            echo "Version $VERSION is new"
             echo "should_publish=true" >> $GITHUB_OUTPUT
           fi
 
@@ -107,30 +107,30 @@ jobs:
 
       - name: Run quality checks
         run: |
-          echo "🔍 Running final quality checks..."
+          echo "Running final quality checks..."
           python -m black --check memori/ tests/
           python -m ruff check memori/ tests/
           python -m mypy memori/ --ignore-missing-imports --show-error-codes
 
       - name: Run tests
         run: |
-          echo "🧪 Test suite temporarily disabled - no tests available yet..."
+          echo "Test suite temporarily disabled - no tests available yet..."
           echo "Skipping tests for release - will be added in future versions..."
 
       - name: Build package
         run: |
-          echo "📦 Building distribution packages..."
+          echo "Building distribution packages..."
           python -m build
 
       - name: Verify package
         run: |
-          echo "🔍 Verifying package integrity..."
+          echo "Verifying package integrity..."
           python -m twine check dist/*
           
           # Test installation
-          echo "🧪 Testing package installation..."
+          echo "Testing package installation..."
           pip install dist/*.whl
-          python -c "import memori; print(f'✅ Package import successful: {memori.__version__}')"
+          python -c "import memori; print(f'Package import successful: {memori.__version__}')"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -166,10 +166,10 @@ jobs:
 
       - name: Test TestPyPI installation
         run: |
-          echo "🧪 Testing installation from TestPyPI..."
+          echo "Testing installation from TestPyPI..."
           sleep 60  # Wait for package to be available
           pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ memorisdk
-          python -c "import memori; print(f'✅ TestPyPI installation successful: {memori.__version__}')"
+          python -c "import memori; print(f'TestPyPI installation successful: {memori.__version__}')"
 
   publish-pypi:
     name: Publish to PyPI
@@ -200,10 +200,10 @@ jobs:
 
       - name: Test PyPI installation
         run: |
-          echo "🧪 Testing installation from PyPI..."
+          echo "Testing installation from PyPI..."
           sleep 60  # Wait for package to be available
           pip install memorisdk
-          python -c "import memori; print(f'✅ PyPI installation successful: {memori.__version__}')"
+          python -c "import memori; print(f'PyPI installation successful: {memori.__version__}')"
 
   create-github-release:
     name: Create GitHub Release
@@ -233,7 +233,7 @@ jobs:
           
           # Extract changelog section for this version
           if [[ -f CHANGELOG.md ]]; then
-            echo "📝 Extracting changelog for $VERSION..."
+            echo "Extracting changelog for $VERSION..."
             # This is a simple extraction - you might want to make it more robust
             RELEASE_NOTES=$(sed -n "/## \[${VERSION#v}\]/,/## \[/p" CHANGELOG.md | head -n -1)
             if [[ -z "$RELEASE_NOTES" ]]; then
@@ -305,13 +305,13 @@ jobs:
       - name: Notify success
         if: needs.publish-pypi.result == 'success' && needs.create-github-release.result == 'success'
         run: |
-          echo "🎉 Release ${{ needs.validate-release.outputs.version }} published successfully!"
-          echo "📦 PyPI: https://pypi.org/project/memorisdk/"
-          echo "🐙 GitHub: https://github.com/GibsonAI/memori/releases/tag/${{ needs.validate-release.outputs.version }}"
+          echo "Release ${{ needs.validate-release.outputs.version }} published successfully!"
+          echo "PyPI: https://pypi.org/project/memorisdk/"
+          echo "GitHub: https://github.com/GibsonAI/memori/releases/tag/${{ needs.validate-release.outputs.version }}"
 
       - name: Notify failure
         if: needs.publish-pypi.result == 'failure' || needs.create-github-release.result == 'failure'
         run: |
-          echo "❌ Release ${{ needs.validate-release.outputs.version }} failed!"
+          echo "Release ${{ needs.validate-release.outputs.version }} failed!"
           echo "Check the workflow logs for details."
           exit 1
