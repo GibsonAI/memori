@@ -107,7 +107,7 @@ class MemoryTool:
                         elif isinstance(result["processed_data"], str):
                             processed_data = json.loads(result["processed_data"])
                         else:
-                            raise "Error, wrong 'processed_data' format"
+                            raise ValueError("Error, wrong 'processed_data' format")
                             
                         summary = processed_data.get("summary", "")
                         category = processed_data.get("category", {}).get(
