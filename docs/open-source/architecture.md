@@ -4,65 +4,7 @@ Memori is built with a modular, production-ready architecture designed for relia
 
 ## System Architecture
 
-```mermaid
-graph TB
-    subgraph "Application Layer"
-        A[Your AI Application]
-        B[LLM Library<br/>LiteLLM/OpenAI/Anthropic/Azure]
-    end
-    
-    subgraph "Memori Core"
-        C[Memori Class]
-        D[Memory Manager]
-        E[Configuration Manager]
-        F[Provider Config]
-    end
-    
-    subgraph "Dual Memory System"
-        G[Conscious Mode<br/>One-shot Working Memory]
-        H[Auto Mode<br/>Dynamic Search]
-        I[Memory Tools<br/>Function Calling]
-    end
-    
-    subgraph "Agent System"
-        J[Memory Agent<br/>Pydantic Processing]
-        K[Conscious Agent<br/>Background Analysis]
-        L[Retrieval Agent<br/>Context Selection]
-    end
-    
-    subgraph "Storage Layer"
-        M[Database Manager]
-        N[Query Engine]
-        O[Schema Manager]
-    end
-    
-    subgraph "Database"
-        P[(SQLite/PostgreSQL/MySQL)]
-        Q[Full-Text Search]
-        R[Indexed Queries]
-    end
-    
-    A --> B
-    B --> C
-    C --> D
-    C --> E
-    C --> F
-    D --> G
-    D --> H
-    D --> I
-    G --> J
-    H --> L
-    I --> J
-    J --> K
-    K --> L
-    L --> M
-    M --> N
-    M --> O
-    N --> P
-    O --> P
-    P --> Q
-    P --> R
-```
+![Memori Architecture](../assets/memori-architecture-flow-chart.png)
 
 ## Core Components
 

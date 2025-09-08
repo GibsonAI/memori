@@ -58,84 +58,89 @@ graph TD
 ## Universal Integration
 
 ### Works with ANY LLM Library via LiteLLM
-=== "LiteLLM (Recommended)"
-    ```python
-    from litellm import completion
-    from memori import Memori
-    
-    memori = Memori(
-        conscious_ingest=True,
-        auto_ingest=True
-    )
-    memori.enable()
-    
-    # Automatic context injection with dual modes
-    response = completion(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": "Help me code"}]
-    )
-    ```
 
-=== "OpenAI Direct"
-    ```python
-    import openai
-    from memori import Memori
-    
-    memori = Memori(conscious_ingest=True)
-    memori.enable()
-    
-    client = openai.OpenAI()
-    # All conversations automatically recorded
-    response = client.chat.completions.create(...)
-    ```
+#### LiteLLM (Recommended)
 
-=== "Azure OpenAI"
-    ```python
-    from memori import Memori
-    from memori.core.providers import ProviderConfig
-    
-    azure_provider = ProviderConfig.from_azure(
-        api_key="your-azure-key",
-        azure_endpoint="https://your-resource.openai.azure.com/",
-        azure_deployment="gpt-4o"
-    )
-    
-    memori = Memori(
-        provider_config=azure_provider,
-        conscious_ingest=True
-    )
-    memori.enable()
-    ```
+```python
+from litellm import completion
+from memori import Memori
 
-=== "Anthropic"
-    ```python
-    import anthropic
-    from memori import Memori
-    
-    memori = Memori(conscious_ingest=True)
-    memori.enable()
-    
-    client = anthropic.Anthropic()
-    # All conversations automatically recorded
-    response = client.messages.create(...)
-    ```
+memori = Memori(
+    conscious_ingest=True,
+    auto_ingest=True
+)
+memori.enable()
 
-=== "Custom/Ollama"
-    ```python
-    from memori import Memori
-    from memori.core.providers import ProviderConfig
+# Automatic context injection with dual modes
+response = completion(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Help me code"}]
+)
+```
+
+#### OpenAI Direct
+
+```python
+import openai
+from memori import Memori
+
+memori = Memori(conscious_ingest=True)
+memori.enable()
+
+client = openai.OpenAI()
+# All conversations automatically recorded
+response = client.chat.completions.create(...)
+```
+
+#### Azure OpenAI
+
+```python
+from memori import Memori
+from memori.core.providers import ProviderConfig
+
+azure_provider = ProviderConfig.from_azure(
+    api_key="your-azure-key",
+    azure_endpoint="https://your-resource.openai.azure.com/",
+    azure_deployment="gpt-4o"
+)
+
+memori = Memori(
+    provider_config=azure_provider,
+    conscious_ingest=True
+)
+memori.enable()
+```
+
+#### Anthropic
     
-    ollama_provider = ProviderConfig.from_custom(
-        base_url="http://localhost:11434/v1",
-        api_key="ollama",
-        model="llama3.2:3b"
-    )
-    
-    memori = Memori(
-        provider_config=ollama_provider,
-        conscious_ingest=True
-    )
-    ```
+```python
+import anthropic
+from memori import Memori
+
+memori = Memori(conscious_ingest=True)
+memori.enable()
+
+client = anthropic.Anthropic()
+# All conversations automatically recorded
+response = client.messages.create(...)
+```
+
+#### Custom/Ollama
+```python
+from memori import Memori
+from memori.core.providers import ProviderConfig
+
+ollama_provider = ProviderConfig.from_custom(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama",
+    model="llama3.2:3b"
+)
+
+memori = Memori(
+    provider_config=ollama_provider,
+    conscious_ingest=True
+)
+```
 
 ## Production Architecture
 
