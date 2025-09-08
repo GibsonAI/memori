@@ -77,8 +77,13 @@ class MemoryTool:
 
             # Create search engine if not already initialized
             if not hasattr(self, "_search_engine"):
-                if hasattr(self.memori, "provider_config") and self.memori.provider_config:
-                    self._search_engine = MemorySearchEngine(provider_config=self.memori.provider_config)
+                if (
+                    hasattr(self.memori, "provider_config")
+                    and self.memori.provider_config
+                ):
+                    self._search_engine = MemorySearchEngine(
+                        provider_config=self.memori.provider_config
+                    )
                 else:
                     self._search_engine = MemorySearchEngine()
 
@@ -108,7 +113,7 @@ class MemoryTool:
                             processed_data = json.loads(result["processed_data"])
                         else:
                             raise ValueError("Error, wrong 'processed_data' format")
-                            
+
                         summary = processed_data.get("summary", "")
                         category = processed_data.get("category", {}).get(
                             "primary_category", ""
