@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Professional Development Coach Agent with Memory using Strands SDK + LiteLLM
+Professional Development Coach Agent with Memory using Strands SDK + OpenAI
 
 This example demonstrates how to integrate Memori memory capabilities with Strands SDK
-and LiteLLM to create a professional development coach that remembers your career goals, 
+and OpenAI to create a professional development coach that remembers your career goals, 
 learning progress, and provides personalized coaching across multiple sessions.
 
 Features:
@@ -12,18 +12,18 @@ Features:
 - Personalized resource recommendations
 - Multi-session conversation continuity
 - Custom coaching tools with Strands SDK
-- LiteLLM integration with Nebius Llama-3.1-70B model
+- OpenAI integration with automatic memory recording
 
 Requirements:
-- pip install memorisdk strands-agents python-dotenv 'strands-agents[litellm]' strands-agents-tools
-- Nebius API key (for LiteLLM)
+- pip install memorisdk strands-agents python-dotenv 'strands-agents[openai]' strands-agents-tools
+- OpenAI API key
 
 Usage:
     python aws_strands_example.py
 
 Environment Variables:
-    # For LiteLLM with Nebius AI Studio
-    NEBIUS_API_KEY=your_nebius_api_key
+    # For OpenAI
+    OPENAI_API_KEY=your_openai_api_key
 """
 
 import os
@@ -73,7 +73,7 @@ def demo_coaching_session():
 
 try:
     from strands import Agent, tool
-    from strands.models.litellm import LiteLLMModel
+    from strands.models.openai import OpenAIModel
     STRANDS_AVAILABLE = True
 except ImportError:
     STRANDS_AVAILABLE = False
@@ -291,11 +291,11 @@ class ProfessionalCoachingTools:
 def check_environment() -> tuple[bool, str]:
     """Check if required environment variables are set"""
     
-    # Check for Nebius API key (preferred provider with LiteLLM)
-    nebius_api_key = os.getenv("NEBIUS_API_KEY")
+    # Check for OpenAI API key
+    openai_api_key = os.getenv("OPENAI_API_KEY")
 
-    if nebius_api_key:
-        return True, "litellm"
+    if openai_api_key:
+        return True, "openai"
     else:
         return False, "missing_credentials"
 
@@ -374,23 +374,22 @@ def create_coaching_agent(memori_instance):
         coaching_tools.recommend_resources
     ]
     
-    model = LiteLLMModel(
+    model = OpenAIModel(
         client_args={
-            "api_key": os.getenv("NEBIUS_API_KEY"),
-        },
-        model_id="nebius/Qwen/Qwen3-Coder-480B-A35B-Instruct",
-        params={
-            "max_tokens": 1000,
-            "temperature": 0.7,
-        },
+        "api_key": os.getenv("OPENAI_API_KEY"),
+    },
+        model_id="gpt-4o",
+         params={
+        "max_tokens": 1000,
+        "temperature": 0.7,
+    }
     )
     
     # Create the agent with coaching personality
     agent = Agent(
         model=model,
         tools=all_tools,
-        name="Professional Development Coach",
-    
+        name="Professional Development Coach"
     )
     
     return agent
@@ -400,7 +399,7 @@ def print_welcome_message():
     """Print welcome message and instructions"""
     print("\n" + "="*60)
     print("PROFESSIONAL DEVELOPMENT COACH")
-    print("   Powered by Strands SDK + Memori Memory + LiteLLM")
+    print("   Powered by Strands SDK + Memori Memory + OpenAI")
     print("="*60)
     print("\n I'm your AI coach with persistent memory. I can help you:")
     print("   • Set and track career goals")
@@ -458,6 +457,7 @@ async def main():
                 if user_input.lower() in ["quit", "exit", "bye", "goodbye"]:
                     print("\n Coach: Great session! I'll remember everything we discussed.")
                     print("Your progress and goals are saved for our next conversation.")
+                    print("Keep up the excellent work on your professional development! 🚀")
                     break
                 
                 if not user_input:
@@ -471,9 +471,6 @@ async def main():
                     result = await coach.invoke_async(user_input)
                     print(f"\n Coach: {result.message}")
                     
-                    # Record the conversation in memory for future sessions
-                    memori.record_conversation(user_input=user_input, ai_output=str(result.message))
-                    
                 except Exception as e:
                     print(f"\n Error during coaching session: {str(e)}")
                     print("Let's try that again...")
@@ -482,7 +479,8 @@ async def main():
                 print("\n" + "-"*50)
                 
             except KeyboardInterrupt:
-                print("\n\n Coach: Session interrupted. Your progress is saved!")
+                print("\n\n🎯 Coach: Session interrupted. Your progress is saved!")
+                print("See you next time! 👋")
                 break
                 
             except Exception as e:
@@ -515,7 +513,7 @@ if __name__ == "__main__":
         exit(0)
     
     # Example usage and testing
-    print("Professional Development Coach with Strands SDK + Memori + LiteLLM")
+    print("Professional Development Coach with Strands SDK + Memori + OpenAI")
     print("=" * 60)
     print("Run with --demo flag to see example interactions")
     print("=" * 60)
