@@ -470,6 +470,9 @@ async def main():
                 try:
                     result = await coach.invoke_async(user_input)
                     print(f"\n Coach: {result.message}")
+
+                    # Record the conversation in memory for future sessions
+                    memori.record_conversation(user_input=user_input, ai_output=str(result.message))
                     
                 except Exception as e:
                     print(f"\n Error during coaching session: {str(e)}")
