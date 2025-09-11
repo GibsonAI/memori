@@ -9,7 +9,7 @@ Memori supports multiple relational databases for persistent memory storage. Bel
 | **SQLite** | [https://www.sqlite.org/](https://www.sqlite.org/) | [SQLite Example](https://github.com/GibsonAI/memori/tree/main/examples/databases/sqlite_demo.py) |
 | **PostgreSQL** | [https://www.postgresql.org/](https://www.postgresql.org/) | [PostgreSQL Example](https://github.com/GibsonAI/memori/tree/main/examples/databases/postgres_demo.py) |
 | **MySQL** | [https://www.mysql.com/](https://www.mysql.com/) | [MySQL Example](https://github.com/GibsonAI/memori/tree/main/examples/databases/mysql_demo.py) |
-| **Neon** | [https://neon.com/](https://neon.com/) | PostgreSQL-compatible serverless database |
+| **Neon** | [https://neon.com/](https://neon.com/) | [Neon Serverless Postgres Example](./examples/databases/neon_demo.py) |
 | **Supabase** | [https://supabase.com/](https://supabase.com/) | PostgreSQL-compatible with real-time features |
 | **GibsonAI** | [https://gibsonai.com/](https://gibsonai.com/) | MySQL/PostgreSQL-compatible serverless database platform |
 

@@ -1,6 +1,6 @@
 # Quick Start
 
-Get Memori running in 3 minutes.
+Get Memori running in less than a minute.
 
 ## 1. Install
 

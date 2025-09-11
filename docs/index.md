@@ -3,7 +3,7 @@
 ## Open-Source Memory Engine for LLMs, AI Agents & Multi-Agent Systems
 
 !!! tip "Philosophy"
-    **Second-memory for all your LLM work** - Never repeat context again. Simple, reliable architecture that just works out of the box.
+    **Second human brain for AI** - Never repeat context again and save 90% tokens. Simple, reliable architecture that just works out of the box with any relational databases.
 
 
 ## What is Memori?
@@ -54,65 +54,6 @@ response = client.chat.completions.create(
 - **Database Support**: SQLite, PostgreSQL, MySQL
 - **Type Safety**: Full Pydantic validation and type checking
 
-## Quick Start
-
-### Installation
-
-```bash
-pip install memorisdk
-```
-
-### Basic Usage with OpenAI
-
-Install OpenAI:
-
-```bash
-pip install openai
-```
-
-Set OpenAI API Key:
-
-```bash
-export OPENAI_API_KEY="sk-your-openai-key-here"
-```
-
-Run the following Python script:
-
-```python
-from memori import Memori
-from openai import OpenAI
-
-# Initialize OpenAI client
-openai_client = OpenAI()
-
-# Initialize memory
-memori = Memori(conscious_ingest=True)
-memori.enable()
-
-print("=== First Conversation - Establishing Context ===")
-response1 = openai_client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{
-        "role": "user", 
-        "content": "I'm working on a Python FastAPI project"
-    }]
-)
-
-print("Assistant:", response1.choices[0].message.content)
-print("\n" + "="*50)
-print("=== Second Conversation - Memory Provides Context ===")
-
-response2 = openai_client.chat.completions.create(
-    model="gpt-4o-mini", 
-    messages=[{
-        "role": "user",
-        "content": "Help me add user authentication"
-    }]
-)
-print("Assistant:", response2.choices[0].message.content)
-print("\n Notice: Memori automatically knows about your FastAPI Python project!")
-```
-
 ## Memory Types
 
 | Type | Purpose | Retention | Use Case |
@@ -122,9 +63,19 @@ print("\n Notice: Memori automatically knows about your FastAPI Python project!"
 | **Rules** | User preferences/constraints | Permanent | "I prefer Python", "Use pytest" |
 | **Entities** | People, projects, technologies | Tracked | Relationship mapping |
 
+## Quick Start
+
+Get started with Memori in minutes! Follow our easy quick start guide:
+
+**[Quick Start Guide](getting-started/quick-start.md)**
+
+Learn how to install Memori, set up your first memory-enabled agent, and see the magic of automatic context injection in action.
+
 ## Universal Integration
 
 Works with **ANY** LLM library:
+
+**[See all supported LLMs](open-source/llms/overview.md)**
 
 ```python
 memori.enable()  # Enable universal recording
@@ -146,30 +97,29 @@ client.messages.create(...)
 # All automatically recorded and contextualized!
 ```
 
+## Multiple Database Support
+
+Supports multiple relational databases for production-ready memory storage:
+
+**[Database Configuration Guide](open-source/databases/overview.md)**
+
+## Framework Integrations
+
+Seamlessly integrates with popular AI agent frameworks and tools:
+
+**[View All Integrations](integrations/overview.md)**
+
+## Multi-Agent Architecture
+
+Learn about Memori's intelligent multi-agent system that powers memory processing:
+
+**[Understanding Memori Agents](core-concepts/agents.md)**
+
 ## Configuration
 
-### Simple Setup
-```python
-from memori import Memori
+Learn more about advanced configuration options:
 
-memori = Memori(
-    database_connect="sqlite:///my_memory.db",
-    conscious_ingest=True,
-    openai_api_key="sk-..."
-)
-```
-
-### Advanced Configuration
-```python
-from memori import ConfigManager
-
-# Load from memori.json or environment
-config = ConfigManager()
-config.auto_load()
-
-memori = Memori()
-memori.enable()
-```
+**[Configuration Settings Guide](configuration/settings.md)**
 
 ---
 
