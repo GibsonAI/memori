@@ -6,7 +6,7 @@ A minimal example showing how to integrate Memori memory capabilities
 with CAMEL AI agents for persistent memory across conversations.
 
 Requirements:
-- pip install memorisdk 'camel-ai[all]' python-dotenv
+- pip install memorisdk camel-ai python-dotenv
 - Set OPENAI_API_KEY in environment or .env file
 
 Usage:
@@ -16,10 +16,9 @@ Usage:
 import os
 
 from camel.agents import ChatAgent
-from camel.toolkits import FunctionTool
 from dotenv import load_dotenv
 
-from memori import Memori, create_memory_tool
+from memori import Memori
 
 # Load environment variables
 load_dotenv()
@@ -38,7 +37,6 @@ print("🧠 Initializing Memori memory system...")
 memory_system = Memori(
     database_connect="sqlite:///camel_example_memory.db",
     conscious_ingest=True,
-    verbose=False,
     openai_api_key=os.getenv("OPENAI_API_KEY"),
     namespace="camel_example",
 )
@@ -46,32 +44,7 @@ memory_system = Memori(
 # Enable the memory system
 memory_system.enable()
 
-# Create memory tool for agents
-memory_tool = create_memory_tool(memory_system)
-
 print("🤖 Creating memory-enhanced CAMEL AI agent...")
-
-
-# Create a memory search function for the agent
-def search_memory(query: str) -> str:
-    """Search the agent's memory for past conversations and information.
-
-    Args:
-        query: What to search for in memory (e.g., "past conversations about AI", "user preferences")
-    
-    Returns:
-        Relevant memories or "No relevant memories found"
-    """
-    try:
-        if not query.strip():
-            return "Please provide a search query"
-
-        result = memory_tool.execute(query=query.strip())
-        return str(result) if result else "No relevant memories found"
-
-    except Exception as e:
-        return f"Memory search error: {str(e)}"
-
 
 # Create CAMEL AI agent with memory tool
 assistant_agent = ChatAgent(
@@ -86,22 +59,8 @@ assistant_agent = ChatAgent(
     
     If this is a new user, introduce yourself and explain that you'll remember our conversations.
     Always use the search_memory tool before responding to check for relevant past interactions.""",
-    tools=[FunctionTool(search_memory)],
-    model=("openai", "gpt-4o-mini")
+    model=("openai", "gpt-4o-mini"),
 )
-
-
-def chat_with_memory(user_input: str) -> str:
-    """Process user input with memory-enhanced agent"""
-    
-    # Get response from the agent
-    response = assistant_agent.step(user_input)
-    
-    # Store the conversation in memory
-    memory_system.record_conversation(user_input=user_input, ai_output=response.msgs[0].content)
-    
-    return response.msgs[0].content
-
 
 # Main interaction loop
 print("✅ Setup complete! Chat with your memory-enhanced CAMEL AI assistant.")
@@ -132,7 +91,7 @@ while True:
         print(f"\nAI (thinking... conversation #{conversation_count})")
 
         # Get response from memory-enhanced agent
-        response = chat_with_memory(user_input)
+        response = assistant_agent.step(user_input)
 
         print(f"AI: {response}\n")
 
@@ -148,21 +107,3 @@ print(f"- Conversations processed: {conversation_count}")
 print("- Memory database: camel_example_memory.db")
 print("- Namespace: camel_example")
 print("\nYour memories are saved and will be available in future sessions!")
-
-
-# Example of how to run specific conversations programmatically:
-# 
-# if __name__ == "__main__":
-#     # Example conversations to test memory
-#     test_conversations = [
-#         "Hi! I'm a software engineer who loves hiking and cooking Italian food.",
-#         "What do you remember about my hobbies?",
-#         "I'm planning a weekend trip. Any suggestions based on what you know about me?",
-#     ]
-#     
-#     for i, message in enumerate(test_conversations, 1):
-#         print(f"\n=== Test Conversation {i} ===")
-#         print(f"User: {message}")
-#         response = chat_with_memory(message)
-#         print(f"AI: {response}")
-#         print("="*50)
