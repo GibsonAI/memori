@@ -3,7 +3,7 @@
 ## Open-Source Memory Engine for LLMs, AI Agents & Multi-Agent Systems
 
 !!! tip "Philosophy"
-    **Second-memory for all your LLM work** - Never repeat context again. Simple, reliable architecture that just works out of the box.
+    **Second human brain for AI** - Never repeat context again and save 90% tokens. Simple, reliable architecture that just works out of the box with any relational databases.
 
 
 ## What is Memori?
