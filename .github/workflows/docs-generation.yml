@@ -189,6 +189,11 @@ jobs:
           echo "Running external documentation generation script..."
           python3 .github/scripts/generate_docs.py
 
+      - name: Generate llms.txt file
+        run: |
+          echo "Generating llms.txt file from all documentation..."
+          python3 .github/scripts/generate-llms-txt.py
+
       - name: Validate generated documentation
         run: |
           echo "Validating generated documentation..."
@@ -196,6 +201,14 @@ jobs:
           # Check if documentation files were created
           DOC_COUNT=$(find docs/examples -name "*-integration.md" -type f | wc -l)
           echo "Found $DOC_COUNT integration documentation files"
+          
+          # Check if llms.txt was generated
+          if [ -f "docs/llms.txt" ]; then
+            LLM_SIZE=$(wc -c < docs/llms.txt)
+            echo "Generated llms.txt file (${LLM_SIZE} bytes)"
+          else
+            echo "Warning: llms.txt file not found"
+          fi
           
           # Validate mkdocs.yml syntax with safe validation
           python3 -c "
@@ -247,9 +260,10 @@ jobs:
             git status --porcelain docs/ mkdocs.yml
             
             # Add files with error checking
-            if ! git add docs/examples/*.md mkdocs.yml 2>/dev/null; then
+            if ! git add docs/examples/*.md docs/llms.txt mkdocs.yml 2>/dev/null; then
               echo "Some files could not be added, trying individually..."
               git add docs/examples/ || true
+              git add docs/llms.txt || true
               git add mkdocs.yml || true
             fi
             
@@ -258,6 +272,7 @@ jobs:
 
             - Generated consistent documentation following code-reciprocator pattern
             - Updated mkdocs.yml navigation with new integration examples  
+            - Generated llms.txt file from all documentation sources
             - Maintained architectural DNA across all integration docs
             - Implemented comprehensive error handling and validation
             
@@ -310,6 +325,7 @@ jobs:
             ### Generated Documentation:
             - Created integration documentation following established patterns
             - Updated \`mkdocs.yml\` navigation with new examples
+            - Generated \`llms.txt\` file from all documentation sources
             - Maintained architectural DNA and consistent formatting  
             - Applied enhanced code-reciprocator pattern with reliability improvements
             
@@ -326,8 +342,9 @@ jobs:
             2. **Pattern Analysis**: Analyzed existing documentation structure and style
             3. **Batch Generation**: Created new docs with error boundaries and retries
             4. **Navigation Update**: Added entries to mkdocs with backup/rollback safety
-            5. **Quality Validation**: Verified documentation structure and completeness
-            6. **Transaction Commit**: Atomic commit with push retry logic
+            5. **LLMs.txt Generation**: Combined all documentation into searchable format
+            6. **Quality Validation**: Verified documentation structure and completeness
+            7. **Transaction Commit**: Atomic commit with push retry logic
             
             ### Performance Metrics:
             - **Processing Time**: ${duration}s
