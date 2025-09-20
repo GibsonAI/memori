@@ -104,9 +104,9 @@ Supports multiple relational databases for production-ready memory storage:
 
 **[Database Configuration Guide](open-source/databases/overview.md)**
 
-### User with serverless databases
+### Use with serverless databases
 
-Get FREE serverless database instance in GibsonAI platform. You can just prompt to create adn deploy a new database.
+Get FREE serverless database instance in GibsonAI platform. You can just prompt to create and deploy a new database.
 
 **[GibsonAI Integration Guide](open-source/databases/gibsonai.md)**
 

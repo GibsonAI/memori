@@ -12,7 +12,6 @@ Learn how to use Memori with a serverless database in GibsonAI platform for pers
 
 1. Visit [https://app.gibsonai.com/](https://app.gibsonai.com/)
 2. Sign up for a FREE account
-3. Verify your email address
 
 ### 2. Create a Database Project
 
