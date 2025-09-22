@@ -9,7 +9,7 @@ description = "The Open-Source Memory Layer for AI Agents & Multi-Agent Systems"
 authors = [{name = "GibsonAI Team", email = "noc@gibsonai.com"}]
 license = {text = "Apache-2.0"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 keywords = ["ai", "memory", "agents", "llm", "artificial-intelligence", "multi-agent"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -17,8 +17,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -63,7 +61,8 @@ docs = [
 # Database drivers
 postgres = ["psycopg2-binary>=2.9.0"]
 mysql = ["PyMySQL>=1.0.0"]
-databases = ["psycopg2-binary>=2.9.0", "PyMySQL>=1.0.0"]
+mongodb = ["pymongo>=4.0.0"]
+databases = ["psycopg2-binary>=2.9.0", "PyMySQL>=1.0.0", "pymongo>=4.0.0"]
 
 # AI/LLM integrations
 anthropic = ["anthropic>=0.3.0"]
@@ -132,7 +131,7 @@ memori = ["py.typed", "*.json", "*.sql"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -151,7 +150,7 @@ extend-exclude = '''
 
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py310"
 exclude = [
     ".git",
     "__pycache__",
@@ -191,7 +190,7 @@ ensure_newline_before_comments = true
 src_paths = ["memori", "tests"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_unused_configs = true
 # Temporarily relaxed for CI - TODO: Gradually enable stricter typing
 disallow_untyped_defs = false
