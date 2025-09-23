@@ -1,7 +1,6 @@
 from datetime import datetime
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List
 
 from pydantic_ai import Agent, RunContext, Tool
 from pydantic import BaseModel
