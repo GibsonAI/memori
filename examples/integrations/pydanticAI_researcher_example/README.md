@@ -22,8 +22,8 @@ An AI research assistant that performs real-time web research with Linkup, remem
 Clone the repository:
 
 ```bash
-git clone https://github.com/Arindam200/awesome-ai-apps.git
-cd "memory_agents/researcher_agent
+git clone https://github.com/GibsonAI/memori.git
+cd examples/integrations/pydanticAI_researcher_example
 ```
 
 Install dependencies with uv:
@@ -74,7 +74,7 @@ Open your browser to the URL shown in the terminal (typically `http://localhost:
 - **UI Layer (`app.py`)**: Streamlit interface, sidebar controls, chat flows
 - **Agent Layer (`researcher.py`)**: Defines and runs the research and memory agents
 - **Storage (`research_memori.db`)**: Local database for persistent memory
-- **Assets (`assets/`)**: Logos and visuals (e.g., `gibson.svg`, `linkup_logo-removebg-preview.png`)
+- **Assets (`assets/`)**: Logos and visuals (e.g., `gibson.svg`)
 
 ### Example Prompts
 
