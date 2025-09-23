@@ -50,7 +50,12 @@ jobs:
             VERSION="${{ github.ref_name }}"
             echo "version=${VERSION}" >> $GITHUB_OUTPUT
           else
-            VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
+            # Extract version from pyproject.toml using sed (more reliable)
+            VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
+            if [[ -z "$VERSION" ]]; then
+              echo "Error: Could not extract version from pyproject.toml"
+              exit 1
+            fi
             echo "version=v${VERSION}" >> $GITHUB_OUTPUT
           fi
 
@@ -103,7 +108,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install build twine pytest pytest-cov
-          pip install -e ".[dev]"
+          # Install package with all dependencies including dev
+          pip install -e ".[dev,databases]"
 
       - name: Run quality checks
         run: |

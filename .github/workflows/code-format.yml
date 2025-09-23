@@ -18,6 +18,7 @@ permissions:
 jobs:
   format:
     runs-on: ubuntu-latest
+    # Only auto-fix for internal PRs (same repo), external PRs use code-format-external.yml
     if: github.event.pull_request.head.repo.full_name == github.repository
     
     steps:

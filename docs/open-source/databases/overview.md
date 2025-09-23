@@ -12,6 +12,7 @@ Memori supports multiple relational databases for persistent memory storage. Bel
 | **Neon** | [https://neon.com/](https://neon.com/) | [Neon Serverless Postgres Example](./examples/databases/neon_demo.py) |
 | **Supabase** | [https://supabase.com/](https://supabase.com/) | PostgreSQL-compatible with real-time features |
 | **GibsonAI** | [https://gibsonai.com/](https://gibsonai.com/) | [GibsonAI Serverless MySQL Guide](open-source/databases/gibsonai) |
+| **MongoDB** | [https://www.mongodb.com/](https://www.mongodb.com/) | [MongoDB Example](https://github.com/GibsonAI/memori/blob/main/examples/databases/mongodb_demo.py) |
 
 ## Quick Start Examples
 
@@ -58,6 +59,18 @@ from memori import Memori
 # GibsonAI serverless database
 memori = Memori(
     database_connect="mysql+mysqlconnector://username:password@mysql-assembly.gibsonai.com/database_name",
+    conscious_ingest=True,
+    auto_ingest=True
+)
+```
+
+### MongoDB
+```python
+from memori import Memori
+
+# MongoDB connection
+memori = Memori(
+    database_connect="mongodb://127.0.0.1:56145/memori",
     conscious_ingest=True,
     auto_ingest=True
 )

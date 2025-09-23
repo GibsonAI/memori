@@ -6,15 +6,14 @@ from memori import Memori
 openai_client = OpenAI()
 
 print("Initializing Memori with MongoDB database...")
-litellm_memory = Memori(
+memory = Memori(
     database_connect="mongodb://127.0.0.1:56145/memori",
     conscious_ingest=True,
     auto_ingest=True,
-    # verbose=True,
 )
 
 print("Enabling memory tracking...")
-litellm_memory.enable()
+memory.enable()
 
 print("Memori MongoDB Demo - Chat with GPT-4o while memory is being tracked")
 print("Type 'exit' or press Ctrl+C to quit")

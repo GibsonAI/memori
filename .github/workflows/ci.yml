@@ -23,8 +23,8 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  checks: write
+  pull-requests: read  # Changed from write to read for external PR compatibility
+  checks: read         # Changed from write to read for external PR compatibility
 
 env:
   CACHE_VERSION: v1
