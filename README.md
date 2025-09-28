@@ -385,6 +385,7 @@ Memori works seamlessly with popular AI frameworks:
 | [Agno](./examples/integrations/agno_example.py) | Memory-enhanced agent framework integration with persistent conversations | Simple chat agent with memory search |
 | [AWS Strands](./examples/integrations/aws_strands_example.py) | Professional development coach with Strands SDK and persistent memory | Career coaching agent with goal tracking |
 | [Azure AI Foundry](./examples/integrations/azure_ai_foundry_example.py) | Azure AI Foundry agents with persistent memory across conversations | Enterprise AI agents with Azure integration |
+| [AutoGen](./examples/integrations/autogen_example.py) |  Multi-agent group chat memory recording | Agent chats with memory integration |
 | [CamelAI](./examples/integrations/camelai_example.py) | Multi-agent communication framework with automatic memory recording and retrieval | Memory-enhanced chat agents with conversation continuity |
 | [CrewAI](./examples/integrations/crewai_example.py) | Multi-agent system with shared memory across agent interactions | Collaborative agents with memory |
 | [Digital Ocean AI](./examples/integrations/digital_ocean_example.py) | Memory-enhanced customer support using Digital Ocean's AI platform | Customer support assistant with conversation history |
