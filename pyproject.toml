@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memorisdk"
-version = "2.3.0"
+version = "2.3.1"
 description = "The Open-Source Memory Layer for AI Agents & Multi-Agent Systems"
 authors = [{name = "GibsonAI Team", email = "noc@gibsonai.com"}]
 license = {text = "Apache-2.0"}

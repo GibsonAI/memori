@@ -5,7 +5,7 @@ Professional-grade memory layer with comprehensive error handling, configuration
 management, and modular architecture for production AI systems.
 """
 
-__version__ = "2.3.0"
+__version__ = "2.3.1"
 __author__ = "Harshal More"
 __email__ = "harshalmore2468@gmail.com"
 
