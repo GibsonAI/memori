@@ -206,21 +206,42 @@ class SQLAlchemyDatabaseManager:
                     json_deserializer=json.loads,
                     echo=False,
                     connect_args=connect_args,
-                    pool_pre_ping=True,  # Validate connections
-                    pool_recycle=3600,  # Recycle connections every hour
+                    pool_size=5,  # Reasonable size for most workloads
+                    max_overflow=10,  # Allow burst capacity
+                    pool_pre_ping=True,  # Safety first - detect stale connections
+                    pool_recycle=1800,  # Recycle connections every 30 minutes
+                    pool_timeout=10,  # Don't wait forever for connection
                 )
 
             elif database_connect.startswith(
                 "postgresql:"
             ) or database_connect.startswith("postgresql+"):
                 # PostgreSQL-specific configuration
+                # Detect if using pooled connection (Neon, Supabase, etc.)
+                is_pooled = (
+                    "-pooler" in database_connect or "pooler" in database_connect
+                )
+
+                connect_args = {"connect_timeout": 10}  # PostgreSQL connection timeout
+
+                # Only add statement_timeout for non-pooled connections
+                # Pooled connections (like Neon) don't support startup parameters
+                if not is_pooled:
+                    connect_args["options"] = (
+                        "-c statement_timeout=30000"  # 30s query timeout
+                    )
+
                 engine = create_engine(
                     database_connect,
                     json_serializer=json.dumps,
                     json_deserializer=json.loads,
                     echo=False,
-                    pool_pre_ping=True,
-                    pool_recycle=3600,
+                    pool_size=10,  # Increased for remote DB to reduce connection overhead
+                    max_overflow=20,  # Higher burst capacity for concurrent requests
+                    pool_pre_ping=True,  # Safety first - detect stale connections
+                    pool_recycle=600,  # Recycle more frequently (10 min) for remote DB
+                    pool_timeout=30,  # Longer timeout for remote connections
+                    connect_args=connect_args,
                 )
 
             else:
@@ -295,8 +316,34 @@ class SQLAlchemyDatabaseManager:
             logger.warning(f"Failed to setup database-specific features: {e}")
 
     def _setup_sqlite_fts(self, conn):
-        """Setup SQLite FTS5"""
+        """Setup SQLite FTS5 and optimize SQLite performance"""
         try:
+            # Optimize SQLite performance with PRAGMA settings
+            logger.info("Configuring SQLite performance optimizations...")
+
+            # Enable WAL mode for better concurrency (2-3x write throughput)
+            conn.execute(text("PRAGMA journal_mode = WAL"))
+            logger.info("SQLite: Enabled WAL mode for better concurrency")
+
+            # Reduce fsync calls for better performance
+            conn.execute(text("PRAGMA synchronous = NORMAL"))
+            logger.info("SQLite: Set synchronous mode to NORMAL")
+
+            # Increase cache size to 64MB for better read performance
+            conn.execute(text("PRAGMA cache_size = -64000"))
+            logger.info("SQLite: Set cache size to 64MB")
+
+            # Store temporary tables in memory
+            conn.execute(text("PRAGMA temp_store = MEMORY"))
+            logger.info("SQLite: Enabled memory temp store")
+
+            # Enable memory-mapped I/O for 256MB (faster file access)
+            conn.execute(text("PRAGMA mmap_size = 268435456"))
+            logger.info("SQLite: Enabled 256MB memory-mapped I/O")
+
+            # Commit the pragma changes
+            conn.commit()
+
             # Create FTS5 virtual table
             conn.execute(
                 text(

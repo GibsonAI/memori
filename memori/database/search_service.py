@@ -10,11 +10,17 @@ from loguru import logger
 from sqlalchemy import and_, desc, or_, text
 from sqlalchemy.orm import Session
 
+from ..utils.cache import TTLCache
 from .models import LongTermMemory, ShortTermMemory
 
 
 class SearchService:
     """Cross-database search service using SQLAlchemy"""
+
+    # Class-level cache shared across all instances for query results
+    # Increased cache for remote DB to minimize network latency
+    # Limit individual cached values to 10MB to prevent cache poisoning
+    _search_cache = TTLCache(max_size=2000, ttl_seconds=600, max_value_size_mb=10.0)
 
     def __init__(self, session: Session, database_type: str):
         self.session = session
@@ -50,6 +56,19 @@ class SearchService:
             return self._get_recent_memories(
                 namespace, category_filter, limit, memory_types
             )
+
+        # Create cache key from search parameters
+        cache_key = self._make_cache_key(
+            query, namespace, category_filter, limit, memory_types
+        )
+
+        # Check cache first
+        cached_results = self._search_cache.get(cache_key)
+        if cached_results is not None:
+            logger.debug(
+                f"[SEARCH] Cache HIT for query: '{query[:30]}...' (returned {len(cached_results)} results)"
+            )
+            return cached_results
 
         results = []
 
@@ -145,6 +164,15 @@ class SearchService:
             logger.debug(
                 f"[SEARCH] Top result: {memory_id}... | score: {score:.3f} | strategy: {strategy}"
             )
+
+        # Cache the results before returning (graceful failure if oversized)
+        try:
+            self._search_cache.set(cache_key, final_results)
+            logger.debug(
+                f"[SEARCH] Cached {len(final_results)} results for query: '{query[:30]}...'"
+            )
+        except ValueError as e:
+            logger.warning(f"[SEARCH] Cache rejected oversized result: {e}")
 
         return final_results
 
@@ -842,3 +870,25 @@ class SearchService:
             return max(0, 1 - (days_old / 30))  # Full score for recent, 0 after 30 days
         except:
             return 0.0
+
+    def _make_cache_key(
+        self,
+        query: str,
+        namespace: str,
+        category_filter: list[str] | None,
+        limit: int,
+        memory_types: list[str] | None,
+    ) -> str:
+        """Create cache key from search parameters"""
+        import hashlib
+
+        # Create deterministic key from parameters
+        key_parts = [
+            query[:200],  # First 200 chars of query
+            namespace,
+            str(sorted(category_filter or [])),  # Sorted for consistency
+            str(limit),
+            str(sorted(memory_types or [])),  # Sorted for consistency
+        ]
+        key_string = "|".join(key_parts)
+        return hashlib.md5(key_string.encode()).hexdigest()
