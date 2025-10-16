@@ -269,8 +269,11 @@ class OpenAIInterceptor:
                     # Only flag as internal if it matches specific patterns AND has no user role
                     for pattern in internal_patterns:
                         if pattern in content:
-                            # Double-check: if this is a user message, don't filter it
-                            if message.get("role") == "user":
+                            # Fix #106: Only flag as internal if NOT a user message
+                            # or if explicitly marked as internal
+                            if message.get("role") == "user" and not message.get(
+                                "internal"
+                            ):
                                 continue
                             return True
 
