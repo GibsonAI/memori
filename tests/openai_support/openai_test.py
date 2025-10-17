@@ -303,38 +303,44 @@ def test_auto_ingest_intelligent_retrieval():
     Test that auto-ingest mode uses user_input for intelligent context retrieval.
     This tests the fix for the TODO at line 2641 in memori/core/memory.py
     """
-    from unittest.mock import MagicMock, patch
-    
+    from unittest.mock import patch
+
     print("\n" + "=" * 60)
     print("Testing Auto-Ingest Intelligent Retrieval")
     print("=" * 60 + "\n")
-    
+
     # Create temp database
     db_dir = "test_databases_openai/auto_ingest_test"
     os.makedirs(db_dir, exist_ok=True)
     db_path = f"{db_dir}/memory.db"
-    
+
     # Initialize Memori with auto_ingest
     memori = Memori(
         database_connect=f"sqlite:///{db_path}",
         auto_ingest=True,
         namespace="test_namespace",
     )
-    
+
     test_passed = 0
     test_total = 7
-    
+
     # Test 1: Happy path - search returns 3 items, verify they appear (not fallback)
     print("\n[Test 1/7] Happy path: 3 search results appear, no fallback...")
     mock_search_results = [
         {"searchable_content": "Result A from search", "category_primary": "fact"},
-        {"searchable_content": "Result B from search", "category_primary": "preference"},
+        {
+            "searchable_content": "Result B from search",
+            "category_primary": "preference",
+        },
         {"searchable_content": "Result C from search", "category_primary": "skill"},
     ]
     mock_conscious_fallback = [
-        {"searchable_content": "Conscious fallback item", "category_primary": "context"},
+        {
+            "searchable_content": "Conscious fallback item",
+            "category_primary": "context",
+        },
     ]
-    
+
     with patch.object(
         memori.db_manager, "search_memories", return_value=mock_search_results
     ) as mock_search:
@@ -342,25 +348,29 @@ def test_auto_ingest_intelligent_retrieval():
             memori, "_get_conscious_context", return_value=mock_conscious_fallback
         ):
             result = memori.get_auto_ingest_system_prompt("What do I know?")
-            
+
             # Assert all 3 search results are present
-            has_all_search = all(item["searchable_content"] in result for item in mock_search_results)
+            has_all_search = all(
+                item["searchable_content"] in result for item in mock_search_results
+            )
             # Assert fallback is NOT present
             has_no_fallback = "Conscious fallback item" not in result
-            
+
             if has_all_search and has_no_fallback:
                 print("[OK] Test 1 passed: 3 search results present, no fallback")
                 test_passed += 1
             else:
-                print(f"[FAIL] Test 1 failed: has_all_search={has_all_search}, has_no_fallback={has_no_fallback}")
-    
+                print(
+                    f"[FAIL] Test 1 failed: has_all_search={has_all_search}, has_no_fallback={has_no_fallback}"
+                )
+
     # Test 2: No hits → fallback test
     print("\n[Test 2/7] No hits: empty search triggers fallback...")
     mock_fallback_items = [
         {"searchable_content": "Fallback item 1", "category_primary": "fact"},
         {"searchable_content": "Fallback item 2", "category_primary": "preference"},
     ]
-    
+
     with patch.object(
         memori.db_manager, "search_memories", return_value=[]
     ) as mock_search:
@@ -368,51 +378,65 @@ def test_auto_ingest_intelligent_retrieval():
             memori, "_get_conscious_context", return_value=mock_fallback_items
         ):
             result = memori.get_auto_ingest_system_prompt("query with no results")
-            
+
             # Assert both fallback items are present
             has_fallback_1 = "Fallback item 1" in result
             has_fallback_2 = "Fallback item 2" in result
-            
+
             if has_fallback_1 and has_fallback_2:
-                print("[OK] Test 2 passed: Both fallback items appear when search empty")
+                print(
+                    "[OK] Test 2 passed: Both fallback items appear when search empty"
+                )
                 test_passed += 1
             else:
-                print(f"[FAIL] Test 2 failed: fallback_1={has_fallback_1}, fallback_2={has_fallback_2}")
-    
+                print(
+                    f"[FAIL] Test 2 failed: fallback_1={has_fallback_1}, fallback_2={has_fallback_2}"
+                )
+
     # Test 3: Deduplication - duplicate searchable_content should appear only once
     print("\n[Test 3/7] Deduplication: duplicate content appears once...")
     duplicates = [
         {"searchable_content": "Unique content here", "category_primary": "fact"},
-        {"searchable_content": "Unique content here", "category_primary": "fact"},  # Exact duplicate
+        {
+            "searchable_content": "Unique content here",
+            "category_primary": "fact",
+        },  # Exact duplicate
         {"searchable_content": "Another unique item", "category_primary": "skill"},
-        {"searchable_content": "UNIQUE CONTENT HERE", "category_primary": "preference"},  # Case variation
+        {
+            "searchable_content": "UNIQUE CONTENT HERE",
+            "category_primary": "preference",
+        },  # Case variation
     ]
-    
-    with patch.object(
-        memori.db_manager, "search_memories", return_value=duplicates
-    ):
+
+    with patch.object(memori.db_manager, "search_memories", return_value=duplicates):
         result = memori.get_auto_ingest_system_prompt("test dedup")
-        
+
         # Count occurrences (case-insensitive dedup in implementation)
         unique_count = result.count("Unique content here")
         another_count = result.count("Another unique item")
-        
+
         # Should have exactly 1 occurrence after dedup (case-insensitive)
         if unique_count == 1 and another_count == 1:
             print("[OK] Test 3 passed: Duplicates properly deduplicated")
             test_passed += 1
         else:
-            print(f"[FAIL] Test 3 failed: unique_count={unique_count}, another_count={another_count}")
-    
+            print(
+                f"[FAIL] Test 3 failed: unique_count={unique_count}, another_count={another_count}"
+            )
+
     # Test 4: Exception handling
     print("\n[Test 4/7] Exception handling: graceful fallback on error...")
     with patch.object(
-        memori.db_manager, "search_memories",
-        side_effect=Exception("Database connection error")
+        memori.db_manager,
+        "search_memories",
+        side_effect=Exception("Database connection error"),
     ):
         with patch.object(
-            memori, "_get_conscious_context",
-            return_value=[{"searchable_content": "Safe fallback", "category_primary": "fact"}]
+            memori,
+            "_get_conscious_context",
+            return_value=[
+                {"searchable_content": "Safe fallback", "category_primary": "fact"}
+            ],
         ):
             try:
                 result = memori.get_auto_ingest_system_prompt("test exception")
@@ -423,81 +447,83 @@ def test_auto_ingest_intelligent_retrieval():
                     print("[FAIL] Test 4 failed: Fallback not used after exception")
             except Exception as e:
                 print(f"[FAIL] Test 4 failed: Exception not handled: {e}")
-    
+
     # Test 5: Empty user_input
     print("\n[Test 5/7] Empty input: skips search, uses conscious context...")
     with patch.object(memori.db_manager, "search_memories") as mock_search:
         with patch.object(
-            memori, "_get_conscious_context",
-            return_value=[{"searchable_content": "Default conscious", "category_primary": "fact"}]
+            memori,
+            "_get_conscious_context",
+            return_value=[
+                {"searchable_content": "Default conscious", "category_primary": "fact"}
+            ],
         ):
             result = memori.get_auto_ingest_system_prompt("")
-            
+
             if not mock_search.called and "Default conscious" in result:
                 print("[OK] Test 5 passed: Empty input skips search, uses conscious")
                 test_passed += 1
             else:
                 print(f"[FAIL] Test 5 failed: search_called={mock_search.called}")
-    
+
     # Test 6: 5-item limit
     print("\n[Test 6/7] 5-item limit: only first 5 items included...")
     many_items = [
         {"searchable_content": f"Memory item number {i}", "category_primary": "fact"}
         for i in range(10)
     ]
-    
-    with patch.object(
-        memori.db_manager, "search_memories", return_value=many_items
-    ):
+
+    with patch.object(memori.db_manager, "search_memories", return_value=many_items):
         result = memori.get_auto_ingest_system_prompt("show me everything")
-        
+
         # Count how many items appear (should be max 5)
         item_count = sum(1 for i in range(10) if f"Memory item number {i}" in result)
-        
+
         if item_count <= 5:
             print(f"[OK] Test 6 passed: {item_count} items (<=5 limit enforced)")
             test_passed += 1
         else:
             print(f"[FAIL] Test 6 failed: {item_count} items exceed 5-item limit")
-    
+
     # Test 7: Verify search is called with correct parameters
     print("\n[Test 7/7] Verify search called with correct query parameters...")
     with patch.object(
-        memori.db_manager, "search_memories", return_value=[
+        memori.db_manager,
+        "search_memories",
+        return_value=[
             {"searchable_content": "Test result", "category_primary": "fact"}
-        ]
+        ],
     ) as mock_search:
         user_query = "merge last 3 commits"
         result = memori.get_auto_ingest_system_prompt(user_query)
-        
+
         # Verify search_memories was called with correct parameters
         if mock_search.called:
             call = mock_search.call_args
             # Supports both args and kwargs usage across mock versions
-            called_query = (call.kwargs.get("query") 
-                           if call.kwargs else call.args[0])
-            called_namespace = (call.kwargs.get("namespace") 
-                               if call.kwargs else None)
-            called_limit = (call.kwargs.get("limit") 
-                           if call.kwargs else None)
-            
+            called_query = call.kwargs.get("query") if call.kwargs else call.args[0]
+            called_namespace = call.kwargs.get("namespace") if call.kwargs else None
+            called_limit = call.kwargs.get("limit") if call.kwargs else None
+
             query_match = called_query == user_query
             namespace_match = called_namespace == "test_namespace"
             limit_match = called_limit == 10
-            
+
             if query_match and namespace_match and limit_match:
                 print("[OK] Test 7 passed: search_memories called with correct params")
                 test_passed += 1
             else:
-                print(f"[FAIL] Test 7 failed: query={query_match}, ns={namespace_match}, limit={limit_match}")
+                print(
+                    f"[FAIL] Test 7 failed: query={query_match}, ns={namespace_match}, limit={limit_match}"
+                )
         else:
             print("[FAIL] Test 7 failed: search_memories not called")
-    
+
     # Summary
     print("\n" + "=" * 60)
     print(f"Auto-Ingest Tests: {test_passed}/{test_total} passed")
     print("=" * 60 + "\n")
-    
+
     return test_passed == test_total
 
 
