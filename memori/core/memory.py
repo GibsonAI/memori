@@ -14,7 +14,8 @@ from loguru import logger
 try:
     import litellm  # noqa: F401
     from litellm import success_callback  # noqa: F401
-
+    
+    _ = litellm  # Mark as intentionally imported
     LITELLM_AVAILABLE = True
 except ImportError:
     LITELLM_AVAILABLE = False
@@ -2636,10 +2637,30 @@ class Memori:
         Use this for auto_ingest mode.
         """
         try:
-            # For now, use recent short-term memories as a simple approach
-            # This avoids the search engine issues and still provides context
-            # TODO: Use user_input for intelligent context retrieval
-            context = self._get_conscious_context()  # Get recent short-term memories
+            context = []
+            
+            # Use user_input for intelligent context retrieval
+            if user_input and user_input.strip():
+                logger.debug(f"Auto-ingest: searching memories for query: {user_input[:100]}")
+                try:
+                    # Search long-term and short-term memories for relevant context
+                    search_results = self.db_manager.search_memories(
+                        query=user_input,
+                        namespace=self.namespace,
+                        category_filter=None,  # Search across all categories
+                        limit=10  # Get more results for better selection
+                    )
+                    
+                    if search_results:
+                        context = search_results
+                        logger.debug(f"Auto-ingest: found {len(search_results)} relevant memories")
+                except Exception as search_error:
+                    logger.warning(f"Auto-ingest search failed, falling back to conscious context: {search_error}")
+            
+            # Fallback to conscious context if search didn't return results or user_input is empty
+            if not context:
+                logger.debug("Auto-ingest: using conscious context as fallback")
+                context = self._get_conscious_context()
 
             if not context:
                 return ""
