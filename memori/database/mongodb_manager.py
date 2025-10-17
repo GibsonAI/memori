@@ -928,6 +928,28 @@ class MongoDBDatabaseManager:
         except Exception as e:
             logger.error(f"Failed to mark conscious memories processed: {e}")
 
+    def _check_milestone(self, memory_count: int):
+        """
+        Check and celebrate memory storage milestones to encourage user engagement.
+        Displays celebration messages at key milestones: 10, 50, 100, 500, 1000 memories.
+
+        Args:
+            memory_count: Current count of long-term memories
+        """
+        milestones = [10, 50, 100, 500, 1000]
+
+        if memory_count in milestones:
+            celebration_msg = (
+                f"\n{'=' * 60}\n"
+                f"🎉 Milestone Achieved: {memory_count} memories stored!\n"
+                f"{'=' * 60}\n"
+                f"⭐️ Loving Memori? Give us a star on GitHub!\n"
+                f"👉 https://github.com/GibsonAI/memori\n"
+                f"Your support helps us build better open AI memory tools ❤️\n"
+                f"{'=' * 60}\n"
+            )
+            logger.info(celebration_msg)
+
     def store_long_term_memory_enhanced(
         self, memory: ProcessedLongTermMemory, chat_id: str, namespace: str = "default"
     ) -> str:
@@ -1000,6 +1022,13 @@ class MongoDBDatabaseManager:
             collection.insert_one(document)
 
             logger.debug(f"Stored enhanced long-term memory {memory_id}")
+
+            # Get current memory count and check for milestones
+            total_memories = collection.count_documents({"namespace": namespace})
+
+            # Celebrate milestone if reached
+            self._check_milestone(total_memories)
+
             return memory_id
 
         except Exception as e:
