@@ -246,33 +246,18 @@ class OpenAIInterceptor:
     def _is_internal_agent_call(cls, json_data):
         """Check if this is an internal agent processing call that should not be recorded."""
         try:
-            messages = json_data.get("messages", [])
-            for message in messages:
-                content = message.get("content", "")
-                if isinstance(content, str):
-                    # Check for specific internal agent processing patterns
-                    # Made patterns more specific to avoid false positives
-                    internal_patterns = [
-                        "Process this conversation for enhanced memory storage:",
-                        "Enhanced memory processing:",
-                        "Memory classification:",
-                        "Search for relevant memories:",
-                        "Analyze conversation for:",
-                        "Extract entities from:",
-                        "Categorize the following conversation:",
-                        # More specific patterns to avoid blocking legitimate conversations
-                        "INTERNAL_MEMORY_PROCESSING:",
-                        "AGENT_PROCESSING_MODE:",
-                        "MEMORY_AGENT_TASK:",
-                    ]
+            openai_metadata = json_data.get("metadata", [])
 
-                    # Only flag as internal if it matches specific patterns AND has no user role
-                    for pattern in internal_patterns:
-                        if pattern in content:
-                            # Double-check: if this is a user message, don't filter it
-                            if message.get("role") == "user":
-                                continue
-                            return True
+            # Check for specific internal agent metadata flags
+            if isinstance(openai_metadata, list):
+                internal_metadata = [
+                    "INTERNAL_MEMORY_PROCESSING",  # used in memory agent and retrieval agent
+                    "AGENT_PROCESSING_MODE",
+                    "MEMORY_AGENT_TASK",
+                ]
+                for internal in internal_metadata:
+                    if internal in openai_metadata:
+                        return True
 
             return False
 
