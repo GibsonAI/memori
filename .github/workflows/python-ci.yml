@@ -2,16 +2,18 @@ name: Python CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [3.10, 3.11]
+        python-version: [ '3.10', '3.11', '3.12' ]
 
     steps:
       - name: Checkout repository
@@ -21,6 +23,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          # Cache will be restored/updated when any of these files change
+          cache-dependency-path: |
+            requirements*.txt
+            pyproject.toml
+            poetry.lock
 
       - name: Install dependencies
         run: |
