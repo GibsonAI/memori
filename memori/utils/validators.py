@@ -58,11 +58,11 @@ class DataValidator:
     @classmethod
     def validate_namespace(cls, value: str, field_name: str = "namespace") -> str:
         """Validate namespace format"""
-        if not isinstance(value, str):
-            raise ValidationError(f"{field_name} must be a string")
+        if value is None or (isinstance(value,str) and value.strip() == ""):
+            return "default"
 
-        if not value:
-            raise ValidationError(f"{field_name} cannot be empty")
+        if not isinstance(value,str):
+            raise ValidationError(f"{field_name} must be a string")
 
         if len(value) > 64:
             raise ValidationError(f"{field_name} cannot exceed 64 characters")
@@ -73,7 +73,7 @@ class DataValidator:
                 f"{field_name} can only contain letters, numbers, underscores, and hyphens"
             )
 
-        return value
+        return value.strip()
 
     @classmethod
     def validate_importance_score(
