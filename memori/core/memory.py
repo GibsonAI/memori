@@ -113,11 +113,11 @@ class Memori:
         self.database_suffix = database_suffix
 
         # Validate conscious_memory_limit parameter
-        if not isinstance(conscious_memory_limit, int):
-            raise TypeError("conscious_memory_limit must be an integer")
+        if not isinstance(conscious_memory_limit, int) or isinstance(conscious_memory_limit, bool):
+            raise TypeError("conscious_memory_limit must be an integer (not bool)")
 
-        if not (1 <= conscious_memory_limit <= 500):
-            raise ValueError("conscious_memory_limit must be between 1 and 500")
+        if not (1 <= conscious_memory_limit <= 2000):
+            raise ValueError("conscious_memory_limit must be between 1 and 2000")
 
         self.conscious_memory_limit = conscious_memory_limit
 
