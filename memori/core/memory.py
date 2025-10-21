@@ -6,6 +6,7 @@ import asyncio
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
@@ -24,6 +25,11 @@ from ..agents.conscious_agent import ConsciouscAgent
 from ..config.memory_manager import MemoryManager
 from ..config.settings import LoggingSettings, LogLevel
 from ..database.sqlalchemy_manager import SQLAlchemyDatabaseManager
+from ..integrations.openai_integration import (
+    activate_memori_instance,
+    suppress_auto_recording,
+)
+from ..utils.cache import ContextCache
 from ..utils.exceptions import DatabaseError, MemoriError
 from ..utils.logging import LoggingManager
 from ..utils.pydantic_models import ConversationContext
@@ -67,6 +73,7 @@ class Memori:
         database_prefix: str | None = None,  # Database name prefix
         database_suffix: str | None = None,  # Database name suffix
         conscious_memory_limit: int = 10,  # Limit for conscious memory processing
+        max_processing_per_minute: int | None = 30,
     ):
         """
         Initialize Memori memory system v1.0.
@@ -97,6 +104,8 @@ class Memori:
             enable_auto_creation: Enable automatic database creation if database doesn't exist
             database_prefix: Optional prefix for database name (for multi-tenant setups)
             database_suffix: Optional suffix for database name (e.g., 'dev', 'prod', 'test')
+            conscious_memory_limit: Limit for conscious context caching
+            max_processing_per_minute: Max background memory ingestions per minute (0 disables)
         """
         self.database_connect = database_connect
         self.template = template
@@ -119,6 +128,15 @@ class Memori:
 
         # Thread safety for conscious memory initialization
         self._conscious_init_lock = threading.RLock()
+
+        # Rate limiting for background processing (token bucket per minute)
+        self.max_processing_per_minute = max_processing_per_minute or 0
+        self._processing_lock = threading.Lock()
+        self._processing_window_start = time.time()
+        self._processing_count = 0
+
+        # Setup logging FIRST before any operations that might log
+        self._setup_logging()
 
         # Configure provider based on explicit settings ONLY - no auto-detection
         if provider_config:
@@ -191,9 +209,6 @@ class Memori:
         self.openai_api_key = api_key or openai_api_key or ""
         if self.provider_config and hasattr(self.provider_config, "api_key"):
             self.openai_api_key = self.provider_config.api_key or self.openai_api_key
-
-        # Setup logging based on verbose mode
-        self._setup_logging()
 
         # Initialize database manager (detect MongoDB vs SQL)
         self.db_manager = self._create_database_manager(
@@ -277,6 +292,17 @@ class Memori:
         self.conversation_manager = ConversationManager(
             max_sessions=100, session_timeout_minutes=60, max_history_per_session=20
         )
+
+        # Initialize context cache for performance optimization
+        # Increased cache size and TTL for remote DB to reduce network round trips
+        self._context_cache = ContextCache(max_size=500, ttl_seconds=600)
+        logger.info("Context cache initialized for performance optimization")
+
+        # Initialize thread pool for background memory processing (max 3 concurrent tasks)
+        self._memory_executor = ThreadPoolExecutor(
+            max_workers=3, thread_name_prefix="memori-bg"
+        )
+        logger.info("Background processing thread pool initialized (max_workers=3)")
 
         # User context for memory processing
         self._user_context = {
@@ -1165,6 +1191,7 @@ class Memori:
         """
         Get auto-ingest context using retrieval agent for intelligent search.
         Searches through entire database for relevant memories.
+        Results are cached for performance.
         """
         try:
             # Early validation
@@ -1173,6 +1200,13 @@ class Memori:
                     "Auto-ingest: No user input provided, returning empty context"
                 )
                 return []
+
+            # Check cache first (before recursion guard)
+            cached_context = self._context_cache.get_context(
+                self.namespace, user_input, "auto"
+            )
+            if cached_context is not None:
+                return cached_context
 
             # Check for recursion guard to prevent infinite loops
             if hasattr(self, "_in_context_retrieval") and self._in_context_retrieval:
@@ -1232,6 +1266,14 @@ class Memori:
                     if isinstance(result, dict):
                         result["retrieval_method"] = "direct_database_search"
                         result["retrieval_query"] = user_input
+
+                # Cache the results before returning (graceful failure if oversized)
+                try:
+                    self._context_cache.set_context(
+                        self.namespace, user_input, "auto", results
+                    )
+                except ValueError as e:
+                    logger.warning(f"Context cache rejected oversized value: {e}")
                 return results
 
             # If direct search fails, try search engine as backup
@@ -1779,7 +1821,6 @@ class Memori:
 
         try:
             # Run async processing in new event loop
-            import threading
 
             def run_memory_processing():
                 """Run memory processing with improved event loop management"""
@@ -1870,11 +1911,10 @@ class Memori:
                     except:
                         pass
 
-            # Run in background thread to avoid blocking
-            thread = threading.Thread(target=run_memory_processing, daemon=True)
-            thread.start()
+            # Use thread pool instead of creating new thread
+            self._memory_executor.submit(run_memory_processing)
             logger.debug(
-                f"Memory processing started in background thread for {chat_id} (attempt {retry_count + 1})"
+                f"Memory processing submitted to thread pool for {chat_id} (attempt {retry_count + 1})"
             )
 
         except Exception as e:
@@ -2007,6 +2047,12 @@ class Memori:
         self, chat_id: str, user_input: str, ai_output: str, model: str
     ):
         """Schedule memory processing (async if possible, sync fallback)."""
+        if not self._acquire_processing_slot():
+            logger.warning(
+                f"Rate limit reached for memory processing in namespace '{self.namespace}', skipping ingestion"
+            )
+            return
+
         try:
             loop = asyncio.get_running_loop()
             task = loop.create_task(
@@ -2023,6 +2069,23 @@ class Memori:
             logger.debug("No event loop, using synchronous memory processing")
             self._process_memory_sync(chat_id, user_input, ai_output, model)
 
+    def _acquire_processing_slot(self) -> bool:
+        """Token bucket limiter to avoid unbounded background processing."""
+        if not self.max_processing_per_minute:
+            return True
+
+        now = time.time()
+        with self._processing_lock:
+            if now - self._processing_window_start >= 60:
+                self._processing_window_start = now
+                self._processing_count = 0
+
+            if self._processing_count >= self.max_processing_per_minute:
+                return False
+
+            self._processing_count += 1
+            return True
+
     async def _process_memory_async(
         self, chat_id: str, user_input: str, ai_output: str, model: str = "unknown"
     ):
@@ -2031,72 +2094,82 @@ class Memori:
             logger.warning("Memory agent not available, skipping memory ingestion")
             return
 
-        try:
-            # Create conversation context
-            context = ConversationContext(
-                user_id=self.user_id,
-                session_id=self._session_id,
-                conversation_id=chat_id,
-                model_used=model,
-                user_preferences=self._user_context.get("user_preferences", []),
-                current_projects=self._user_context.get("current_projects", []),
-                relevant_skills=self._user_context.get("relevant_skills", []),
-            )
+        with activate_memori_instance(self):
+            try:
+                # Create conversation context
+                context = ConversationContext(
+                    user_id=self.user_id,
+                    session_id=self._session_id,
+                    conversation_id=chat_id,
+                    model_used=model,
+                    user_preferences=self._user_context.get("user_preferences", []),
+                    current_projects=self._user_context.get("current_projects", []),
+                    relevant_skills=self._user_context.get("relevant_skills", []),
+                )
 
-            # Get recent memories for deduplication
-            existing_memories = await self._get_recent_memories_for_dedup()
+                # Get recent memories for deduplication
+                existing_memories = await self._get_recent_memories_for_dedup()
 
-            # Process conversation using async Pydantic-based memory agent
-            processed_memory = await self.memory_agent.process_conversation_async(
-                chat_id=chat_id,
-                user_input=user_input,
-                ai_output=ai_output,
-                context=context,
-                existing_memories=(
-                    [mem.summary for mem in existing_memories[:10]]
-                    if existing_memories
-                    else []
-                ),
-            )
+                # Process conversation using async Pydantic-based memory agent
+                try:
+                    with suppress_auto_recording():
+                        processed_memory = (
+                            await self.memory_agent.process_conversation_async(
+                                chat_id=chat_id,
+                                user_input=user_input,
+                                ai_output=ai_output,
+                                context=context,
+                                existing_memories=(
+                                    [mem.summary for mem in existing_memories[:10]]
+                                    if existing_memories
+                                    else []
+                                ),
+                            )
+                        )
+                except Exception as e:
+                    logger.error(f"Memory ingestion failed for {chat_id}: {e}")
+                    return
 
-            # Check for duplicates
-            duplicate_id = await self.memory_agent.detect_duplicates(
-                processed_memory, existing_memories
-            )
+                # Check for duplicates
+                duplicate_id = await self.memory_agent.detect_duplicates(
+                    processed_memory, existing_memories
+                )
 
-            if duplicate_id:
-                processed_memory.duplicate_of = duplicate_id
-                logger.info(f"Memory marked as duplicate of {duplicate_id}")
+                if duplicate_id:
+                    processed_memory.duplicate_of = duplicate_id
+                    logger.info(f"Memory marked as duplicate of {duplicate_id}")
 
-            # Apply filters
-            if self.memory_agent.should_filter_memory(
-                processed_memory, self.memory_filters
-            ):
-                logger.debug(f"Memory filtered out for chat {chat_id}")
-                return
-
-            # Store processed memory with new schema
-            memory_id = self.db_manager.store_long_term_memory_enhanced(
-                processed_memory, chat_id, self.namespace
-            )
-
-            if memory_id:
-                logger.debug(f"Stored processed memory {memory_id} for chat {chat_id}")
-
-                # Check for conscious context updates if promotion eligible and conscious_ingest enabled
-                if (
-                    processed_memory.promotion_eligible
-                    and self.conscious_agent
-                    and self.conscious_ingest
+                # Apply filters
+                if self.memory_agent.should_filter_memory(
+                    processed_memory, self.memory_filters
                 ):
-                    await self.conscious_agent.check_for_context_updates(
-                        self.db_manager, self.namespace
-                    )
-            else:
-                logger.warning(f"Failed to store memory for chat {chat_id}")
+                    logger.debug(f"Memory filtered out for chat {chat_id}")
+                    return
 
-        except Exception as e:
-            logger.error(f"Memory ingestion failed for {chat_id}: {e}")
+                # Store processed memory with new schema
+                memory_id = self.db_manager.store_long_term_memory_enhanced(
+                    processed_memory, chat_id, self.namespace
+                )
+
+                if memory_id:
+                    logger.debug(
+                        f"Stored processed memory {memory_id} for chat {chat_id}"
+                    )
+
+                    # Check for conscious context updates if promotion eligible and conscious_ingest enabled
+                    if (
+                        processed_memory.promotion_eligible
+                        and self.conscious_agent
+                        and self.conscious_ingest
+                    ):
+                        await self.conscious_agent.check_for_context_updates(
+                            self.db_manager, self.namespace
+                        )
+                else:
+                    logger.warning(f"Failed to store memory for chat {chat_id}")
+
+            except Exception as e:
+                logger.error(f"Memory ingestion failed for {chat_id}: {e}")
 
     async def _get_recent_memories_for_dedup(self) -> list:
         """Get recent memories for deduplication check"""
@@ -2503,9 +2576,66 @@ class Memori:
                         task.cancel()
                 self._memory_tasks.clear()
 
+            # Shutdown thread pool executor with custom timeout implementation
+            if hasattr(self, "_memory_executor"):
+                logger.debug("Shutting down background processing thread pool...")
+                try:
+                    # Implement custom timeout using threading
+                    # Python's ThreadPoolExecutor.shutdown() doesn't have timeout parameter
+                    shutdown_thread = threading.Thread(
+                        target=lambda: self._memory_executor.shutdown(wait=True),
+                        name="executor-shutdown",
+                        daemon=False,
+                    )
+                    shutdown_thread.start()
+
+                    # Wait for shutdown with 5 second timeout
+                    shutdown_thread.join(timeout=5.0)
+
+                    if shutdown_thread.is_alive():
+                        # Timeout occurred
+                        logger.warning(
+                            "Thread pool shutdown timed out after 5s, forcing termination"
+                        )
+                        # Cancel pending futures (Python 3.9+)
+                        try:
+                            self._memory_executor.shutdown(
+                                wait=False, cancel_futures=True
+                            )
+                            logger.warning(
+                                "Forced executor shutdown with cancel_futures=True"
+                            )
+                        except TypeError:
+                            # Python < 3.9 doesn't have cancel_futures parameter
+                            self._memory_executor.shutdown(wait=False)
+                            logger.warning(
+                                "Forced executor shutdown (Python < 3.9, no cancel_futures)"
+                            )
+
+                        # Log remaining threads
+                        for thread in threading.enumerate():
+                            if thread.name.startswith("memori-bg"):
+                                logger.warning(
+                                    f"Background thread still running: {thread.name}"
+                                )
+                    else:
+                        logger.debug("Thread pool shutdown completed gracefully")
+
+                except Exception as shutdown_error:
+                    logger.error(
+                        f"Thread pool shutdown error: {shutdown_error}", exc_info=True
+                    )
+
+            # Shutdown cache cleanup threads
+            if hasattr(self, "_context_cache"):
+                try:
+                    self._context_cache._cache.shutdown()
+                except Exception as cache_error:
+                    logger.error(f"Context cache shutdown error: {cache_error}")
+
             logger.debug("Memori cleanup completed")
         except Exception as e:
-            logger.error(f"Error during cleanup: {e}")
+            logger.error(f"Error during cleanup: {e}", exc_info=True)
 
     def __del__(self):
         """Destructor to ensure cleanup"""
