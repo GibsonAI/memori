@@ -284,12 +284,15 @@ class RetryUtils:
             @functools.wraps(func)
             def wrapper(*args, **kwargs) -> T:
                 last_exception = None
+                last_tb = None
 
                 for attempt in range(max_attempts):
                     try:
                         return func(*args, **kwargs)
                     except exceptions as e:
+                        # capture exception and its traceback so we can re-raise
                         last_exception = e
+                        last_tb = e.__traceback__
                         if attempt < max_attempts - 1:
                             sleep_time = delay * (backoff**attempt)
                             import time
@@ -297,8 +300,10 @@ class RetryUtils:
                             time.sleep(sleep_time)
                         continue
 
-                # If all attempts failed, raise the last exception
-                if last_exception:
+                # If all attempts failed, re-raise the last exception preserving traceback
+                if last_exception is not None:
+                    if last_tb is not None:
+                        raise last_exception.with_traceback(last_tb)
                     raise last_exception
 
                 # This shouldn't happen, but just in case
@@ -321,18 +326,23 @@ class RetryUtils:
             @functools.wraps(func)
             async def wrapper(*args, **kwargs) -> T:
                 last_exception = None
+                last_tb = None
 
                 for attempt in range(max_attempts):
                     try:
                         return await func(*args, **kwargs)
                     except exceptions as e:
+                        # capture exception and its traceback so we can re-raise
                         last_exception = e
+                        last_tb = e.__traceback__
                         if attempt < max_attempts - 1:
                             sleep_time = delay * (backoff**attempt)
                             await asyncio.sleep(sleep_time)
                         continue
 
-                if last_exception:
+                if last_exception is not None:
+                    if last_tb is not None:
+                        raise last_exception.with_traceback(last_tb)
                     raise last_exception
 
                 raise MemoriError("Async retry attempts exhausted")
