@@ -45,6 +45,12 @@ from .pydantic_models import (
     RetentionType,
 )
 
+# Streaming utilities
+from .streaming_proxy import (
+    create_openai_streaming_proxy,
+)
+
+
 # Validation utilities
 from .validators import DataValidator, MemoryValidator
 
@@ -86,4 +92,6 @@ __all__ = [
     # Logging
     "LoggingManager",
     "get_logger",
+    # Streaming
+    "create_openai_streaming_proxy",
 ]

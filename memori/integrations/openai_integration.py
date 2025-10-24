@@ -105,6 +105,12 @@ class OpenAIInterceptor:
                 **kwargs,
             )
 
+            if stream:
+                # Record streaming conversation for enabled Memori instances
+                result = cls._stream_record_conversation_for_enabled_instances(
+                    options, result, client_type
+                )
+
             # Record conversation for enabled Memori instances
             if not stream:  # Don't record streaming here - handle separately
                 cls._record_conversation_for_enabled_instances(
@@ -183,9 +189,9 @@ class OpenAIInterceptor:
         if original_prepare_key in cls._original_methods:
             original_prepare = cls._original_methods[original_prepare_key]
 
-            def patched_async_prepare_options(self, options):
+            async def patched_async_prepare_options(self, options):
                 # Call original method first
-                options = original_prepare(self, options)
+                options = await original_prepare(self, options)
 
                 # Inject context for enabled Memori instances
                 options = cls._inject_context_for_enabled_instances(
@@ -291,23 +297,21 @@ class OpenAIInterceptor:
     def _stream_record_conversation_for_enabled_instances(
         cls, options, response, client_type
     ):
-        """Wrap streaming responses so chunks can be recorded without blocking callers."""
+        """
+            Wrap streaming response to record conversation for enabled Memori instances.
+        """
         try:
             if response is None:
                 return response
 
-            # Use the generic streaming proxy
-            async def finalize_callback(chunks, context_data):
-                """Callback to record conversation when streaming completes."""
+            # Define finalize callback to record conversation after streaming completes
+            async def finalize_callback(final_response, context_data):
                 options, client_type = context_data
-                # Build response from chunks and record it
-                from ..utils.streaming_proxy import OpenAIStreamingResponseBuilder
-                combined_response = await OpenAIStreamingResponseBuilder.build_chat_completion(chunks)
-                if combined_response is not None:
+                if final_response is not None:
                     cls._record_conversation_for_enabled_instances(
-                        options, combined_response, client_type
+                        options, final_response, client_type
                     )
-
+            # Create streaming proxy
             return create_openai_streaming_proxy(
                 stream=response,
                 finalize_callback=finalize_callback,
