@@ -242,8 +242,14 @@ class ConversationManager:
                 if previous_messages:
                     system_content += "\n--- Conversation History ---\n"
                     for msg in previous_messages:
-                        role_label = "You" if msg["role"] == "assistant" else "User"
+                        if msg["role"] == "assistant":
+                            role_label = "Assistant"
+                        elif msg["role"] == "user":
+                            role_label = "User"
+                        else:
+                            role_label = msg["role"].capitalize()
                         system_content += f"{role_label}: {msg['content']}\n"
+
                     system_content += "--- End History ---\n"
                     logger.debug(
                         f"[CONTEXT] Added {len(previous_messages)} history messages | Session: {session_id[:8]}..."
