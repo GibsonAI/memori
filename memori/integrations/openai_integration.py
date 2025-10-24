@@ -27,6 +27,7 @@ Usage:
 """
 
 from loguru import logger
+from ..utils.streaming_proxy import create_openai_streaming_proxy
 
 # Global registry of enabled Memori instances
 _enabled_memori_instances = []
@@ -162,6 +163,12 @@ class OpenAIInterceptor:
                 **kwargs,
             )
 
+            # Record streaming conversation for enabled Memori instances
+            if stream:
+                result = cls._stream_record_conversation_for_enabled_instances(
+                    options, result, client_type
+                )
+
             # Record conversation for enabled Memori instances
             if not stream:
                 cls._record_conversation_for_enabled_instances(
@@ -279,6 +286,36 @@ class OpenAIInterceptor:
         except Exception as e:
             logger.debug(f"Failed to check internal agent call: {e}")
             return False
+
+    @classmethod
+    def _stream_record_conversation_for_enabled_instances(
+        cls, options, response, client_type
+    ):
+        """Wrap streaming responses so chunks can be recorded without blocking callers."""
+        try:
+            if response is None:
+                return response
+
+            # Use the generic streaming proxy
+            async def finalize_callback(chunks, context_data):
+                """Callback to record conversation when streaming completes."""
+                options, client_type = context_data
+                # Build response from chunks and record it
+                from ..utils.streaming_proxy import OpenAIStreamingResponseBuilder
+                combined_response = await OpenAIStreamingResponseBuilder.build_chat_completion(chunks)
+                if combined_response is not None:
+                    cls._record_conversation_for_enabled_instances(
+                        options, combined_response, client_type
+                    )
+
+            return create_openai_streaming_proxy(
+                stream=response,
+                finalize_callback=finalize_callback,
+                context_data=(options, client_type)
+            )
+        except Exception as e:
+            logger.error(f"Failed to wrap streaming conversation: {e}")
+            return response
 
     @classmethod
     def _record_conversation_for_enabled_instances(cls, options, response, client_type):
