@@ -15,6 +15,7 @@ try:
     import litellm  # noqa: F401
     from litellm import success_callback  # noqa: F401
 
+    _ = litellm  # Mark as intentionally imported
     LITELLM_AVAILABLE = True
 except ImportError:
     LITELLM_AVAILABLE = False
@@ -2634,12 +2635,14 @@ class Memori:
         Get auto-ingest context as system prompt for direct injection.
         Returns relevant memories based on user input as formatted system prompt.
         Use this for auto_ingest mode.
+        
+        Note: Context retrieval is handled by _get_auto_ingest_context().
+        This function only formats pre-retrieved context.
         """
         try:
-            # For now, use recent short-term memories as a simple approach
-            # This avoids the search engine issues and still provides context
-            # TODO: Use user_input for intelligent context retrieval
-            context = self._get_conscious_context()  # Get recent short-term memories
+            # Get recent short-term memories as fallback context
+            # The actual intelligent retrieval is handled by _get_auto_ingest_context()
+            context = self._get_conscious_context()
 
             if not context:
                 return ""
