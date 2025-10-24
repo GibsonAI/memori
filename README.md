@@ -237,6 +237,7 @@ memori = Memori(
     database_connect="sqlite:///my_memory.db",
     template="basic", 
     conscious_ingest=True,  # One-shot context injection
+    conscious_memory_limit=100,  # Must be an integer between 1 and 500
     openai_api_key="sk-..."
 )
 
