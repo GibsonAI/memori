@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+from traceback import format_exc
 
 from loguru import logger
 
@@ -95,6 +96,7 @@ class DatabaseManager:
                         logger.warning(
                             f"Schema execution issue: {e}, falling back to statement-by-statement"
                         )
+                        logger.warning(f"Schema execution error details: {format_exc()}")
                         # Fallback to statement-by-statement execution
                         self._execute_schema_statements(conn, schema_sql)
 
@@ -104,6 +106,9 @@ class DatabaseManager:
 
         except Exception as e:
             logger.error(f"Failed to initialize schema: {e}")
+            logger.error(f"Schema initialization error details: {format_exc()}")
+            logger.info("Falling back to basic schema creation")
+
             # Fallback to basic schema
             self._create_basic_schema()
 
@@ -151,76 +156,84 @@ class DatabaseManager:
                 try:
                     conn.execute(statement)
                 except sqlite3.Error as e:
-                    logger.debug(f"Schema statement warning: {e}")
+                    logger.debug(f"Schema statement error: {e}")
+                    logger.debug(f"Schema statement error details: {format_exc()}")
 
         conn.commit()
 
     def _create_basic_schema(self):
         """Create basic schema if SQL file is not available"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
 
-            # Basic tables for fallback
-            cursor.execute(
+                # Basic tables for fallback
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS chat_history (
+                        chat_id TEXT PRIMARY KEY,
+                        user_input TEXT NOT NULL,
+                        ai_output TEXT NOT NULL,
+                        model TEXT NOT NULL,
+                        timestamp TIMESTAMP NOT NULL,
+                        session_id TEXT NOT NULL,
+                        namespace TEXT NOT NULL DEFAULT 'default',
+                        tokens_used INTEGER DEFAULT 0,
+                        metadata TEXT DEFAULT '{}'
+                    )
                 """
-                CREATE TABLE IF NOT EXISTS chat_history (
-                    chat_id TEXT PRIMARY KEY,
-                    user_input TEXT NOT NULL,
-                    ai_output TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    timestamp TIMESTAMP NOT NULL,
-                    session_id TEXT NOT NULL,
-                    namespace TEXT NOT NULL DEFAULT 'default',
-                    tokens_used INTEGER DEFAULT 0,
-                    metadata TEXT DEFAULT '{}'
                 )
-            """
-            )
 
-            cursor.execute(
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS short_term_memory (
+                        memory_id TEXT PRIMARY KEY,
+                        chat_id TEXT,
+                        processed_data TEXT NOT NULL,
+                        importance_score REAL NOT NULL DEFAULT 0.5,
+                        category_primary TEXT NOT NULL,
+                        retention_type TEXT NOT NULL DEFAULT 'short_term',
+                        namespace TEXT NOT NULL DEFAULT 'default',
+                        created_at TIMESTAMP NOT NULL,
+                        expires_at TIMESTAMP,
+                        access_count INTEGER DEFAULT 0,
+                        last_accessed TIMESTAMP,
+                        searchable_content TEXT NOT NULL,
+                        summary TEXT NOT NULL
+                    )
                 """
-                CREATE TABLE IF NOT EXISTS short_term_memory (
-                    memory_id TEXT PRIMARY KEY,
-                    chat_id TEXT,
-                    processed_data TEXT NOT NULL,
-                    importance_score REAL NOT NULL DEFAULT 0.5,
-                    category_primary TEXT NOT NULL,
-                    retention_type TEXT NOT NULL DEFAULT 'short_term',
-                    namespace TEXT NOT NULL DEFAULT 'default',
-                    created_at TIMESTAMP NOT NULL,
-                    expires_at TIMESTAMP,
-                    access_count INTEGER DEFAULT 0,
-                    last_accessed TIMESTAMP,
-                    searchable_content TEXT NOT NULL,
-                    summary TEXT NOT NULL
                 )
-            """
-            )
 
-            cursor.execute(
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS long_term_memory (
+                        memory_id TEXT PRIMARY KEY,
+                        original_chat_id TEXT,
+                        processed_data TEXT NOT NULL,
+                        importance_score REAL NOT NULL DEFAULT 0.5,
+                        category_primary TEXT NOT NULL,
+                        retention_type TEXT NOT NULL DEFAULT 'long_term',
+                        namespace TEXT NOT NULL DEFAULT 'default',
+                        created_at TIMESTAMP NOT NULL,
+                        access_count INTEGER DEFAULT 0,
+                        last_accessed TIMESTAMP,
+                        searchable_content TEXT NOT NULL,
+                        summary TEXT NOT NULL,
+                        novelty_score REAL DEFAULT 0.5,
+                        relevance_score REAL DEFAULT 0.5,
+                        actionability_score REAL DEFAULT 0.5
+                    )
                 """
-                CREATE TABLE IF NOT EXISTS long_term_memory (
-                    memory_id TEXT PRIMARY KEY,
-                    original_chat_id TEXT,
-                    processed_data TEXT NOT NULL,
-                    importance_score REAL NOT NULL DEFAULT 0.5,
-                    category_primary TEXT NOT NULL,
-                    retention_type TEXT NOT NULL DEFAULT 'long_term',
-                    namespace TEXT NOT NULL DEFAULT 'default',
-                    created_at TIMESTAMP NOT NULL,
-                    access_count INTEGER DEFAULT 0,
-                    last_accessed TIMESTAMP,
-                    searchable_content TEXT NOT NULL,
-                    summary TEXT NOT NULL,
-                    novelty_score REAL DEFAULT 0.5,
-                    relevance_score REAL DEFAULT 0.5,
-                    actionability_score REAL DEFAULT 0.5
                 )
-            """
-            )
 
-            conn.commit()
-            logger.info("Basic database schema created")
+                conn.commit()
+                logger.info("Basic database schema created")
+        except Exception as e:
+            error_message = f"Failed to create basic schema: {e}"
+
+            logger.error(error_message)
+            logger.error(f"Basic schema creation error details: {format_exc()}")
+            raise DatabaseError(error_message)
 
     def store_chat_history(
         self,
