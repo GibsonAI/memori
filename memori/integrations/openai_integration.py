@@ -28,6 +28,8 @@ Usage:
 
 from loguru import logger
 
+from ..utils.streaming_proxy import create_openai_streaming_proxy
+
 # Global registry of enabled Memori instances
 _enabled_memori_instances = []
 
@@ -104,6 +106,12 @@ class OpenAIInterceptor:
                 **kwargs,
             )
 
+            if stream:
+                # Record streaming conversation for enabled Memori instances
+                result = cls._stream_record_conversation_for_enabled_instances(
+                    options, result, client_type
+                )
+
             # Record conversation for enabled Memori instances
             if not stream:  # Don't record streaming here - handle separately
                 cls._record_conversation_for_enabled_instances(
@@ -162,6 +170,12 @@ class OpenAIInterceptor:
                 **kwargs,
             )
 
+            # Record streaming conversation for enabled Memori instances
+            if stream:
+                result = cls._stream_record_conversation_for_enabled_instances(
+                    options, result, client_type
+                )
+
             # Record conversation for enabled Memori instances
             if not stream:
                 cls._record_conversation_for_enabled_instances(
@@ -176,9 +190,9 @@ class OpenAIInterceptor:
         if original_prepare_key in cls._original_methods:
             original_prepare = cls._original_methods[original_prepare_key]
 
-            def patched_async_prepare_options(self, options):
+            async def patched_async_prepare_options(self, options):
                 # Call original method first
-                options = original_prepare(self, options)
+                options = await original_prepare(self, options)
 
                 # Inject context for enabled Memori instances
                 options = cls._inject_context_for_enabled_instances(
@@ -279,6 +293,35 @@ class OpenAIInterceptor:
         except Exception as e:
             logger.debug(f"Failed to check internal agent call: {e}")
             return False
+
+    @classmethod
+    def _stream_record_conversation_for_enabled_instances(
+        cls, options, response, client_type
+    ):
+        """
+        Wrap streaming response to record conversation for enabled Memori instances.
+        """
+        try:
+            if response is None:
+                return response
+
+            # Define finalize callback to record conversation after streaming completes
+            async def finalize_callback(final_response, context_data):
+                options, client_type = context_data
+                if final_response is not None:
+                    cls._record_conversation_for_enabled_instances(
+                        options, final_response, client_type
+                    )
+
+            # Create streaming proxy
+            return create_openai_streaming_proxy(
+                stream=response,
+                finalize_callback=finalize_callback,
+                context_data=(options, client_type),
+            )
+        except Exception as e:
+            logger.error(f"Failed to wrap streaming conversation: {e}")
+            return response
 
     @classmethod
     def _record_conversation_for_enabled_instances(cls, options, response, client_type):
