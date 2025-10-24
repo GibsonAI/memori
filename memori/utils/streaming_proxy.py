@@ -10,33 +10,39 @@ from __future__ import annotations
 import asyncio
 import inspect
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any
 
+from loguru import logger
 from openai._streaming import AsyncStream, Stream
 from openai.types.chat.chat_completion import (
     ChatCompletion,
+)
+from openai.types.chat.chat_completion import (
     Choice as ChatCompletionChoice,
 )
 from openai.types.chat.chat_completion_message import (
     ChatCompletionMessage,
+)
+from openai.types.chat.chat_completion_message import (
     FunctionCall as ChatCompletionFunctionCall,
 )
 from openai.types.chat.chat_completion_message_function_tool_call import (
     ChatCompletionMessageFunctionToolCall,
+)
+from openai.types.chat.chat_completion_message_function_tool_call import (
     Function as ChatCompletionToolFunction,
 )
 from openai.types.completion_usage import CompletionUsage
-
-from loguru import logger
 
 
 @dataclass
 class _FunctionCallAccumulator:
     """Accumulates partial function call deltas."""
 
-    name: Optional[str] = None
-    argument_parts: List[str] = field(default_factory=list)
+    name: str | None = None
+    argument_parts: list[str] = field(default_factory=list)
 
     def add(self, delta) -> None:
         if delta is None:
@@ -46,7 +52,7 @@ class _FunctionCallAccumulator:
         if getattr(delta, "arguments", None):
             self.argument_parts.append(delta.arguments)
 
-    def build(self) -> Optional[ChatCompletionFunctionCall]:
+    def build(self) -> ChatCompletionFunctionCall | None:
         if not (self.name or self.argument_parts):
             return None
         try:
@@ -64,10 +70,10 @@ class _ToolCallAccumulator:
     """Accumulates partial tool call deltas."""
 
     index: int
-    tool_id: Optional[str] = None
-    tool_type: Optional[str] = None
-    function_name: Optional[str] = None
-    argument_parts: List[str] = field(default_factory=list)
+    tool_id: str | None = None
+    tool_type: str | None = None
+    function_name: str | None = None
+    argument_parts: list[str] = field(default_factory=list)
 
     def add(self, delta) -> None:
         if delta is None:
@@ -84,7 +90,7 @@ class _ToolCallAccumulator:
             if getattr(function_delta, "arguments", None):
                 self.argument_parts.append(function_delta.arguments)
 
-    def build(self) -> Optional[ChatCompletionMessageFunctionToolCall]:
+    def build(self) -> ChatCompletionMessageFunctionToolCall | None:
         if not (self.tool_id or self.function_name or self.argument_parts):
             return None
 
@@ -107,15 +113,15 @@ class _ChoiceAccumulator:
     """Holds accumulated data for a single streamed choice."""
 
     index: int
-    role: Optional[str] = None
-    content_parts: List[str] = field(default_factory=list)
-    refusal_parts: List[str] = field(default_factory=list)
-    finish_reason: Optional[str] = None
+    role: str | None = None
+    content_parts: list[str] = field(default_factory=list)
+    refusal_parts: list[str] = field(default_factory=list)
+    finish_reason: str | None = None
     logprobs: Any = None
     function_call: _FunctionCallAccumulator = field(
         default_factory=_FunctionCallAccumulator
     )
-    tool_calls: Dict[int, _ToolCallAccumulator] = field(default_factory=dict)
+    tool_calls: dict[int, _ToolCallAccumulator] = field(default_factory=dict)
 
     def add_delta(self, delta) -> None:
         if delta is None:
@@ -138,7 +144,7 @@ class _ChoiceAccumulator:
             )
             tool_acc.add(tool_delta)
 
-    def build_message(self) -> Optional[ChatCompletionMessage]:
+    def build_message(self) -> ChatCompletionMessage | None:
         try:
             message_kwargs = {
                 "role": self.role or "assistant",
@@ -173,14 +179,14 @@ class _ChatCompletionStreamAggregator:
     """Aggregates OpenAI chat completion chunks into a final response."""
 
     def __init__(self) -> None:
-        self._choices: Dict[int, _ChoiceAccumulator] = {}
+        self._choices: dict[int, _ChoiceAccumulator] = {}
         self._has_chunks = False
-        self._id: Optional[str] = None
-        self._created: Optional[int] = None
-        self._model: Optional[str] = None
-        self._service_tier: Optional[str] = None
-        self._system_fingerprint: Optional[str] = None
-        self._usage: Optional[CompletionUsage] = None
+        self._id: str | None = None
+        self._created: int | None = None
+        self._model: str | None = None
+        self._service_tier: str | None = None
+        self._system_fingerprint: str | None = None
+        self._usage: CompletionUsage | None = None
 
     def add_chunk(self, chunk: Any) -> None:
         if chunk is None:
@@ -218,12 +224,12 @@ class _ChatCompletionStreamAggregator:
         except Exception as exc:  # pragma: no cover - defensive
             logger.debug(f"Failed to aggregate streaming chunk: {exc}")
 
-    def build(self) -> Optional[ChatCompletion]:
+    def build(self) -> ChatCompletion | None:
         if not self._has_chunks or not self._choices:
             return None
 
         try:
-            choices: List[ChatCompletionChoice] = []
+            choices: list[ChatCompletionChoice] = []
             for index, accumulator in sorted(self._choices.items()):
                 message = accumulator.build_message()
                 if message is None:
@@ -265,7 +271,7 @@ class _ChatCompletionStreamAggregator:
 
 
 def _execute_finalize_callback_sync(
-    callback: Optional[Callable[[Any, Any], Awaitable[None] | None]],
+    callback: Callable[[Any, Any], Awaitable[None] | None] | None,
     final_response: Any,
     context_data: Any,
 ) -> None:
@@ -286,7 +292,7 @@ def _execute_finalize_callback_sync(
 
 
 async def _execute_finalize_callback_async(
-    callback: Optional[Callable[[Any, Any], Awaitable[None] | None]],
+    callback: Callable[[Any, Any], Awaitable[None] | None] | None,
     final_response: Any,
     context_data: Any,
 ) -> None:
@@ -307,20 +313,20 @@ class _SyncOpenAIStreamProxy:
     def __init__(
         self,
         stream: Stream,
-        finalize_callback: Optional[Callable[[Any, Any], Awaitable[None] | None]],
+        finalize_callback: Callable[[Any, Any], Awaitable[None] | None] | None,
         context_data: Any,
     ) -> None:
         self._stream = stream
         self._finalize_callback = finalize_callback
         self._context_data = context_data
         self._aggregator = _ChatCompletionStreamAggregator()
-        self._final_response: Optional[ChatCompletion] = None
+        self._final_response: ChatCompletion | None = None
         self._finalized = False
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self._stream, item)
 
-    def __iter__(self) -> "_SyncOpenAIStreamProxy":
+    def __iter__(self) -> _SyncOpenAIStreamProxy:
         return self
 
     def __next__(self) -> Any:
@@ -333,7 +339,7 @@ class _SyncOpenAIStreamProxy:
             self._aggregator.add_chunk(chunk)
             return chunk
 
-    def __enter__(self) -> "_SyncOpenAIStreamProxy":
+    def __enter__(self) -> _SyncOpenAIStreamProxy:
         if hasattr(self._stream, "__enter__"):
             self._stream.__enter__()
         return self
@@ -362,7 +368,7 @@ class _SyncOpenAIStreamProxy:
         )
 
     @property
-    def final_response(self) -> Optional[ChatCompletion]:
+    def final_response(self) -> ChatCompletion | None:
         if self._final_response is None:
             self._final_response = self._aggregator.build()
         return self._final_response
@@ -374,20 +380,20 @@ class _AsyncOpenAIStreamProxy:
     def __init__(
         self,
         stream: AsyncStream,
-        finalize_callback: Optional[Callable[[Any, Any], Awaitable[None] | None]],
+        finalize_callback: Callable[[Any, Any], Awaitable[None] | None] | None,
         context_data: Any,
     ) -> None:
         self._stream = stream
         self._finalize_callback = finalize_callback
         self._context_data = context_data
         self._aggregator = _ChatCompletionStreamAggregator()
-        self._final_response: Optional[ChatCompletion] = None
+        self._final_response: ChatCompletion | None = None
         self._finalized = False
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self._stream, item)
 
-    def __aiter__(self) -> "_AsyncOpenAIStreamProxy":
+    def __aiter__(self) -> _AsyncOpenAIStreamProxy:
         return self
 
     async def __anext__(self) -> Any:
@@ -400,7 +406,7 @@ class _AsyncOpenAIStreamProxy:
             self._aggregator.add_chunk(chunk)
             return chunk
 
-    async def __aenter__(self) -> "_AsyncOpenAIStreamProxy":
+    async def __aenter__(self) -> _AsyncOpenAIStreamProxy:
         if hasattr(self._stream, "__aenter__"):
             await self._stream.__aenter__()
         return self
@@ -429,7 +435,7 @@ class _AsyncOpenAIStreamProxy:
         )
 
     @property
-    def final_response(self) -> Optional[ChatCompletion]:
+    def final_response(self) -> ChatCompletion | None:
         if self._final_response is None:
             self._final_response = self._aggregator.build()
         return self._final_response
@@ -438,7 +444,7 @@ class _AsyncOpenAIStreamProxy:
 # Convenience function for creating OpenAI streaming proxies
 def create_openai_streaming_proxy(
     stream: Stream | AsyncStream,
-    finalize_callback: Optional[Callable[[Any, Any], Awaitable[None] | None]] = None,
+    finalize_callback: Callable[[Any, Any], Awaitable[None] | None] | None = None,
     context_data: Any = None,
 ) -> Stream | AsyncStream:
     """

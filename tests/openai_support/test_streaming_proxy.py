@@ -2,7 +2,6 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
-
 from openai._streaming import AsyncStream, Stream
 from openai.types.completion_usage import CompletionUsage
 
@@ -91,7 +90,9 @@ def test_sync_streaming_proxy_aggregates_chunks_and_invokes_finalize():
         captured["context"] = context
 
     proxy = create_openai_streaming_proxy(
-        DummyStream(chunks), finalize_callback=finalize_callback, context_data={"req": 1}
+        DummyStream(chunks),
+        finalize_callback=finalize_callback,
+        context_data={"req": 1},
     )
 
     emitted_chunks = list(proxy)
@@ -121,7 +122,9 @@ async def test_async_streaming_proxy_invokes_async_finalize_callback():
         captured["context"] = context
 
     proxy = create_openai_streaming_proxy(
-        DummyAsyncStream(chunks), finalize_callback=finalize_callback, context_data=("ctx",)
+        DummyAsyncStream(chunks),
+        finalize_callback=finalize_callback,
+        context_data=("ctx",),
     )
 
     emitted_chunks = []

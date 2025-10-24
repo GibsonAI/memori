@@ -1,7 +1,8 @@
-import os
 import asyncio
+import os
+
 import dotenv
-from openai import OpenAI, AsyncOpenAI
+from openai import AsyncOpenAI
 
 from memori import Memori
 

@@ -27,6 +27,7 @@ Usage:
 """
 
 from loguru import logger
+
 from ..utils.streaming_proxy import create_openai_streaming_proxy
 
 # Global registry of enabled Memori instances
@@ -298,7 +299,7 @@ class OpenAIInterceptor:
         cls, options, response, client_type
     ):
         """
-            Wrap streaming response to record conversation for enabled Memori instances.
+        Wrap streaming response to record conversation for enabled Memori instances.
         """
         try:
             if response is None:
@@ -311,11 +312,12 @@ class OpenAIInterceptor:
                     cls._record_conversation_for_enabled_instances(
                         options, final_response, client_type
                     )
+
             # Create streaming proxy
             return create_openai_streaming_proxy(
                 stream=response,
                 finalize_callback=finalize_callback,
-                context_data=(options, client_type)
+                context_data=(options, client_type),
             )
         except Exception as e:
             logger.error(f"Failed to wrap streaming conversation: {e}")
