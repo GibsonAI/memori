@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://memori.gibsonai.com/docs">Learn more</a>
   ·
-  <a href="https://www.gibsonai.com/discord">Join Discord</a>
+  <a href="https://discord.gg/abD4eGym6v">Join Discord</a>
 </p>
 
 <p align="center">
@@ -414,7 +414,7 @@ Explore Memori's capabilities through these interactive demonstrations:
 ## 🤝 Contributing
 
 - See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
-- Community: [Discord](https://www.gibsonai.com/discord)
+- Community: [Discord](https://discord.gg/abD4eGym6v)
 
 ## ⭐️ Star us on GitHub to support the project 
 
