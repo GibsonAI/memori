@@ -25,6 +25,12 @@ client.chat.completions.create(...)  # ✅ Auto-recorded
 import anthropic
 client = anthropic.Anthropic(api_key="...")
 client.messages.create(...)  # ✅ Auto-recorded
+
+# Direct Google GenAI (auto-wrapping)
+import google.generativeai as genai
+genai.configure(api_key="...")
+model = genai.GenerativeModel("gemini-pro")
+model.generate_content(...)  # ✅ Auto-recorded
 ```
 
 The universal system automatically detects and records ALL LLM providers
@@ -36,7 +42,7 @@ from typing import Any
 from loguru import logger
 
 # Legacy imports (all deprecated)
-from . import anthropic_integration, litellm_integration, openai_integration
+from . import anthropic_integration, google_genai_integration, litellm_integration, openai_integration
 
 __all__ = [
     # New interceptor classes (recommended)
@@ -47,12 +53,18 @@ __all__ = [
     # Factory functions
     "create_openai_client",
     "setup_openai_interceptor",
+    "create_genai_model",
+    "setup_genai_interceptor",
 ]
 
 
 # For backward compatibility, provide simple passthrough
 try:
     from .anthropic_integration import MemoriAnthropic
+    from .google_genai_integration import (
+        create_genai_model,
+        setup_genai_interceptor,
+    )
     from .openai_integration import (
         MemoriOpenAI,
         MemoriOpenAIInterceptor,
@@ -78,6 +90,8 @@ try:
             "MemoriOpenAIInterceptor",
             "create_openai_client",
             "setup_openai_interceptor",
+            "create_genai_model",
+            "setup_genai_interceptor",
         ]:
             # These are the new recommended classes/functions
             if name == "MemoriOpenAIInterceptor":
@@ -86,8 +100,13 @@ try:
                 return create_openai_client
             elif name == "setup_openai_interceptor":
                 return setup_openai_interceptor
+            elif name == "create_genai_model":
+                return create_genai_model
+            elif name == "setup_genai_interceptor":
+                return setup_genai_interceptor
         raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
-except ImportError:
+except ImportError as e:
     # Wrapper classes not available, that's fine
+    logger.debug(f"Some integrations not available: {e}")
     pass
