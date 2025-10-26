@@ -15,6 +15,7 @@ from loguru import logger
 if TYPE_CHECKING:
     from ..core.providers import ProviderConfig
 
+from ..integrations.openai_integration import suppress_auto_recording
 from ..utils.pydantic_models import MemorySearchQuery
 
 
@@ -140,18 +141,19 @@ Be strategic and comprehensive in your search planning."""
             if self._supports_structured_outputs:
                 try:
                     # Call OpenAI Structured Outputs
-                    completion = self.client.beta.chat.completions.parse(
-                        model=self.model,
-                        messages=[
-                            {"role": "system", "content": self.SYSTEM_PROMPT},
-                            {
-                                "role": "user",
-                                "content": prompt,
-                            },
-                        ],
-                        response_format=MemorySearchQuery,
-                        temperature=0.1,
-                    )
+                    with suppress_auto_recording():
+                        completion = self.client.beta.chat.completions.parse(
+                            model=self.model,
+                            messages=[
+                                {"role": "system", "content": self.SYSTEM_PROMPT},
+                                {
+                                    "role": "user",
+                                    "content": prompt,
+                                },
+                            ],
+                            response_format=MemorySearchQuery,
+                            temperature=0.1,
+                        )
 
                     # Handle potential refusal
                     if completion.choices[0].message.refusal:
@@ -599,13 +601,14 @@ Be strategic and comprehensive in your search planning."""
                 test_field: str
 
             # Try to make a structured output call
-            test_response = self.client.beta.chat.completions.parse(
-                model=self.model,
-                messages=[{"role": "user", "content": "Say hello"}],
-                response_format=TestModel,
-                max_tokens=10,
-                temperature=0,
-            )
+            with suppress_auto_recording():
+                test_response = self.client.beta.chat.completions.parse(
+                    model=self.model,
+                    messages=[{"role": "user", "content": "Say hello"}],
+                    response_format=TestModel,
+                    max_tokens=10,
+                    temperature=0,
+                )
 
             if (
                 test_response
@@ -647,18 +650,19 @@ Be strategic and comprehensive in your search planning."""
             json_system_prompt += "\n\nRespond ONLY with the JSON object, no additional text or formatting."
 
             # Call regular chat completions
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": json_system_prompt},
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
-                ],
-                temperature=0.1,
-                max_tokens=1000,  # Ensure enough tokens for full response
-            )
+            with suppress_auto_recording():
+                completion = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": json_system_prompt},
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        },
+                    ],
+                    temperature=0.1,
+                    max_tokens=1000,  # Ensure enough tokens for full response
+                )
 
             # Extract and parse JSON response
             response_text = completion.choices[0].message.content
