@@ -14,9 +14,9 @@ Usage:
 
 import os
 
-import openai
 from dotenv import load_dotenv
 
+import openai
 from memori import Memori, create_memory_tool
 
 # Load environment variables

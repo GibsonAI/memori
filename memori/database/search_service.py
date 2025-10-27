@@ -492,7 +492,6 @@ class SearchService:
 
             # Search short-term memory if requested
             if search_short_term:
-
                 # Build category filter clause safely
                 category_clause = ""
                 if category_filter:

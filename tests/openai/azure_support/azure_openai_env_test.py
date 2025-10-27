@@ -1,9 +1,8 @@
 import os
 
-from openai import AzureOpenAI
-
 from memori import Memori
 from memori.core.providers import ProviderConfig
+from openai import AzureOpenAI
 
 # Load Azure OpenAI configuration from environment variables
 AZURE_API_KEY = os.getenv("AZURE_OPENAI_API_KEY", "your-azure-api-key")

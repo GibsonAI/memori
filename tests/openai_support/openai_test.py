@@ -3,9 +3,8 @@ import shutil
 import sys
 import time
 
-from openai import OpenAI
-
 from memori import Memori
+from openai import OpenAI
 
 # Fix imports to work from any directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -46,7 +45,7 @@ def run_openai_test_scenario(
         test_inputs: List of test inputs to process
         openai_config: OpenAI configuration dictionary
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running OpenAI Test: {test_name}")
     print(
         f"Configuration: conscious_ingest={conscious_ingest}, auto_ingest={auto_ingest}"
@@ -56,7 +55,7 @@ def run_openai_test_scenario(
         print(f"Base URL: {openai_config['base_url']}")
     if openai_config["organization"]:
         print(f"Organization: {openai_config['organization']}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Create database directory for this test
     db_dir = f"test_databases_openai/{test_name}"
@@ -161,7 +160,7 @@ def run_openai_test_scenario(
     print(f"\n✓ OpenAI Test '{test_name}' completed.")
     print(f"  Database saved at: {db_path}")
     print(
-        f"  Success rate: {success_count}/{len(test_inputs)} ({100*success_count/len(test_inputs):.1f}%)\n"
+        f"  Success rate: {success_count}/{len(test_inputs)} ({100 * success_count / len(test_inputs):.1f}%)\n"
     )
 
     return success_count > 0

@@ -310,7 +310,7 @@ class DatabaseAutoCreator:
                 # Database name is already validated, so this is safe
                 conn.execute(
                     text(
-                        f'CREATE DATABASE `{components["database"]}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+                        f"CREATE DATABASE `{components['database']}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
                     )
                 )
                 conn.commit()

@@ -1,6 +1,5 @@
-from openai import OpenAI
-
 from memori import Memori
+from openai import OpenAI
 
 # Initialize OpenAI client
 openai_client = OpenAI()
