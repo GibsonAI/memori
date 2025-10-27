@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://memori.gibsonai.com/docs">Learn more</a>
   ·
-  <a href="https://www.gibsonai.com/discord">Join Discord</a>
+  <a href="https://discord.gg/abD4eGym6v">Join Discord</a>
 </p>
 
 <p align="center">
@@ -23,8 +23,8 @@
   <a href="https://pepy.tech/projects/memorisdk">
     <img src="https://static.pepy.tech/badge/memorisdk" alt="Downloads">
   </a>
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+  <a href="https://opensource.org/license/apache-2-0">
+    <img src="https://img.shields.io/badge/license-Apache%20License%202.0-blue" alt="License: Apache 2.0">
   </a>
   <a href="https://www.python.org/downloads/">
     <img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+">
@@ -414,7 +414,7 @@ Explore Memori's capabilities through these interactive demonstrations:
 ## 🤝 Contributing
 
 - See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
-- Community: [Discord](https://www.gibsonai.com/discord)
+- Community: [Discord](https://discord.gg/abD4eGym6v)
 
 ## ⭐️ Star us on GitHub to support the project 
 
@@ -422,7 +422,7 @@ Explore Memori's capabilities through these interactive demonstrations:
 
 ## 📄 License
 
-MIT License - see [LICENSE](./LICENSE) for details.
+Apache 2.0 License - see [LICENSE](./LICENSE) for details.
 
 ---
 
