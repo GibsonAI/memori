@@ -77,7 +77,7 @@ class TransactionManager:
     ):
         """Context manager for database transactions with proper error handling"""
 
-        transaction_id = f"txn_{int(time.time()*1000)}"
+        transaction_id = f"txn_{int(time.time() * 1000)}"
         start_time = time.time()
 
         try:

@@ -9,8 +9,9 @@ import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
-import openai
 from loguru import logger
+
+import openai
 
 if TYPE_CHECKING:
     from ..core.providers import ProviderConfig
@@ -184,9 +185,9 @@ Focus on extracting information that would genuinely help provide better context
 CONVERSATION CONTEXT:
 - Session: {context.session_id}
 - Model: {context.model_used}
-- User Projects: {', '.join(context.current_projects) if context.current_projects else 'None specified'}
-- Relevant Skills: {', '.join(context.relevant_skills) if context.relevant_skills else 'None specified'}
-- Topic Thread: {context.topic_thread or 'General conversation'}
+- User Projects: {", ".join(context.current_projects) if context.current_projects else "None specified"}
+- Relevant Skills: {", ".join(context.relevant_skills) if context.relevant_skills else "None specified"}
+- Topic Thread: {context.topic_thread or "General conversation"}
 """
 
             # Try structured outputs first, fall back to manual parsing

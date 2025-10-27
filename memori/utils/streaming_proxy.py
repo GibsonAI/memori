@@ -19,9 +19,7 @@ from openai._streaming import AsyncStream, Stream
 from openai.types.chat.chat_completion import (
     ChatCompletion,
 )
-from openai.types.chat.chat_completion import (
-    Choice as ChatCompletionChoice,
-)
+from openai.types.chat.chat_completion import Choice as ChatCompletionChoice
 from openai.types.chat.chat_completion_message import (
     ChatCompletionMessage,
 )

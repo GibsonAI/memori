@@ -120,7 +120,7 @@ class QueryBuilder:
             query = f"""
                 SELECT *, '{tables[0]}' as memory_type
                 FROM {tables[0]}
-                WHERE {' AND '.join(where_conditions)}
+                WHERE {" AND ".join(where_conditions)}
                 ORDER BY importance_score DESC, created_at DESC
                 {self.LIMIT_SYNTAX[self.dialect]}
             """
@@ -131,13 +131,13 @@ class QueryBuilder:
                 table_query = f"""
                     SELECT *, '{table}' as memory_type
                     FROM {table}
-                    WHERE {' AND '.join(where_conditions)}
+                    WHERE {" AND ".join(where_conditions)}
                 """
                 union_parts.append(table_query)
 
             query = f"""
                 SELECT * FROM (
-                    {' UNION ALL '.join(union_parts)}
+                    {" UNION ALL ".join(union_parts)}
                 ) combined
                 ORDER BY importance_score DESC, created_at DESC
                 {self.LIMIT_SYNTAX[self.dialect]}
@@ -241,8 +241,8 @@ class QueryBuilder:
 
         query = f"""
             UPDATE {table}
-            SET {', '.join(set_conditions)}
-            WHERE {' AND '.join(where_parts)}
+            SET {", ".join(set_conditions)}
+            WHERE {" AND ".join(where_parts)}
         """
 
         return query, params
@@ -326,7 +326,7 @@ class QueryBuilder:
                 FROM memory_search_fts fts
                 LEFT JOIN short_term_memory st ON fts.memory_id = st.memory_id AND fts.memory_type = 'short_term'
                 LEFT JOIN long_term_memory lt ON fts.memory_id = lt.memory_id AND fts.memory_type = 'long_term'
-                WHERE {' AND '.join(where_conditions)}
+                WHERE {" AND ".join(where_conditions)}
                 ORDER BY rank, importance_score DESC
                 {self.LIMIT_SYNTAX[self.dialect]}
             """
@@ -360,7 +360,7 @@ class QueryBuilder:
                     ts_rank(COALESCE(to_tsvector('english', st.searchable_content), to_tsvector('english', lt.searchable_content)), plainto_tsquery('english', %s)) as rank
                 FROM short_term_memory st
                 FULL OUTER JOIN long_term_memory lt ON FALSE  -- Force separate processing
-                WHERE {' AND '.join(where_conditions)}
+                WHERE {" AND ".join(where_conditions)}
                 ORDER BY rank DESC, importance_score DESC
                 {self.LIMIT_SYNTAX[self.dialect]}
             """
@@ -409,7 +409,7 @@ class QueryBuilder:
                     lt.summary,
                     MATCH(lt.searchable_content) AGAINST(%s IN BOOLEAN MODE) as rank
                 FROM long_term_memory lt
-                WHERE {' AND '.join(where_conditions)}
+                WHERE {" AND ".join(where_conditions)}
                 ORDER BY rank DESC, importance_score DESC
                 {self.LIMIT_SYNTAX[self.dialect]}
             """

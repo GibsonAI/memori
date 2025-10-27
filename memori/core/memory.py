@@ -1213,7 +1213,7 @@ class Memori:
                         results[:3]
                     ):  # Log first 3 results for debugging
                         logger.debug(
-                            f"Auto-ingest: Result {i+1}: {type(result)} with keys: {list(result.keys()) if isinstance(result, dict) else 'N/A'}"
+                            f"Auto-ingest: Result {i + 1}: {type(result)} with keys: {list(result.keys()) if isinstance(result, dict) else 'N/A'}"
                         )
             except Exception as db_search_e:
                 logger.error(f"Auto-ingest: Database search failed: {db_search_e}")

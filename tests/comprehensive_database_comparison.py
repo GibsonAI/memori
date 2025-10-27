@@ -49,11 +49,11 @@ def get_database_connections():
 
 def test_database_comprehensive(db_name, connection_string, test_name):
     """Comprehensive database test with all features"""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"🧪 Testing {test_name}")
     print(f"Database: {db_name}")
     print(f"Connection: {connection_string}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     try:
         from memori import Memori
@@ -134,7 +134,7 @@ def test_database_comprehensive(db_name, connection_string, test_name):
 
         test_results["insert_time"] = time.time() - start_time
         print(
-            f"   ⏱️  Insert time: {test_results['insert_time']:.3f}s ({test_results['insert_time']/len(test_messages):.3f}s per record)"
+            f"   ⏱️  Insert time: {test_results['insert_time']:.3f}s ({test_results['insert_time'] / len(test_messages):.3f}s per record)"
         )
 
         # Test 2: Data retrieval performance

@@ -243,7 +243,6 @@ class PostgreSQLConnector(BaseDatabaseConnector):
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
-
                     for query, params in queries:
                         if params:
                             cursor.execute(query, params)
