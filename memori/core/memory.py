@@ -15,6 +15,7 @@ try:
     import litellm  # noqa: F401
     from litellm import success_callback  # noqa: F401
 
+    _ = litellm  # Mark as intentionally imported
     LITELLM_AVAILABLE = True
 except ImportError:
     LITELLM_AVAILABLE = False
@@ -111,9 +112,13 @@ class Memori:
         self.schema_init = schema_init
         self.database_prefix = database_prefix
         self.database_suffix = database_suffix
+
         # Validate conscious_memory_limit parameter
-        if not isinstance(conscious_memory_limit, int) or conscious_memory_limit < 1:
-            raise ValueError("conscious_memory_limit must be a positive integer")
+        if not isinstance(conscious_memory_limit, int) or isinstance(conscious_memory_limit, bool):
+            raise TypeError("conscious_memory_limit must be an integer (not bool)")
+
+        if not (1 <= conscious_memory_limit <= 2000):
+            raise ValueError("conscious_memory_limit must be between 1 and 2000")
 
         self.conscious_memory_limit = conscious_memory_limit
 
@@ -2634,12 +2639,14 @@ class Memori:
         Get auto-ingest context as system prompt for direct injection.
         Returns relevant memories based on user input as formatted system prompt.
         Use this for auto_ingest mode.
+        
+        Note: Context retrieval is handled by _get_auto_ingest_context().
+        This function only formats pre-retrieved context.
         """
         try:
-            # For now, use recent short-term memories as a simple approach
-            # This avoids the search engine issues and still provides context
-            # TODO: Use user_input for intelligent context retrieval
-            context = self._get_conscious_context()  # Get recent short-term memories
+            # Get recent short-term memories as fallback context
+            # The actual intelligent retrieval is handled by _get_auto_ingest_context()
+            context = self._get_conscious_context()
 
             if not context:
                 return ""

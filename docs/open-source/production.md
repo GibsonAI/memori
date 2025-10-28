@@ -791,7 +791,7 @@ If you run into issues in production:
 2. **Monitor memory stats** - Use `get_memory_stats()` for insights
 3. **Test database connection** - Ensure your database is accessible
 4. **Verify API keys** - Make sure your OpenAI/provider keys work
-5. **Join our Discord** - Get help from the community: [Discord](https://www.gibsonai.com/discord)
+5. **Join our Discord** - Get help from the community: [Discord](https://discord.gg/abD4eGym6v)
 
 ## Summary
 
