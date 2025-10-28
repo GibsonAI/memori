@@ -239,7 +239,7 @@ Releases are managed by maintainers:
 
 - **GitHub Discussions**: For questions and general discussion
 - **GitHub Issues**: For bug reports and feature requests
-- **Discord**: Join our community at https://www.gibsonai.com/discord
+- **Discord**: Join our community at https://discord.gg/abD4eGym6v
 - **Documentation**: Check docs for common questions
 
 ## 📄 License
