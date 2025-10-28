@@ -688,7 +688,7 @@ When working with the agent system:
 
 - **GitHub Discussions** - Ask questions and share ideas about features
 - **GitHub Issues** - Report bugs and request features
-- **Discord Community** - Join us at https://www.gibsonai.com/discord
+- **Discord Community** - Join us at https://discord.gg/abD4eGym6v
 - **Documentation** - Check docs for configuration and usage examples
 - **Examples Directory** - Working code examples for all major features
 - **Email** - Direct contact at noc@gibsonai.com for sensitive issues

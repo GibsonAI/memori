@@ -94,7 +94,7 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/GibsonAI/memori
     - icon: fontawesome/brands/discord
-      link: https://www.gibsonai.com/discord
+      link: https://discord.gg/abD4eGym6v
       name: Discord Community
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/memorisdk/
