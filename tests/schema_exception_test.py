@@ -23,7 +23,7 @@ def test_schema_exception_logging():
         from memori.core.database import DatabaseManager
 
         # Create temp database
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             temp_path = f.name
 
         # Create a list to store the log messages
@@ -38,8 +38,7 @@ def test_schema_exception_logging():
 
         # Test with invalid template (this will trigger the fallback)
         db_manager = DatabaseManager(
-            database_connect=f"sqlite:///{temp_path}",
-            template="basic"
+            database_connect=f"sqlite:///{temp_path}", template="basic"
         )
 
         # Initialize schema (it should fail and log errors then fallback to the basic schema)
@@ -51,15 +50,23 @@ def test_schema_exception_logging():
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in cursor.fetchall()]
 
-            assert 'chat_history' in tables, "Fallback schema creation did NOT work"
+            assert "chat_history" in tables, "Fallback schema creation did NOT work"
 
         assert len(captured_logs) > 0, "No logs captured"
 
-        assert any("Schema execution issue" in log for log in captured_logs), "Schema execution issue log not found"
-        assert any("Schema execution error details: Traceback" in log for log in captured_logs), "Schema execution error details: Traceback log not found"
+        assert any(
+            "Schema execution issue" in log for log in captured_logs
+        ), "Schema execution issue log not found"
+        assert any(
+            "Schema execution error details: Traceback" in log for log in captured_logs
+        ), "Schema execution error details: Traceback log not found"
 
-        assert any("Schema statement error" in log for log in captured_logs), "Schema statement error log not found"
-        assert any("Schema statement error details: Traceback" in log for log in captured_logs), "Schema statement error details: Traceback log not found"
+        assert any(
+            "Schema statement error" in log for log in captured_logs
+        ), "Schema statement error log not found"
+        assert any(
+            "Schema statement error details: Traceback" in log for log in captured_logs
+        ), "Schema statement error details: Traceback log not found"
 
         print("✅ Schema exception logging and fallback works")
         return True

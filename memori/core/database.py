@@ -96,7 +96,9 @@ class DatabaseManager:
                         logger.warning(
                             f"Schema execution issue: {e}, falling back to statement-by-statement"
                         )
-                        logger.warning(f"Schema execution error details: {format_exc()}")
+                        logger.warning(
+                            f"Schema execution error details: {format_exc()}"
+                        )
                         # Fallback to statement-by-statement execution
                         self._execute_schema_statements(conn, schema_sql)
 
