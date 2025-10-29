@@ -8,6 +8,9 @@ Get Memori running in less than a minute.
 pip install memorisdk openai
 ```
 
+!!! tip "CLI Available"
+    Memori now includes a CLI! Use `memori init` to create a config file and `memori health` to check your setup. See the [CLI Reference](cli-reference.md) for details.
+
 ## 2. Set API Key
 
 ```bash

@@ -64,6 +64,7 @@ nav:
     - Quick Start: getting-started/quick-start.md
     - Installation: getting-started/installation.md
     - Basic Usage: getting-started/basic-usage.md
+    - CLI Reference: getting-started/cli-reference.md
   - Open Source:
     - Features: open-source/features.md
     - Architecture: open-source/architecture.md

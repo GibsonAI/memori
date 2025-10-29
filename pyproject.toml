@@ -119,9 +119,8 @@ Repository = "https://github.com/GibsonAI/memori.git"
 "Changelog" = "https://github.com/GibsonAI/memori/blob/main/CHANGELOG.md"
 "Contributing" = "https://github.com/GibsonAI/memori/blob/main/CONTRIBUTING.md"
 
-# [project.scripts]
-# CLI not yet implemented - remove entry point until CLI is created
-# memori = "memori.cli:main"
+[project.scripts]
+memori = "memori.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["memori*"]
