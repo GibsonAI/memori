@@ -432,12 +432,37 @@ class OpenAIInterceptor:
     def _is_internal_agent_call(cls, json_data):
         """Check if this is an internal agent processing call that should not be recorded."""
         try:
-            openai_metadata = json_data.get("metadata", [])
+            # Check messages for internal processing markers
+            messages = json_data.get("messages", [])
+            if messages:
+                for message in messages:
+                    content = message.get("content", "")
+                    if isinstance(content, str):
+                        # Check for internal processing markers in message content
+                        if "[INTERNAL_MEMORI_SEARCH]" in content:
+                            return True
+                        if "Process this conversation for enhanced memory storage" in content:
+                            return True
+
+            # Legacy: Check for metadata (though OpenAI no longer allows it without store)
+            openai_metadata = json_data.get("metadata", {})
 
             # Check for specific internal agent metadata flags
-            if isinstance(openai_metadata, list):
+            # Support both dict format (correct) and list format (legacy)
+            if isinstance(openai_metadata, dict):
+                # Check if any value in the metadata dict indicates internal processing
+                internal_markers = [
+                    "INTERNAL_MEMORY_PROCESSING",
+                    "AGENT_PROCESSING_MODE",
+                    "MEMORY_AGENT_TASK",
+                ]
+                for value in openai_metadata.values():
+                    if value in internal_markers:
+                        return True
+            elif isinstance(openai_metadata, list):
+                # Legacy support: metadata as list
                 internal_metadata = [
-                    "INTERNAL_MEMORY_PROCESSING",  # used in memory agent and retrieval agent
+                    "INTERNAL_MEMORY_PROCESSING",
                     "AGENT_PROCESSING_MODE",
                     "MEMORY_AGENT_TASK",
                 ]

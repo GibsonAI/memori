@@ -204,9 +204,6 @@ CONVERSATION CONTEXT:
                                 "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
                             },
                         ],
-                        metadata=[
-                            "INTERNAL_MEMORY_PROCESSING"
-                        ],  # Internal metadata tag
                         response_format=ProcessedLongTermMemory,
                         temperature=0.1,  # Low temperature for consistent processing
                     )
@@ -424,7 +421,6 @@ CONVERSATION CONTEXT:
                         "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
                     },
                 ],
-                metadata=["INTERNAL_MEMORY_PROCESSING"],  # Internal metadata tag
                 temperature=0.1,  # Low temperature for consistent processing
                 max_tokens=2000,  # Ensure enough tokens for full response
             )

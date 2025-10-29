@@ -149,9 +149,6 @@ Be strategic and comprehensive in your search planning."""
                                 "content": prompt,
                             },
                         ],
-                        metadata=[
-                            "INTERNAL_MEMORY_PROCESSING"
-                        ],  # Internal metadata tag
                         response_format=MemorySearchQuery,
                         temperature=0.1,
                     )
@@ -659,7 +656,6 @@ Be strategic and comprehensive in your search planning."""
                         "content": prompt,
                     },
                 ],
-                metadata=["INTERNAL_MEMORY_PROCESSING"],  # Internal metadata tag
                 temperature=0.1,
                 max_tokens=1000,  # Ensure enough tokens for full response
             )
