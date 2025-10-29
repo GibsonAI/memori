@@ -276,13 +276,23 @@ def validate_memory_id(memory_id: str) -> str:
     # 2. Parameterized queries (used throughout codebase) prevent SQL injection
     # 3. Legitimate memory content may contain SQL keywords
     # This serves as an audit trail for anomaly detection
-    suspicious_patterns = ["'", '"', ";", "--", "/*", "*/", "DROP", "DELETE", "UPDATE"]
-    memory_id_upper = memory_id.upper()
+    suspicious_patterns = ["'", '"', ";", "--", "/*", "*/"]
+    suspicious_keywords = ["DROP", "DELETE", "UPDATE"]
 
+    # Check for special characters (case-sensitive patterns)
     for pattern in suspicious_patterns:
-        if pattern in memory_id_upper:
+        if pattern in memory_id:
             logger.warning(
                 f"[SECURITY] Suspicious pattern '{pattern}' detected in memory_id: {memory_id[:20]}... "
+                f"(Warning only - parameterized queries provide protection)"
+            )
+
+    # Check for SQL keywords (case-insensitive)
+    memory_id_upper = memory_id.upper()
+    for keyword in suspicious_keywords:
+        if keyword in memory_id_upper:
+            logger.warning(
+                f"[SECURITY] Suspicious SQL keyword '{keyword}' detected in memory_id: {memory_id[:20]}... "
                 f"(Warning only - parameterized queries provide protection)"
             )
 

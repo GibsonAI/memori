@@ -210,6 +210,7 @@ CREATE TABLE long_term_memory_new (
 );
 
 -- Copy data from old to new table (namespace -> user_id)
+-- NOTE: session_id may not exist in v1.x long_term_memory, so we use static default
 INSERT INTO long_term_memory_new
 SELECT
     memory_id,
@@ -219,7 +220,7 @@ SELECT
     retention_type,
     COALESCE(namespace, 'default') AS user_id,
     NULL AS assistant_id,
-    COALESCE(session_id, 'default') AS session_id,
+    'default' AS session_id,
     created_at,
     searchable_content,
     summary,

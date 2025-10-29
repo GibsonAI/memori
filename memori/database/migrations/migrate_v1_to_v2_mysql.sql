@@ -30,7 +30,7 @@ SELECT 'long_term_memory', COUNT(*) AS count FROM long_term_memory;
 -- ============================================================================
 
 -- Add user_id columns (primary tenant isolation field)
-ALTER TABLE chat_history ADD COLUMN user_id TEXT AFTER role;
+ALTER TABLE chat_history ADD COLUMN user_id TEXT;
 ALTER TABLE short_term_memory ADD COLUMN user_id TEXT AFTER retention_type;
 ALTER TABLE long_term_memory ADD COLUMN user_id TEXT AFTER retention_type;
 

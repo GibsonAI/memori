@@ -52,7 +52,16 @@ class MemoryQueries(BaseQueries):
             duplicate_of, supersedes_json, related_memories_json,
             confidence_score, classification_reason,
             processed_for_duplicates, conscious_processed
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (
+            :memory_id, :processed_data, :importance_score, :category_primary,
+            :retention_type, :user_id, :assistant_id, :session_id, :created_at, :searchable_content, :summary,
+            :novelty_score, :relevance_score, :actionability_score,
+            :classification, :memory_importance, :topic, :entities_json, :keywords_json,
+            :is_user_context, :is_preference, :is_skill_knowledge, :is_current_project, :promotion_eligible,
+            :duplicate_of, :supersedes_json, :related_memories_json,
+            :confidence_score, :classification_reason,
+            :processed_for_duplicates, :conscious_processed
+        )
     """
 
     # REMOVED: Simplified schema - rules_memory table removed
