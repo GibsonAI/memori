@@ -343,11 +343,28 @@ class Memori:
     ):
         """Create appropriate database manager based on connection string with fallback"""
         try:
+            from ..database.mongodb_manager import MongoDBDatabaseManager
+            from pymongo.errors import ConnectionFailure, ConfigurationError
+            import re
+        except ImportError:
+            logger.error(
+                "MongoDB support requires pymongo. Install with: pip install pymongo"
+            )
+            logger.info("Falling back to SQLite for compatibility")
+            return self._create_fallback_sqlite_manager(template, schema_init)
+        
+        try:
             # Detect MongoDB connection strings
             if self._is_mongodb_connection(database_connect):
                 logger.info(
                     "Detected MongoDB connection string - attempting MongoDB manager"
                 )
+
+                if not re.match(r"mongodb(?:\+srv)?://", database_connect):
+                     error_message = "Invalid MongoDB connection string format. URI must start with 'mongodb://' or 'mongodb+srv://'."
+                     logger.error(error_message)
+                     raise MemoriError(error_message)
+                
                 try:
                     from ..database.mongodb_manager import MongoDBDatabaseManager
 
@@ -356,9 +373,27 @@ class Memori:
                         database_connect, template, schema_init
                     )
                     # Verify connection works
-                    _ = manager._get_client()
+                    client = manager._get_client()
+                    client.admin.command('ping')
                     logger.info("MongoDB manager initialized successfully")
                     return manager
+                
+                except ConnectionFailure as e:
+                    error_message = (
+                        f"MongoDB connection failed: Connection refused or timed out. "
+                        f"Please check your service status and URI. Detail: {e}"
+                    )
+                    logger.error(error_message)
+                    raise MemoriError(error_message)
+
+                except ConfigurationError as e:
+                    error_message = (
+                        f"MongoDB configuration error. Check your URI syntax, credentials, "
+                        f"and hostname. Detail: {e}"
+                    )
+                    logger.error(error_message)
+                    raise MemoriError(error_message)
+                
                 except ImportError:
                     logger.error(
                         "MongoDB support requires pymongo. Install with: pip install pymongo"
@@ -374,6 +409,9 @@ class Memori:
                 return SQLAlchemyDatabaseManager(
                     database_connect, template, schema_init
                 )
+        
+        except MemoriError:
+            raise
 
         except Exception as e:
             logger.error(f"Failed to create database manager: {e}")
