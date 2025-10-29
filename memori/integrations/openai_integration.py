@@ -441,7 +441,10 @@ class OpenAIInterceptor:
                         # Check for internal processing markers in message content
                         if "[INTERNAL_MEMORI_SEARCH]" in content:
                             return True
-                        if "Process this conversation for enhanced memory storage" in content:
+                        if (
+                            "Process this conversation for enhanced memory storage"
+                            in content
+                        ):
                             return True
 
             # Legacy: Check for metadata (though OpenAI no longer allows it without store)
