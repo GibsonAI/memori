@@ -1178,6 +1178,12 @@ class SearchService:
 
             # Apply sorting and pagination at database level
             # Use bracket notation for reliable column access in UNION ALL subqueries
+            # Additional safety: Verify column exists in combined result set
+            if sort_by not in combined.c:
+                logger.warning(
+                    f"[LIST] Sort field '{sort_by}' not found in combined results, falling back to 'created_at'"
+                )
+                sort_by = "created_at"
             sort_column = combined.c[sort_by]
             query = self.session.query(combined).order_by(order_clause(sort_column))
             results = query.limit(limit).offset(offset).all()

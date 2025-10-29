@@ -230,12 +230,90 @@ class MigrationHelper:
             return False
 
     def _split_sql_statements(self, sql: str) -> list[str]:
-        """Split SQL script into individual statements"""
-        # Remove comments
+        """
+        Split SQL script into individual statements, handling semicolons in strings and DO blocks.
+
+        Properly handles:
+        - Single-quoted strings: 'value'
+        - Double-quoted identifiers: "column"
+        - Dollar-quoted blocks: $$...$$ or $tag$...$tag$
+        - DO blocks: DO $$ BEGIN ... END $$;
+        """
+        # Remove single-line comments
         sql = re.sub(r"--.*$", "", sql, flags=re.MULTILINE)
-        # Split by semicolon (naive, but works for most cases)
-        statements = sql.split(";")
-        return [s.strip() for s in statements if s.strip()]
+
+        statements = []
+        statement = []
+        in_single_quote = False
+        in_double_quote = False
+        in_dollar_quote = False
+        dollar_tag = ""
+        i = 0
+        length = len(sql)
+
+        while i < length:
+            c = sql[i]
+
+            # Handle start of dollar-quoted block (e.g., $$ or $tag$)
+            if (
+                not in_single_quote
+                and not in_double_quote
+                and not in_dollar_quote
+                and c == "$"
+            ):
+                # Find the full tag
+                m = re.match(r"\$([A-Za-z0-9_]*)\$", sql[i:])
+                if m:
+                    dollar_tag = m.group(0)
+                    in_dollar_quote = True
+                    statement.append(dollar_tag)
+                    i += len(dollar_tag)
+                    continue
+
+            # Handle end of dollar-quoted block
+            if in_dollar_quote and sql[i : i + len(dollar_tag)] == dollar_tag:
+                statement.append(dollar_tag)
+                i += len(dollar_tag)
+                in_dollar_quote = False
+                continue
+
+            # Handle single quotes
+            if not in_double_quote and not in_dollar_quote and c == "'":
+                in_single_quote = not in_single_quote
+                statement.append(c)
+                i += 1
+                continue
+
+            # Handle double quotes
+            if not in_single_quote and not in_dollar_quote and c == '"':
+                in_double_quote = not in_double_quote
+                statement.append(c)
+                i += 1
+                continue
+
+            # Split on semicolon only if not inside any quote/block
+            if (
+                c == ";"
+                and not in_single_quote
+                and not in_double_quote
+                and not in_dollar_quote
+            ):
+                stmt = "".join(statement).strip()
+                if stmt:
+                    statements.append(stmt)
+                statement = []
+                i += 1
+                continue
+
+            statement.append(c)
+            i += 1
+
+        # Add any trailing statement
+        stmt = "".join(statement).strip()
+        if stmt:
+            statements.append(stmt)
+
+        return statements
 
     def verify_migration(self):
         """Verify migration completed successfully"""

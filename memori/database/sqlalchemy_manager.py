@@ -618,7 +618,7 @@ class SQLAlchemyDatabaseManager:
                         "user_input": result.user_input,
                         "ai_output": result.ai_output,
                         "model": result.model,
-                        "timestamp": result.timestamp,
+                        "timestamp": result.created_at,
                         "session_id": result.session_id,
                         "user_id": result.user_id,
                         "tokens_used": result.tokens_used,

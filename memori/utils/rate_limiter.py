@@ -30,7 +30,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import wraps
 
-from loguru import logger
+from .logging import get_logger
+
+logger = get_logger("rate_limiter")
 
 
 class RateLimitExceeded(Exception):

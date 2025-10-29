@@ -693,19 +693,17 @@ class Memori:
             # SECURITY FIX: Use ORM methods instead of raw SQL to prevent injection
             # Check for exact match or conscious-prefixed memories
             from sqlalchemy import or_, text
+            from memori.database.models import ShortTermMemory
 
             with self.db_manager.SessionLocal() as session:
                 # Safe parameterized query using ORM - no SQL injection possible
                 existing_count = (
-                    session.query(self.db_manager.ShortTermMemory)
+                    session.query(ShortTermMemory)
                     .filter(
-                        self.db_manager.ShortTermMemory.user_id
-                        == (self.user_id or "default"),
+                        ShortTermMemory.user_id == (self.user_id or "default"),
                         or_(
-                            self.db_manager.ShortTermMemory.memory_id == memory_id,
-                            self.db_manager.ShortTermMemory.memory_id.like(
-                                f"conscious_{memory_id}_%"
-                            ),
+                            ShortTermMemory.memory_id == memory_id,
+                            ShortTermMemory.memory_id.like(f"conscious_{memory_id}_%"),
                         ),
                     )
                     .count()

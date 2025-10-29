@@ -392,71 +392,57 @@ class ConsciouscAgent:
                     f"conscious_{memory_id}_{int(datetime.now().timestamp())}"
                 )
 
-                # Detect database type for proper JSON handling
-                db_type = str(connection.engine.dialect.name).lower()
-
-                # Serialize processed_data to JSON string
-                processed_data_json = (
-                    json.dumps(processed_data)
-                    if isinstance(processed_data, dict)
-                    else processed_data
+                # Use database utilities for type detection and JSON handling
+                from memori.utils.database import (
+                    detect_database_type,
+                    serialize_json_for_db,
+                    get_insert_statement,
                 )
 
-                # Insert directly into short-term memory with conscious_context category
-                # Use CAST for PostgreSQL JSONB support
-                if db_type == "postgresql":
-                    connection.execute(
-                        text(
-                            """INSERT INTO short_term_memory (
-                            memory_id, processed_data, importance_score, category_primary,
-                            retention_type, user_id, session_id, created_at, expires_at,
-                            searchable_content, summary, is_permanent_context
-                        ) VALUES (:memory_id, CAST(:processed_data AS JSONB), :importance_score, :category_primary,
-                            :retention_type, :user_id, :session_id, :created_at, :expires_at,
-                            :searchable_content, :summary, :is_permanent_context)"""
-                        ),
-                        {
-                            "memory_id": short_term_id,
-                            "processed_data": processed_data_json,
-                            "importance_score": importance_score,
-                            "category_primary": "conscious_context",
-                            "retention_type": "permanent",
-                            "user_id": user_id,
-                            "session_id": "default",
-                            "created_at": datetime.now().isoformat(),
-                            "expires_at": None,
-                            "searchable_content": searchable_content,
-                            "summary": summary,
-                            "is_permanent_context": True,
-                        },
-                    )
-                else:
-                    # SQLite/MySQL version without CAST
-                    connection.execute(
-                        text(
-                            """INSERT INTO short_term_memory (
-                            memory_id, processed_data, importance_score, category_primary,
-                            retention_type, user_id, session_id, created_at, expires_at,
-                            searchable_content, summary, is_permanent_context
-                        ) VALUES (:memory_id, :processed_data, :importance_score, :category_primary,
-                            :retention_type, :user_id, :session_id, :created_at, :expires_at,
-                            :searchable_content, :summary, :is_permanent_context)"""
-                        ),
-                        {
-                            "memory_id": short_term_id,
-                            "processed_data": processed_data_json,
-                            "importance_score": importance_score,
-                            "category_primary": "conscious_context",
-                            "retention_type": "permanent",
-                            "user_id": user_id,
-                            "session_id": "default",
-                            "created_at": datetime.now().isoformat(),
-                            "expires_at": None,
-                            "searchable_content": searchable_content,
-                            "summary": summary,
-                            "is_permanent_context": True,
-                        },
-                    )
+                db_type = detect_database_type(connection)
+                processed_data_json = serialize_json_for_db(processed_data, db_type)
+
+                # Build database-agnostic INSERT statement with proper JSON casting
+                columns = [
+                    "memory_id",
+                    "processed_data",
+                    "importance_score",
+                    "category_primary",
+                    "retention_type",
+                    "user_id",
+                    "session_id",
+                    "created_at",
+                    "expires_at",
+                    "searchable_content",
+                    "summary",
+                    "is_permanent_context",
+                ]
+
+                insert_stmt = get_insert_statement(
+                    "short_term_memory",
+                    columns,
+                    db_type,
+                    json_columns=["processed_data"],
+                )
+
+                # Execute INSERT with proper parameters
+                connection.execute(
+                    text(insert_stmt),
+                    {
+                        "memory_id": short_term_id,
+                        "processed_data": processed_data_json,
+                        "importance_score": importance_score,
+                        "category_primary": "conscious_context",
+                        "retention_type": "permanent",
+                        "user_id": user_id,
+                        "session_id": "default",
+                        "created_at": datetime.now().isoformat(),
+                        "expires_at": None,
+                        "searchable_content": searchable_content,
+                        "summary": summary,
+                        "is_permanent_context": True,
+                    },
+                )
                 connection.commit()
 
             logger.debug(

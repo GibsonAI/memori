@@ -30,27 +30,37 @@ SELECT 'long_term_memory:', COUNT(*) FROM long_term_memory;
 -- ============================================================================
 
 -- Create new chat_history table with multi-tenant columns
+-- This matches the ChatHistory model in memori/database/models.py
 CREATE TABLE chat_history_new (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id TEXT PRIMARY KEY,
+    user_input TEXT NOT NULL,
+    ai_output TEXT NOT NULL,
+    model TEXT NOT NULL,
     session_id TEXT NOT NULL DEFAULT 'default',
-    role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
-    content TEXT NOT NULL,
+    tokens_used INTEGER DEFAULT 0,
+    metadata_json TEXT,
     user_id TEXT NOT NULL DEFAULT 'default',
     assistant_id TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     namespace_legacy TEXT  -- Keep for rollback
 );
 
 -- Copy data from old to new table (namespace -> user_id)
-INSERT INTO chat_history_new (id, session_id, role, content, user_id, assistant_id, created_at, namespace_legacy)
+-- Assuming old table has columns: chat_id, user_input, ai_output, model, session_id, tokens_used, metadata_json, namespace, created_at
+INSERT INTO chat_history_new (chat_id, user_input, ai_output, model, session_id, tokens_used, metadata_json, user_id, assistant_id, created_at, updated_at, namespace_legacy)
 SELECT
-    id,
-    session_id,
-    role,
-    content,
+    chat_id,
+    user_input,
+    ai_output,
+    model,
+    COALESCE(session_id, 'default') AS session_id,
+    COALESCE(tokens_used, 0) AS tokens_used,
+    metadata_json,
     COALESCE(namespace, 'default') AS user_id,
     NULL AS assistant_id,
     created_at,
+    COALESCE(updated_at, created_at) AS updated_at,
     namespace AS namespace_legacy
 FROM chat_history;
 
@@ -58,11 +68,11 @@ FROM chat_history;
 DROP TABLE chat_history;
 ALTER TABLE chat_history_new RENAME TO chat_history;
 
--- Recreate indexes for chat_history
-CREATE INDEX idx_chat_session ON chat_history(session_id);
+-- Recreate indexes for chat_history (matching models.py)
 CREATE INDEX idx_chat_user_id ON chat_history(user_id);
 CREATE INDEX idx_chat_user_assistant ON chat_history(user_id, assistant_id);
-CREATE INDEX idx_chat_user_session_time ON chat_history(user_id, session_id, created_at DESC);
+CREATE INDEX idx_chat_created ON chat_history(created_at);
+CREATE INDEX idx_chat_model ON chat_history(model);
 
 SELECT 'Step 2 complete: Migrated chat_history table';
 
