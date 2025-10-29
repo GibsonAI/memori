@@ -6,7 +6,7 @@ Provides database-agnostic utilities for handling different database types
 """
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from ..logging import get_logger
 
@@ -47,13 +47,11 @@ def detect_database_type(connection: Any) -> str:
         return db_type
 
     except Exception as e:
-        logger.warning(
-            f"Could not detect database type, defaulting to 'unknown': {e}"
-        )
+        logger.warning(f"Could not detect database type, defaulting to 'unknown': {e}")
         return "unknown"
 
 
-def serialize_json_for_db(data: Any, db_type: Optional[str] = None) -> str:
+def serialize_json_for_db(data: Any, db_type: str | None = None) -> str:
     """
     Serialize data to JSON string for database storage.
 
@@ -149,9 +147,7 @@ def build_json_insert_clause(
         >>>     "metadata_json": "CAST(:metadata_json AS JSONB)"
         >>> }
     """
-    return {
-        col: get_json_cast_clause(db_type, f":{col}") for col in columns_with_json
-    }
+    return {col: get_json_cast_clause(db_type, f":{col}") for col in columns_with_json}
 
 
 def is_postgres(connection: Any) -> bool:
@@ -197,7 +193,7 @@ def get_insert_statement(
     table_name: str,
     columns: list[str],
     db_type: str,
-    json_columns: Optional[list[str]] = None,
+    json_columns: list[str] | None = None,
 ) -> str:
     """
     Generate a database-agnostic INSERT statement with proper JSON casting.

@@ -395,8 +395,8 @@ class ConsciouscAgent:
                 # Use database utilities for type detection and JSON handling
                 from memori.utils.database import (
                     detect_database_type,
-                    serialize_json_for_db,
                     get_insert_statement,
+                    serialize_json_for_db,
                 )
 
                 db_type = detect_database_type(connection)

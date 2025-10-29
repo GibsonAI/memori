@@ -693,6 +693,7 @@ class Memori:
             # SECURITY FIX: Use ORM methods instead of raw SQL to prevent injection
             # Check for exact match or conscious-prefixed memories
             from sqlalchemy import or_, text
+
             from memori.database.models import ShortTermMemory
 
             with self.db_manager.SessionLocal() as session:
