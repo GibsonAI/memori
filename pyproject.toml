@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memorisdk"
-version = "2.3.0"
+version = "2.3.2"
 description = "The Open-Source Memory Layer for AI Agents & Multi-Agent Systems"
-authors = [{name = "GibsonAI Team", email = "noc@gibsonai.com"}]
+authors = [{name = "Memori Labs Team", email = "noc@memorilabs.ai"}]
 license = {text = "Apache-2.0"}
 readme = "README.md"
 requires-python = ">=3.10"
@@ -112,8 +112,8 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/GibsonAI/memori"
-Documentation = "https://memori.gibsonai.com/docs"
+Homepage = "https://memorilabs.ai"
+Documentation = "https://www.gibsonai.com/docs/memori"
 Repository = "https://github.com/GibsonAI/memori.git"
 "Bug Tracker" = "https://github.com/GibsonAI/memori/issues"
 "Changelog" = "https://github.com/GibsonAI/memori/blob/main/CHANGELOG.md"

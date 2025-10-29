@@ -1,7 +1,5 @@
 [![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
 
-# memori
-
 <p align="center">
   <strong>An open-source SQL-Native memory engine for AI</strong>
 </p>
@@ -11,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://memori.gibsonai.com/docs">Learn more</a>
+  <a href="https://www.gibsonai.com/docs/memori">Learn more</a>
   ·
   <a href="https://discord.gg/abD4eGym6v">Join Discord</a>
 </p>
