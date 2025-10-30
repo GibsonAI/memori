@@ -204,9 +204,6 @@ CONVERSATION CONTEXT:
                                 "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
                             },
                         ],
-                        metadata=[
-                            "INTERNAL_MEMORY_PROCESSING"
-                        ],  # Internal metadata tag
                         response_format=ProcessedLongTermMemory,
                         temperature=0.1,  # Low temperature for consistent processing
                     )
@@ -217,11 +214,14 @@ CONVERSATION CONTEXT:
                             f"Memory processing refused for chat {chat_id}: {completion.choices[0].message.refusal}"
                         )
                         return self._create_empty_long_term_memory(
-                            chat_id, "Processing refused for safety reasons"
+                            context.session_id if context else "default",
+                            "Processing refused for safety reasons",
                         )
 
                     processed_memory = completion.choices[0].message.parsed
-                    processed_memory.conversation_id = chat_id
+                    processed_memory.session_id = (
+                        context.session_id if context else "default"
+                    )
                     processed_memory.extraction_timestamp = datetime.now()
 
                 except Exception as e:
@@ -254,11 +254,12 @@ CONVERSATION CONTEXT:
                 f"[AGENT] Memory processing failed for {chat_id[:8]}... - {type(e).__name__}: {e}"
             )
             return self._create_empty_long_term_memory(
-                chat_id, f"Processing failed: {str(e)}"
+                context.session_id if context else "default",
+                f"Processing failed: {str(e)}",
             )
 
     def _create_empty_long_term_memory(
-        self, chat_id: str, reason: str
+        self, session_id: str, reason: str
     ) -> ProcessedLongTermMemory:
         """Create an empty long-term memory object for error cases"""
         return ProcessedLongTermMemory(
@@ -266,7 +267,7 @@ CONVERSATION CONTEXT:
             summary="Processing failed",
             classification=MemoryClassification.CONVERSATIONAL,
             importance=MemoryImportanceLevel.LOW,
-            conversation_id=chat_id,
+            session_id=session_id,
             classification_reason=reason,
             confidence_score=0.0,
             extraction_timestamp=datetime.now(),
@@ -312,9 +313,9 @@ CONVERSATION CONTEXT:
 
             if avg_similarity >= similarity_threshold:
                 logger.info(
-                    f"[AGENT] Duplicate detected - {avg_similarity:.2f} similarity with {existing.conversation_id[:8]}..."
+                    f"[AGENT] Duplicate detected - {avg_similarity:.2f} similarity with {existing.session_id[:8]}..."
                 )
-                return existing.conversation_id
+                return existing.session_id
 
         return None
 
@@ -420,7 +421,6 @@ CONVERSATION CONTEXT:
                         "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
                     },
                 ],
-                metadata=["INTERNAL_MEMORY_PROCESSING"],  # Internal metadata tag
                 temperature=0.1,  # Low temperature for consistent processing
                 max_tokens=2000,  # Ensure enough tokens for full response
             )
@@ -447,7 +447,7 @@ CONVERSATION CONTEXT:
                 logger.error(f"Failed to parse JSON response for {chat_id}: {e}")
                 logger.debug(f"Raw response: {response_text}")
                 return self._create_empty_long_term_memory(
-                    chat_id, f"JSON parsing failed: {e}"
+                    "default", f"JSON parsing failed: {e}"
                 )
 
             # Convert to ProcessedLongTermMemory object with validation and defaults
@@ -461,7 +461,7 @@ CONVERSATION CONTEXT:
         except Exception as e:
             logger.error(f"Fallback memory processing failed for {chat_id}: {e}")
             return self._create_empty_long_term_memory(
-                chat_id, f"Fallback processing failed: {str(e)}"
+                "default", f"Fallback processing failed: {str(e)}"
             )
 
     def _get_json_schema_prompt(self) -> str:
@@ -531,7 +531,7 @@ CONVERSATION CONTEXT:
                 is_preference=bool(data.get("is_preference", False)),
                 is_skill_knowledge=bool(data.get("is_skill_knowledge", False)),
                 is_current_project=bool(data.get("is_current_project", False)),
-                conversation_id=chat_id,
+                session_id="default",  # Default session for fallback parsing
                 confidence_score=float(data.get("confidence_score", 0.7)),
                 classification_reason=data.get(
                     "classification_reason", "Extracted via fallback parsing"
@@ -545,7 +545,7 @@ CONVERSATION CONTEXT:
         except Exception as e:
             logger.error(f"Error creating memory from dict: {e}")
             return self._create_empty_long_term_memory(
-                chat_id, f"Memory creation failed: {str(e)}"
+                "default", f"Memory creation failed: {str(e)}"
             )
 
     def should_filter_memory(

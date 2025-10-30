@@ -129,8 +129,8 @@ Be strategic and comprehensive in your search planning."""
                         logger.debug(f"Using cached search plan for: {query}")
                         return cached_result
 
-            # Prepare the prompt
-            prompt = f"User query: {query}"
+            # Prepare the prompt with internal marker to prevent recording
+            prompt = f"[INTERNAL_MEMORI_SEARCH]\nUser query: {query}"
             if context:
                 prompt += f"\nAdditional context: {context}"
 
@@ -149,9 +149,6 @@ Be strategic and comprehensive in your search planning."""
                                 "content": prompt,
                             },
                         ],
-                        metadata=[
-                            "INTERNAL_MEMORY_PROCESSING"
-                        ],  # Internal metadata tag
                         response_format=MemorySearchQuery,
                         temperature=0.1,
                     )
@@ -194,7 +191,7 @@ Be strategic and comprehensive in your search planning."""
             return self._create_fallback_query(query)
 
     def execute_search(
-        self, query: str, db_manager, namespace: str = "default", limit: int = 10
+        self, query: str, db_manager, user_id: str = "default", limit: int = 10
     ) -> list[dict[str, Any]]:
         """
         Execute intelligent search using planned strategies
@@ -202,7 +199,7 @@ Be strategic and comprehensive in your search planning."""
         Args:
             query: User's search query
             db_manager: Database manager instance (SQL or MongoDB)
-            namespace: Memory namespace
+            user_id: User identifier for multi-tenant isolation
             limit: Maximum results to return
 
         Returns:
@@ -231,7 +228,7 @@ Be strategic and comprehensive in your search planning."""
                     search_service = SearchService(session, db_type)
                     primary_results = search_service.search_memories(
                         query=search_plan.query_text or query,
-                        namespace=namespace,
+                        user_id=user_id,
                         limit=limit,
                     )
                 logger.debug(
@@ -258,7 +255,7 @@ Be strategic and comprehensive in your search planning."""
                     f"Adding targeted keyword search for: {search_plan.entity_filters}"
                 )
                 keyword_results = self._execute_keyword_search(
-                    search_plan, db_manager, namespace, limit - len(all_results)
+                    search_plan, db_manager, user_id, limit - len(all_results)
                 )
 
                 for result in keyword_results:
@@ -282,7 +279,7 @@ Be strategic and comprehensive in your search planning."""
                     f"Adding category search for: {[c.value for c in search_plan.category_filters]}"
                 )
                 category_results = self._execute_category_search(
-                    search_plan, db_manager, namespace, limit - len(all_results)
+                    search_plan, db_manager, user_id, limit - len(all_results)
                 )
 
                 for result in category_results:
@@ -306,7 +303,7 @@ Be strategic and comprehensive in your search planning."""
                     f"Adding importance search with min_importance: {search_plan.min_importance}"
                 )
                 importance_results = self._execute_importance_search(
-                    search_plan, db_manager, namespace, limit - len(all_results)
+                    search_plan, db_manager, user_id, limit - len(all_results)
                 )
 
                 for result in importance_results:
@@ -382,7 +379,7 @@ Be strategic and comprehensive in your search planning."""
             return []
 
     def _execute_keyword_search(
-        self, search_plan: MemorySearchQuery, db_manager, namespace: str, limit: int
+        self, search_plan: MemorySearchQuery, db_manager, user_id: str, limit: int
     ) -> list[dict[str, Any]]:
         """Execute keyword-based search"""
         keywords = search_plan.entity_filters
@@ -404,7 +401,7 @@ Be strategic and comprehensive in your search planning."""
             with db_manager.SessionLocal() as session:
                 search_service = SearchService(session, db_type)
                 results = search_service.search_memories(
-                    query=search_terms, namespace=namespace, limit=limit
+                    query=search_terms, user_id=user_id, limit=limit
                 )
 
             # Ensure results is a list of dictionaries
@@ -426,7 +423,7 @@ Be strategic and comprehensive in your search planning."""
             return []
 
     def _execute_category_search(
-        self, search_plan: MemorySearchQuery, db_manager, namespace: str, limit: int
+        self, search_plan: MemorySearchQuery, db_manager, user_id: str, limit: int
     ) -> list[dict[str, Any]]:
         """Execute category-based search"""
         categories = (
@@ -441,7 +438,7 @@ Be strategic and comprehensive in your search planning."""
         # Use SearchService directly to avoid recursion
         # Get all memories and filter by category
         logger.debug(
-            f"Searching memories by categories: {categories} in namespace: {namespace}"
+            f"Searching memories by categories: {categories} for user_id: {user_id}"
         )
         try:
             from ..database.search_service import SearchService
@@ -451,7 +448,7 @@ Be strategic and comprehensive in your search planning."""
             with db_manager.SessionLocal() as session:
                 search_service = SearchService(session, db_type)
                 all_results = search_service.search_memories(
-                    query="", namespace=namespace, limit=limit * 3
+                    query="", user_id=user_id, limit=limit * 3
                 )
         except Exception as e:
             logger.error(f"Category search failed: {e}")
@@ -638,8 +635,8 @@ Be strategic and comprehensive in your search planning."""
         but doesn't support structured outputs (like Ollama, local models, etc.)
         """
         try:
-            # Prepare the prompt from raw query
-            prompt = f"User query: {query}"
+            # Prepare the prompt from raw query with internal marker
+            prompt = f"[INTERNAL_MEMORI_SEARCH]\nUser query: {query}"
 
             # Enhanced system prompt for JSON output
             json_system_prompt = (
@@ -659,7 +656,6 @@ Be strategic and comprehensive in your search planning."""
                         "content": prompt,
                     },
                 ],
-                metadata=["INTERNAL_MEMORY_PROCESSING"],  # Internal metadata tag
                 temperature=0.1,
                 max_tokens=1000,  # Ensure enough tokens for full response
             )
@@ -754,7 +750,7 @@ Be strategic and comprehensive in your search planning."""
             return self._create_fallback_query(original_query)
 
     def _execute_importance_search(
-        self, search_plan: MemorySearchQuery, db_manager, namespace: str, limit: int
+        self, search_plan: MemorySearchQuery, db_manager, user_id: str, limit: int
     ) -> list[dict[str, Any]]:
         """Execute importance-based search"""
         min_importance = max(
@@ -762,7 +758,7 @@ Be strategic and comprehensive in your search planning."""
         )  # Default to high importance
 
         all_results = db_manager.search_memories(
-            query="", namespace=namespace, limit=limit * 2
+            query="", user_id=user_id, limit=limit * 2
         )
 
         high_importance_results = [
@@ -795,7 +791,7 @@ Be strategic and comprehensive in your search planning."""
             del self._query_cache[key]
 
     async def execute_search_async(
-        self, query: str, db_manager, namespace: str = "default", limit: int = 10
+        self, query: str, db_manager, user_id: str = "default", limit: int = 10
     ) -> list[dict[str, Any]]:
         """
         Async version of execute_search for better performance in background processing
@@ -867,7 +863,7 @@ Be strategic and comprehensive in your search planning."""
                 return all_results[:limit]
 
             # Fallback to sync execution
-            return self.execute_search(query, db_manager, namespace, limit)
+            return self.execute_search(query, db_manager, user_id, limit)
 
         except Exception as e:
             logger.error(f"Async search execution failed: {e}")
@@ -877,7 +873,7 @@ Be strategic and comprehensive in your search planning."""
         self,
         query: str,
         db_manager,
-        namespace: str = "default",
+        user_id: str = "default",
         limit: int = 10,
         callback=None,
     ):
@@ -887,14 +883,14 @@ Be strategic and comprehensive in your search planning."""
         Args:
             query: Search query
             db_manager: Database manager
-            namespace: Memory namespace
+            user_id: User identifier for multi-tenant isolation
             limit: Max results
             callback: Optional callback function to handle results
         """
 
         def _background_search():
             try:
-                results = self.execute_search(query, db_manager, namespace, limit)
+                results = self.execute_search(query, db_manager, user_id, limit)
                 if callback:
                     callback(results)
                 return results
@@ -910,7 +906,7 @@ Be strategic and comprehensive in your search planning."""
         return thread
 
     def search_memories(
-        self, query: str, max_results: int = 5, namespace: str = "default"
+        self, query: str, max_results: int = 5, user_id: str = "default"
     ) -> list[dict[str, Any]]:
         """
         Simple search interface for compatibility with memory tools
@@ -918,7 +914,7 @@ Be strategic and comprehensive in your search planning."""
         Args:
             query: Search query
             max_results: Maximum number of results
-            namespace: Memory namespace
+            user_id: User identifier for multi-tenant isolation
 
         Returns:
             List of memory search results
@@ -928,7 +924,7 @@ Be strategic and comprehensive in your search planning."""
         # For now, return empty list and log the issue with parameters
         logger.warning(
             f"search_memories called without database manager: query='{query}', "
-            f"max_results={max_results}, namespace='{namespace}'"
+            f"max_results={max_results}, user_id='{user_id}'"
         )
         return []
 
@@ -973,7 +969,7 @@ def smart_memory_search(query: str, memori_instance, limit: int = 5) -> str:
         results = search_engine.execute_search(
             query=query,
             db_manager=memori_instance.db_manager,
-            namespace=memori_instance.namespace,
+            user_id=memori_instance.user_id,
             limit=limit,
         )
 

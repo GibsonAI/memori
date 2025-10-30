@@ -202,8 +202,8 @@ class ConversationContext(BaseModel):
     model_config = {"protected_namespaces": ()}
 
     user_id: str | None = Field(default=None)
-    session_id: str
-    conversation_id: str
+    session_id: str  # Session/conversation grouping
+    chat_id: str  # Specific chat message ID
     model_used: str
 
     # User context
@@ -282,7 +282,7 @@ class ProcessedLongTermMemory(BaseModel):
     )
 
     # Technical Metadata
-    conversation_id: str = Field(description="Source conversation")
+    session_id: str = Field(description="Source session/conversation")
     confidence_score: float = Field(
         default=0.8, description="AI confidence in extraction"
     )

@@ -15,7 +15,7 @@ class MemoryQueries(BaseQueries):
         return {
             "short_term_memory": SchemaQueries.TABLE_CREATION["short_term_memory"],
             "long_term_memory": SchemaQueries.TABLE_CREATION["long_term_memory"],
-            "rules_memory": SchemaQueries.TABLE_CREATION["rules_memory"],
+            # "rules_memory": SchemaQueries.TABLE_CREATION["rules_memory"],  # REMOVED: Simplified schema
         }
 
     def get_index_creation_queries(self) -> dict[str, str]:
@@ -38,35 +38,46 @@ class MemoryQueries(BaseQueries):
     INSERT_SHORT_TERM_MEMORY = """
         INSERT INTO short_term_memory (
             memory_id, chat_id, processed_data, importance_score, category_primary,
-            retention_type, namespace, created_at, expires_at, searchable_content, summary
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            retention_type, user_id, assistant_id, session_id, created_at, expires_at, searchable_content, summary
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     INSERT_LONG_TERM_MEMORY = """
         INSERT INTO long_term_memory (
-            memory_id, original_chat_id, processed_data, importance_score, category_primary,
-            retention_type, namespace, created_at, searchable_content, summary,
+            memory_id, processed_data, importance_score, category_primary,
+            retention_type, user_id, assistant_id, session_id, created_at, searchable_content, summary,
             novelty_score, relevance_score, actionability_score,
             classification, memory_importance, topic, entities_json, keywords_json,
             is_user_context, is_preference, is_skill_knowledge, is_current_project, promotion_eligible,
             duplicate_of, supersedes_json, related_memories_json,
-            confidence_score, extraction_timestamp, classification_reason,
+            confidence_score, classification_reason,
             processed_for_duplicates, conscious_processed
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (
+            :memory_id, :processed_data, :importance_score, :category_primary,
+            :retention_type, :user_id, :assistant_id, :session_id, :created_at, :searchable_content, :summary,
+            :novelty_score, :relevance_score, :actionability_score,
+            :classification, :memory_importance, :topic, :entities_json, :keywords_json,
+            :is_user_context, :is_preference, :is_skill_knowledge, :is_current_project, :promotion_eligible,
+            :duplicate_of, :supersedes_json, :related_memories_json,
+            :confidence_score, :classification_reason,
+            :processed_for_duplicates, :conscious_processed
+        )
     """
 
-    INSERT_RULES_MEMORY = """
-        INSERT INTO rules_memory (
-            rule_id, rule_text, rule_type, priority, active, context_conditions,
-            namespace, created_at, updated_at, processed_data, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """
+    # REMOVED: Simplified schema - rules_memory table removed
+    # INSERT_RULES_MEMORY = """
+    #     INSERT INTO rules_memory (
+    #         rule_id, rule_text, rule_type, priority, active, context_conditions,
+    #         namespace, created_at, updated_at, processed_data, metadata
+    #     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    # """
 
     # SELECT Queries
-    SELECT_MEMORIES_BY_NAMESPACE = """
+    # NOTE: These queries now support multi-column filtering (user_id + assistant_id + session_id)
+    SELECT_MEMORIES_BY_USER = """
         SELECT memory_id, processed_data, importance_score, category_primary, created_at, summary
         FROM {table}
-        WHERE namespace = ?
+        WHERE user_id = ?
         ORDER BY importance_score DESC, created_at DESC
         LIMIT ?
     """
@@ -74,7 +85,7 @@ class MemoryQueries(BaseQueries):
     SELECT_MEMORIES_BY_CATEGORY = """
         SELECT memory_id, processed_data, importance_score, created_at, summary
         FROM {table}
-        WHERE namespace = ? AND category_primary = ?
+        WHERE user_id = ? AND category_primary = ?
         ORDER BY importance_score DESC, created_at DESC
         LIMIT ?
     """
@@ -82,7 +93,7 @@ class MemoryQueries(BaseQueries):
     SELECT_MEMORIES_BY_IMPORTANCE = """
         SELECT memory_id, processed_data, importance_score, created_at, summary
         FROM {table}
-        WHERE namespace = ? AND importance_score >= ?
+        WHERE user_id = ? AND importance_score >= ?
         ORDER BY importance_score DESC, created_at DESC
         LIMIT ?
     """
@@ -90,52 +101,53 @@ class MemoryQueries(BaseQueries):
     SELECT_EXPIRED_MEMORIES = """
         SELECT memory_id, processed_data
         FROM short_term_memory
-        WHERE namespace = ? AND expires_at <= ?
+        WHERE user_id = ? AND expires_at <= ?
     """
 
     SELECT_MEMORY_BY_ID = """
-        SELECT * FROM {table} WHERE memory_id = ? AND namespace = ?
+        SELECT * FROM {table} WHERE memory_id = ? AND user_id = ?
     """
 
     # UPDATE Queries
     UPDATE_MEMORY_ACCESS = """
         UPDATE {table}
         SET access_count = access_count + 1, last_accessed = ?
-        WHERE memory_id = ? AND namespace = ?
+        WHERE memory_id = ? AND user_id = ?
     """
 
     UPDATE_MEMORY_IMPORTANCE = """
         UPDATE {table}
         SET importance_score = ?
-        WHERE memory_id = ? AND namespace = ?
+        WHERE memory_id = ? AND user_id = ?
     """
 
-    UPDATE_RULE_STATUS = """
-        UPDATE rules_memory
-        SET active = ?, updated_at = ?
-        WHERE rule_id = ? AND namespace = ?
-    """
+    # REMOVED: Simplified schema - rules_memory table removed
+    # UPDATE_RULE_STATUS = """
+    #     UPDATE rules_memory
+    #     SET active = ?, updated_at = ?
+    #     WHERE rule_id = ? AND namespace = ?
+    # """
 
     # DELETE Queries
     DELETE_MEMORY = """
-        DELETE FROM {table} WHERE memory_id = ? AND namespace = ?
+        DELETE FROM {table} WHERE memory_id = ? AND user_id = ?
     """
 
     DELETE_EXPIRED_MEMORIES = """
         DELETE FROM short_term_memory
-        WHERE namespace = ? AND expires_at <= ?
+        WHERE user_id = ? AND expires_at <= ?
     """
 
     DELETE_MEMORIES_BY_CATEGORY = """
         DELETE FROM {table}
-        WHERE namespace = ? AND category_primary = ?
+        WHERE user_id = ? AND category_primary = ?
     """
 
     # SEARCH Queries
     SEARCH_MEMORIES_FTS = """
-        SELECT m.memory_id, m.memory_type, m.namespace, m.searchable_content, m.summary, m.category_primary
+        SELECT m.memory_id, m.memory_type, m.user_id, m.searchable_content, m.summary, m.category_primary
         FROM memory_search_fts m
-        WHERE m.searchable_content MATCH ? AND m.namespace = ?
+        WHERE m.searchable_content MATCH ? AND m.user_id = ?
         ORDER BY rank
         LIMIT ?
     """
@@ -143,7 +155,7 @@ class MemoryQueries(BaseQueries):
     SEARCH_MEMORIES_SEMANTIC = """
         SELECT memory_id, processed_data, importance_score, searchable_content, summary
         FROM {table}
-        WHERE namespace = ? AND (
+        WHERE user_id = ? AND (
             searchable_content LIKE ? OR
             summary LIKE ? OR
             category_primary = ?
@@ -156,7 +168,7 @@ class MemoryQueries(BaseQueries):
     COUNT_MEMORIES_BY_CATEGORY = """
         SELECT category_primary, COUNT(*) as count
         FROM {table}
-        WHERE namespace = ?
+        WHERE user_id = ?
         GROUP BY category_primary
         ORDER BY count DESC
     """
@@ -169,13 +181,13 @@ class MemoryQueries(BaseQueries):
             MIN(importance_score) as min_importance,
             COUNT(DISTINCT category_primary) as unique_categories
         FROM {table}
-        WHERE namespace = ?
+        WHERE user_id = ?
     """
 
     GET_RECENT_MEMORIES = """
         SELECT memory_id, summary, importance_score, created_at
         FROM {table}
-        WHERE namespace = ? AND created_at >= ?
+        WHERE user_id = ? AND created_at >= ?
         ORDER BY created_at DESC
         LIMIT ?
     """
@@ -186,7 +198,7 @@ class MemoryQueries(BaseQueries):
                is_user_context, is_preference, is_skill_knowledge, is_current_project,
                promotion_eligible, created_at
         FROM long_term_memory
-        WHERE namespace = ?
+        WHERE user_id = ?
         AND (
             classification = 'conscious-info'
             OR promotion_eligible = ?
@@ -198,35 +210,35 @@ class MemoryQueries(BaseQueries):
     SELECT_UNPROCESSED_CONSCIOUS = """
         SELECT memory_id, processed_data, classification, is_user_context, promotion_eligible
         FROM long_term_memory
-        WHERE namespace = ? AND conscious_processed = ?
+        WHERE user_id = ? AND conscious_processed = ?
         AND (classification = 'conscious-info' OR promotion_eligible = ? OR is_user_context = ?)
     """
 
     SELECT_USER_CONTEXT_PROFILE = """
         SELECT processed_data FROM short_term_memory
-        WHERE namespace = ? AND is_permanent_context = ?
+        WHERE user_id = ? AND is_permanent_context = ?
         AND category_primary = 'user_context'
     """
 
     INSERT_USER_CONTEXT_PROFILE = """
         INSERT OR REPLACE INTO short_term_memory (
             memory_id, processed_data, importance_score, category_primary,
-            retention_type, namespace, created_at, expires_at,
+            retention_type, user_id, assistant_id, session_id, created_at, expires_at,
             searchable_content, summary, is_permanent_context
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     MARK_CONSCIOUS_PROCESSED = """
         UPDATE long_term_memory
         SET conscious_processed = ?
-        WHERE memory_id = ? AND namespace = ?
+        WHERE memory_id = ? AND user_id = ?
     """
 
     # Classification and Filtering Queries
     SELECT_MEMORIES_BY_CLASSIFICATION = """
         SELECT memory_id, processed_data, importance_score, classification, created_at, summary
         FROM long_term_memory
-        WHERE namespace = ? AND classification = ?
+        WHERE user_id = ? AND classification = ?
         ORDER BY importance_score DESC, created_at DESC
         LIMIT ?
     """
@@ -234,7 +246,7 @@ class MemoryQueries(BaseQueries):
     SELECT_MEMORIES_FOR_DEDUPLICATION = """
         SELECT memory_id, summary, searchable_content, classification, created_at
         FROM long_term_memory
-        WHERE namespace = :namespace AND processed_for_duplicates = :processed_for_duplicates
+        WHERE user_id = :user_id AND processed_for_duplicates = :processed_for_duplicates
         ORDER BY created_at DESC
         LIMIT :limit
     """
@@ -242,13 +254,13 @@ class MemoryQueries(BaseQueries):
     UPDATE_DUPLICATE_STATUS = """
         UPDATE long_term_memory
         SET duplicate_of = ?, processed_for_duplicates = ?
-        WHERE memory_id = ? AND namespace = ?
+        WHERE memory_id = ? AND user_id = ?
     """
 
     SELECT_PROMOTION_ELIGIBLE_MEMORIES = """
         SELECT memory_id, processed_data, summary, classification
         FROM long_term_memory
-        WHERE namespace = ? AND promotion_eligible = ?
+        WHERE user_id = ? AND promotion_eligible = ?
         AND conscious_processed = ?
     """
 
@@ -258,7 +270,7 @@ class MemoryQueries(BaseQueries):
                is_user_context, is_preference, is_skill_knowledge, is_current_project,
                confidence_score, created_at
         FROM long_term_memory
-        WHERE namespace = ?
+        WHERE user_id = ?
         AND (is_user_context = ? OR is_preference = ? OR is_skill_knowledge = ? OR is_current_project = ?)
         ORDER BY importance_score DESC, created_at DESC
         LIMIT ?

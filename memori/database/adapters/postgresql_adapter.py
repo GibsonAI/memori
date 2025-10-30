@@ -25,7 +25,9 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
     def execute_fulltext_search(
         self,
         query: str,
-        namespace: str = "default",
+        user_id: str = "default",
+        assistant_id: str | None = None,
+        session_id: str = "default",
         category_filter: list[str] | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
@@ -33,7 +35,7 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
         try:
             # Validate all parameters
             validated = DatabaseInputValidator.validate_search_params(
-                query, namespace, category_filter, limit
+                query, user_id, category_filter, limit
             )
 
             # Check if FTS is available
@@ -43,7 +45,9 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
                 )
                 return self.execute_fallback_search(
                     validated["query"],
-                    validated["namespace"],
+                    validated["user_id"],
+                    assistant_id,
+                    session_id,
                     validated["category_filter"],
                     validated["limit"],
                 )
@@ -51,10 +55,12 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
             # Execute PostgreSQL tsvector search
             return self.query_executor.execute_search(
                 validated["query"],
-                validated["namespace"],
+                validated["user_id"],
                 validated["category_filter"],
                 validated["limit"],
                 use_fts=True,
+                assistant_id=assistant_id,
+                session_id=session_id,
             )
 
         except ValidationError as e:
@@ -63,7 +69,7 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
         except Exception as e:
             logger.error(f"PostgreSQL FTS search failed: {e}")
             return self.execute_fallback_search(
-                query, namespace, category_filter, limit
+                query, user_id, assistant_id, session_id, category_filter, limit
             )
 
     def create_search_indexes(self) -> list[str]:
@@ -97,8 +103,8 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
 
                 # Create standard B-tree indexes for fallback search
                 standard_indexes = [
-                    "CREATE INDEX IF NOT EXISTS idx_st_search_pg ON short_term_memory(namespace, category_primary, importance_score)",
-                    "CREATE INDEX IF NOT EXISTS idx_lt_search_pg ON long_term_memory(namespace, category_primary, importance_score)",
+                    "CREATE INDEX IF NOT EXISTS idx_st_search_pg ON short_term_memory(user_id, assistant_id, category_primary, importance_score)",
+                    "CREATE INDEX IF NOT EXISTS idx_lt_search_pg ON long_term_memory(user_id, assistant_id, category_primary, importance_score)",
                     "CREATE INDEX IF NOT EXISTS idx_st_content_pg ON short_term_memory USING gin(searchable_content gin_trgm_ops)",
                     "CREATE INDEX IF NOT EXISTS idx_lt_content_pg ON long_term_memory USING gin(searchable_content gin_trgm_ops)",
                 ]
@@ -169,14 +175,22 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
     def execute_fallback_search(
         self,
         query: str,
-        namespace: str = "default",
+        user_id: str = "default",
+        assistant_id: str | None = None,
+        session_id: str = "default",
         category_filter: list[str] | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
         """Execute LIKE-based fallback search for PostgreSQL"""
         try:
             return self.query_executor.execute_search(
-                query, namespace, category_filter, limit, use_fts=False
+                query,
+                user_id,
+                category_filter,
+                limit,
+                use_fts=False,
+                assistant_id=assistant_id,
+                session_id=session_id,
             )
         except Exception as e:
             logger.error(f"PostgreSQL fallback search failed: {e}")
@@ -224,7 +238,9 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
                     SELECT
                         memory_id,
                         'short_term' as memory_type,
-                        namespace,
+                        user_id,
+                        assistant_id,
+                        session_id,
                         category_primary,
                         searchable_content,
                         summary,
@@ -239,7 +255,9 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
                     SELECT
                         memory_id,
                         'long_term' as memory_type,
-                        namespace,
+                        user_id,
+                        assistant_id,
+                        session_id,
                         category_primary,
                         searchable_content,
                         summary,
@@ -265,7 +283,7 @@ class PostgreSQLSearchAdapter(BaseSearchAdapter):
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_memory_search_mv_filter
-                    ON memory_search_mv (namespace, category_primary, memory_type)
+                    ON memory_search_mv (user_id, assistant_id, category_primary, memory_type)
                 """
                 )
 

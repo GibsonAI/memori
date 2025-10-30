@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import and_, desc, or_, text
+from sqlalchemy import and_, asc, desc, func, literal, or_, text, union_all
 from sqlalchemy.orm import Session
 
 from .models import LongTermMemory, ShortTermMemory
@@ -23,7 +23,9 @@ class SearchService:
     def search_memories(
         self,
         query: str,
-        namespace: str = "default",
+        user_id: str = "default",
+        assistant_id: str | None = None,
+        session_id: str | None = None,
         category_filter: list[str] | None = None,
         limit: int = 10,
         memory_types: list[str] | None = None,
@@ -33,7 +35,9 @@ class SearchService:
 
         Args:
             query: Search query string
-            namespace: Memory namespace
+            user_id: User identifier for multi-tenant isolation
+            assistant_id: Assistant identifier for multi-tenant isolation (optional)
+            session_id: Session identifier for conversation grouping (optional)
             category_filter: List of categories to filter by
             limit: Maximum number of results
             memory_types: Types of memory to search ('short_term', 'long_term', or both)
@@ -42,13 +46,13 @@ class SearchService:
             List of memory dictionaries with search metadata
         """
         logger.debug(
-            f"[SEARCH] Query initiated - '{query[:50]}{'...' if len(query) > 50 else ''}' | namespace: '{namespace}' | db: {self.database_type} | limit: {limit}"
+            f"[SEARCH] Query initiated - '{query[:50]}{'...' if len(query) > 50 else ''}' | user_id: '{user_id}' | assistant_id: '{assistant_id}' | session_id: '{session_id}' | db: {self.database_type} | limit: {limit}"
         )
 
         if not query or not query.strip():
             logger.debug("Empty query provided, returning recent memories")
             return self._get_recent_memories(
-                namespace, category_filter, limit, memory_types
+                user_id, assistant_id, session_id, category_filter, limit, memory_types
             )
 
         results = []
@@ -67,7 +71,9 @@ class SearchService:
                 logger.debug("[SEARCH] Strategy: SQLite FTS5")
                 results = self._search_sqlite_fts(
                     query,
-                    namespace,
+                    user_id,
+                    assistant_id,
+                    session_id,
                     category_filter,
                     limit,
                     search_short_term,
@@ -77,7 +83,9 @@ class SearchService:
                 logger.debug("[SEARCH] Strategy: MySQL FULLTEXT")
                 results = self._search_mysql_fulltext(
                     query,
-                    namespace,
+                    user_id,
+                    assistant_id,
+                    session_id,
                     category_filter,
                     limit,
                     search_short_term,
@@ -87,7 +95,9 @@ class SearchService:
                 logger.debug("[SEARCH] Strategy: PostgreSQL FTS")
                 results = self._search_postgresql_fts(
                     query,
-                    namespace,
+                    user_id,
+                    assistant_id,
+                    session_id,
                     category_filter,
                     limit,
                     search_short_term,
@@ -103,7 +113,9 @@ class SearchService:
                 )
                 results = self._search_like_fallback(
                     query,
-                    namespace,
+                    user_id,
+                    assistant_id,
+                    session_id,
                     category_filter,
                     limit,
                     search_short_term,
@@ -112,14 +124,16 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"[SEARCH] Full-text search failed for '{query[:30]}...' in '{namespace}' - {type(e).__name__}: {e}"
+                f"[SEARCH] Full-text search failed for '{query[:30]}...' in user_id '{user_id}' - {type(e).__name__}: {e}"
             )
             logger.debug("[SEARCH] Full-text error details", exc_info=True)
             logger.warning("[SEARCH] Attempting LIKE fallback search")
             try:
                 results = self._search_like_fallback(
                     query,
-                    namespace,
+                    user_id,
+                    assistant_id,
+                    session_id,
                     category_filter,
                     limit,
                     search_short_term,
@@ -151,7 +165,9 @@ class SearchService:
     def _search_sqlite_fts(
         self,
         query: str,
-        namespace: str,
+        user_id: str,
+        assistant_id: str | None,
+        session_id: str | None,
         category_filter: list[str] | None,
         limit: int,
         search_short_term: bool,
@@ -160,7 +176,7 @@ class SearchService:
         """Search using SQLite FTS5"""
         try:
             logger.debug(
-                f"SQLite FTS search starting for query: '{query}' in namespace: '{namespace}'"
+                f"SQLite FTS search starting for query: '{query}' in user_id: '{user_id}', assistant_id: '{assistant_id}', session_id: '{session_id}'"
             )
 
             # Use parameters to validate search scope
@@ -176,9 +192,21 @@ class SearchService:
             fts_query = f'"{query.strip()}"'
             logger.debug(f"FTS query built: {fts_query}")
 
-            # Build category filter
+            # Build filters
             category_clause = ""
-            params = {"fts_query": fts_query, "namespace": namespace}
+            assistant_clause = ""
+            session_clause = ""
+            params = {"fts_query": fts_query, "user_id": user_id}
+
+            if assistant_id:
+                assistant_clause = "AND fts.assistant_id = :assistant_id"
+                params["assistant_id"] = assistant_id
+                logger.debug(f"Assistant filter applied: {assistant_id}")
+
+            if session_id:
+                session_clause = "AND fts.session_id = :session_id"
+                params["session_id"] = session_id
+                logger.debug(f"Session filter applied: {session_id}")
 
             if category_filter:
                 category_placeholders = ",".join(
@@ -225,7 +253,9 @@ class SearchService:
                 FROM memory_search_fts fts
                 LEFT JOIN short_term_memory st ON fts.memory_id = st.memory_id AND fts.memory_type = 'short_term'
                 LEFT JOIN long_term_memory lt ON fts.memory_id = lt.memory_id AND fts.memory_type = 'long_term'
-                WHERE memory_search_fts MATCH :fts_query AND fts.namespace = :namespace
+                WHERE memory_search_fts MATCH :fts_query AND fts.user_id = :user_id
+                {assistant_clause}
+                {session_clause}
                 {category_clause}
                 ORDER BY search_score, importance_score DESC
                 LIMIT {limit}
@@ -246,7 +276,7 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"SQLite FTS5 search failed for query '{query}' in namespace '{namespace}': {e}"
+                f"SQLite FTS5 search failed for query '{query}' in user_id '{user_id}': {e}"
             )
             logger.debug(
                 f"SQLite FTS5 error details: {type(e).__name__}: {str(e)}",
@@ -259,7 +289,9 @@ class SearchService:
     def _search_mysql_fulltext(
         self,
         query: str,
-        namespace: str,
+        user_id: str,
+        assistant_id: str | None,
+        session_id: str | None,
         category_filter: list[str] | None,
         limit: int,
         search_short_term: bool,
@@ -271,11 +303,18 @@ class SearchService:
         try:
             # First check if there are any records in the database
             if search_short_term:
-                short_count = (
-                    self.session.query(ShortTermMemory)
-                    .filter(ShortTermMemory.namespace == namespace)
-                    .count()
+                short_query = self.session.query(ShortTermMemory).filter(
+                    ShortTermMemory.user_id == user_id
                 )
+                if assistant_id:
+                    short_query = short_query.filter(
+                        ShortTermMemory.assistant_id == assistant_id
+                    )
+                if session_id:
+                    short_query = short_query.filter(
+                        ShortTermMemory.session_id == session_id
+                    )
+                short_count = short_query.count()
                 if short_count == 0:
                     logger.debug(
                         "No short-term memories found in database, skipping FULLTEXT search"
@@ -283,11 +322,18 @@ class SearchService:
                     search_short_term = False
 
             if search_long_term:
-                long_count = (
-                    self.session.query(LongTermMemory)
-                    .filter(LongTermMemory.namespace == namespace)
-                    .count()
+                long_query = self.session.query(LongTermMemory).filter(
+                    LongTermMemory.user_id == user_id
                 )
+                if assistant_id:
+                    long_query = long_query.filter(
+                        LongTermMemory.assistant_id == assistant_id
+                    )
+                if session_id:
+                    long_query = long_query.filter(
+                        LongTermMemory.session_id == session_id
+                    )
+                long_count = long_query.count()
                 if long_count == 0:
                     logger.debug(
                         "No long-term memories found in database, skipping FULLTEXT search"
@@ -310,9 +356,20 @@ class SearchService:
             # Search short-term memory if requested
             if search_short_term:
                 try:
-                    # Build category filter clause
+                    # Build filter clauses
                     category_clause = ""
-                    params = {"query": query}
+                    assistant_clause = ""
+                    session_clause = ""
+                    params = {"query": query, "user_id": user_id}
+
+                    if assistant_id:
+                        assistant_clause = "AND assistant_id = :assistant_id"
+                        params["assistant_id"] = assistant_id
+
+                    if session_id:
+                        session_clause = "AND session_id = :session_id"
+                        params["session_id"] = session_id
+
                     if category_filter:
                         category_placeholders = ",".join(
                             [f":cat_{i}" for i in range(len(category_filter))]
@@ -337,7 +394,9 @@ class SearchService:
                             'short_term' as memory_type,
                             'mysql_fulltext' as search_strategy
                         FROM short_term_memory
-                        WHERE namespace = :namespace
+                        WHERE user_id = :user_id
+                        {assistant_clause}
+                        {session_clause}
                         AND MATCH(searchable_content, summary) AGAINST(:query IN NATURAL LANGUAGE MODE)
                         {category_clause}
                         ORDER BY search_score DESC
@@ -345,7 +404,6 @@ class SearchService:
                     """
                     )
 
-                    params["namespace"] = namespace
                     params["short_limit"] = short_limit
 
                     short_results = self.session.execute(sql_query, params).fetchall()
@@ -382,9 +440,20 @@ class SearchService:
             # Search long-term memory if requested
             if search_long_term:
                 try:
-                    # Build category filter clause
+                    # Build filter clauses
                     category_clause = ""
-                    params = {"query": query}
+                    assistant_clause = ""
+                    session_clause = ""
+                    params = {"query": query, "user_id": user_id}
+
+                    if assistant_id:
+                        assistant_clause = "AND assistant_id = :assistant_id"
+                        params["assistant_id"] = assistant_id
+
+                    if session_id:
+                        session_clause = "AND session_id = :session_id"
+                        params["session_id"] = session_id
+
                     if category_filter:
                         category_placeholders = ",".join(
                             [f":cat_{i}" for i in range(len(category_filter))]
@@ -409,7 +478,9 @@ class SearchService:
                             'long_term' as memory_type,
                             'mysql_fulltext' as search_strategy
                         FROM long_term_memory
-                        WHERE namespace = :namespace
+                        WHERE user_id = :user_id
+                        {assistant_clause}
+                        {session_clause}
                         AND MATCH(searchable_content, summary) AGAINST(:query IN NATURAL LANGUAGE MODE)
                         {category_clause}
                         ORDER BY search_score DESC
@@ -417,7 +488,6 @@ class SearchService:
                     """
                     )
 
-                    params["namespace"] = namespace
                     params["long_limit"] = long_limit
 
                     long_results = self.session.execute(sql_query, params).fetchall()
@@ -455,7 +525,7 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"MySQL FULLTEXT search failed for query '{query}' in namespace '{namespace}': {e}"
+                f"MySQL FULLTEXT search failed for query '{query}' in user_id '{user_id}': {e}"
             )
             logger.debug(
                 f"MySQL FULLTEXT error details: {type(e).__name__}: {str(e)}",
@@ -468,7 +538,9 @@ class SearchService:
     def _search_postgresql_fts(
         self,
         query: str,
-        namespace: str,
+        user_id: str,
+        assistant_id: str | None,
+        session_id: str | None,
         category_filter: list[str] | None,
         limit: int,
         search_short_term: bool,
@@ -487,14 +559,28 @@ class SearchService:
             )
 
             # Prepare query for tsquery - handle spaces and special characters
-            # Convert simple query to tsquery format (join words with &)
-            tsquery_text = " & ".join(query.split())
+            # Remove/sanitize special characters that cause tsquery syntax errors
+            import re
+
+            # Remove special characters, keep only alphanumeric and spaces
+            sanitized_query = re.sub(r"[^\w\s]", " ", query)
+            # Convert to tsquery format (join words with &)
+            tsquery_text = " & ".join(sanitized_query.split())
 
             # Search short-term memory if requested
             if search_short_term:
 
-                # Build category filter clause safely
+                # Build filter clauses safely
                 category_clause = ""
+                assistant_clause = ""
+                session_clause = ""
+
+                if assistant_id:
+                    assistant_clause = "AND assistant_id = :assistant_id"
+
+                if session_id:
+                    session_clause = "AND session_id = :session_id"
+
                 if category_filter:
                     category_clause = "AND category_primary = ANY(:category_list)"
 
@@ -505,7 +591,9 @@ class SearchService:
                            ts_rank(search_vector, to_tsquery('english', :query)) as search_score,
                            'short_term' as memory_type, 'postgresql_fts' as search_strategy
                     FROM short_term_memory
-                    WHERE namespace = :namespace
+                    WHERE user_id = :user_id
+                    {assistant_clause}
+                    {session_clause}
                     AND search_vector @@ to_tsquery('english', :query)
                     {category_clause}
                     ORDER BY search_score DESC
@@ -514,10 +602,14 @@ class SearchService:
                 )
 
                 params = {
-                    "namespace": namespace,
+                    "user_id": user_id,
                     "query": tsquery_text,
                     "limit": short_limit,
                 }
+                if assistant_id:
+                    params["assistant_id"] = assistant_id
+                if session_id:
+                    params["session_id"] = session_id
                 if category_filter:
                     params["category_list"] = category_filter
 
@@ -541,8 +633,17 @@ class SearchService:
 
             # Search long-term memory if requested
             if search_long_term:
-                # Build category filter clause safely
+                # Build filter clauses safely
                 category_clause = ""
+                assistant_clause = ""
+                session_clause = ""
+
+                if assistant_id:
+                    assistant_clause = "AND assistant_id = :assistant_id"
+
+                if session_id:
+                    session_clause = "AND session_id = :session_id"
+
                 if category_filter:
                     category_clause = "AND category_primary = ANY(:category_list)"
 
@@ -553,7 +654,9 @@ class SearchService:
                            ts_rank(search_vector, to_tsquery('english', :query)) as search_score,
                            'long_term' as memory_type, 'postgresql_fts' as search_strategy
                     FROM long_term_memory
-                    WHERE namespace = :namespace
+                    WHERE user_id = :user_id
+                    {assistant_clause}
+                    {session_clause}
                     AND search_vector @@ to_tsquery('english', :query)
                     {category_clause}
                     ORDER BY search_score DESC
@@ -562,10 +665,14 @@ class SearchService:
                 )
 
                 params = {
-                    "namespace": namespace,
+                    "user_id": user_id,
                     "query": tsquery_text,
                     "limit": long_limit,
                 }
+                if assistant_id:
+                    params["assistant_id"] = assistant_id
+                if session_id:
+                    params["session_id"] = session_id
                 if category_filter:
                     params["category_list"] = category_filter
 
@@ -591,7 +698,7 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"PostgreSQL FTS search failed for query '{query}' in namespace '{namespace}': {e}"
+                f"PostgreSQL FTS search failed for query '{query}' in user_id '{user_id}': {e}"
             )
             logger.debug(
                 f"PostgreSQL FTS error details: {type(e).__name__}: {str(e)}",
@@ -604,7 +711,9 @@ class SearchService:
     def _search_like_fallback(
         self,
         query: str,
-        namespace: str,
+        user_id: str,
+        assistant_id: str | None,
+        session_id: str | None,
         category_filter: list[str] | None,
         limit: int,
         search_short_term: bool,
@@ -612,7 +721,7 @@ class SearchService:
     ) -> list[dict[str, Any]]:
         """Fallback LIKE-based search with improved flexibility"""
         logger.debug(
-            f"Starting LIKE fallback search for query: '{query}' in namespace: '{namespace}'"
+            f"Starting LIKE fallback search for query: '{query}' in user_id: '{user_id}', assistant_id: '{assistant_id}', session_id: '{session_id}'"
         )
         results = []
 
@@ -642,11 +751,20 @@ class SearchService:
                     ]
                 )
 
+            # Build base filter conditions
+            filter_conditions = [
+                ShortTermMemory.user_id == user_id,
+                or_(*search_conditions),
+            ]
+
+            if assistant_id:
+                filter_conditions.append(ShortTermMemory.assistant_id == assistant_id)
+
+            if session_id:
+                filter_conditions.append(ShortTermMemory.session_id == session_id)
+
             short_query = self.session.query(ShortTermMemory).filter(
-                and_(
-                    ShortTermMemory.namespace == namespace,
-                    or_(*search_conditions),
-                )
+                and_(*filter_conditions)
             )
 
             if category_filter:
@@ -691,11 +809,20 @@ class SearchService:
                     ]
                 )
 
+            # Build base filter conditions
+            filter_conditions = [
+                LongTermMemory.user_id == user_id,
+                or_(*search_conditions),
+            ]
+
+            if assistant_id:
+                filter_conditions.append(LongTermMemory.assistant_id == assistant_id)
+
+            if session_id:
+                filter_conditions.append(LongTermMemory.session_id == session_id)
+
             long_query = self.session.query(LongTermMemory).filter(
-                and_(
-                    LongTermMemory.namespace == namespace,
-                    or_(*search_conditions),
-                )
+                and_(*filter_conditions)
             )
 
             if category_filter:
@@ -735,7 +862,9 @@ class SearchService:
 
     def _get_recent_memories(
         self,
-        namespace: str,
+        user_id: str,
+        assistant_id: str | None,
+        session_id: str | None,
         category_filter: list[str] | None,
         limit: int,
         memory_types: list[str] | None,
@@ -749,8 +878,18 @@ class SearchService:
         # Get recent short-term memories
         if search_short_term:
             short_query = self.session.query(ShortTermMemory).filter(
-                ShortTermMemory.namespace == namespace
+                ShortTermMemory.user_id == user_id
             )
+
+            if assistant_id:
+                short_query = short_query.filter(
+                    ShortTermMemory.assistant_id == assistant_id
+                )
+
+            if session_id:
+                short_query = short_query.filter(
+                    ShortTermMemory.session_id == session_id
+                )
 
             if category_filter:
                 short_query = short_query.filter(
@@ -780,8 +919,16 @@ class SearchService:
         # Get recent long-term memories
         if search_long_term:
             long_query = self.session.query(LongTermMemory).filter(
-                LongTermMemory.namespace == namespace
+                LongTermMemory.user_id == user_id
             )
+
+            if assistant_id:
+                long_query = long_query.filter(
+                    LongTermMemory.assistant_id == assistant_id
+                )
+
+            if session_id:
+                long_query = long_query.filter(LongTermMemory.session_id == session_id)
 
             if category_filter:
                 long_query = long_query.filter(
@@ -842,3 +989,482 @@ class SearchService:
             return max(0, 1 - (days_old / 30))  # Full score for recent, 0 after 30 days
         except:
             return 0.0
+
+    def list_memories(
+        self,
+        user_id: str | None = None,
+        assistant_id: str | None = None,
+        session_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        memory_type: str = "all",
+        sort_by: str = "created_at",
+        order: str = "desc",
+    ) -> tuple[list[dict[str, Any]], int]:
+        """
+        List memories with pagination and flexible filtering (for dashboard views)
+
+        Args:
+            user_id: User identifier for multi-tenant isolation
+            assistant_id: Assistant identifier for multi-tenant isolation (optional)
+            session_id: Session identifier for conversation grouping (optional)
+            limit: Maximum number of results per page
+            offset: Number of results to skip
+            memory_type: Type of memory ('short_term', 'long_term', or 'all')
+            sort_by: Field to sort by ('created_at', 'importance', 'category')
+            order: Sort order ('asc' or 'desc')
+
+        Returns:
+            Tuple of (results list, total count)
+        """
+        logger.debug(
+            f"[LIST] Listing memories - user_id: '{user_id}' | assistant_id: '{assistant_id}' | "
+            f"session_id: '{session_id}' | memory_type: '{memory_type}' | "
+            f"sort: {sort_by} {order} | limit: {limit} | offset: {offset}"
+        )
+
+        # INPUT VALIDATION - Priority 3
+        ALLOWED_SORT_FIELDS = {
+            "created_at": "created_at",
+            "importance": "importance_score",
+            "category": "category_primary",
+        }
+        ALLOWED_MEMORY_TYPES = ["all", "short_term", "long_term"]
+        ALLOWED_ORDERS = ["asc", "desc"]
+
+        if memory_type not in ALLOWED_MEMORY_TYPES:
+            logger.warning(
+                f"[LIST] Invalid memory_type: {memory_type}, defaulting to 'all'"
+            )
+            memory_type = "all"
+
+        if sort_by not in ALLOWED_SORT_FIELDS:
+            logger.warning(
+                f"[LIST] Invalid sort_by: {sort_by}, defaulting to 'created_at'"
+            )
+            sort_by = "created_at"
+        else:
+            # Map to actual field name
+            sort_by = ALLOWED_SORT_FIELDS[sort_by]
+
+        if order not in ALLOWED_ORDERS:
+            logger.warning(f"[LIST] Invalid order: {order}, defaulting to 'desc'")
+            order = "desc"
+
+        # Fix ascending sort order - Priority 2
+        order_clause = desc if order == "desc" else asc
+
+        try:
+            # CRITICAL FIX - Priority 1: Use UNION ALL for memory_type="all"
+            if memory_type == "all":
+                return self._list_all_memories_combined(
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit,
+                    offset,
+                    sort_by,
+                    order_clause,
+                )
+            elif memory_type == "short_term":
+                return self._list_single_type_memories(
+                    ShortTermMemory,
+                    "short_term",
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit,
+                    offset,
+                    sort_by,
+                    order_clause,
+                )
+            else:  # long_term
+                return self._list_single_type_memories(
+                    LongTermMemory,
+                    "long_term",
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit,
+                    offset,
+                    sort_by,
+                    order_clause,
+                )
+
+        except (AttributeError, KeyError) as e:
+            logger.error(f"[LIST] Invalid sort field access: {e}")
+            raise ValueError(f"Invalid sort field: {sort_by}")
+        except Exception as e:
+            logger.error(f"[LIST] Error listing memories: {e}", exc_info=True)
+            raise
+
+    def _list_all_memories_combined(
+        self,
+        user_id: str | None,
+        assistant_id: str | None,
+        session_id: str | None,
+        limit: int,
+        offset: int,
+        sort_by: str,
+        order_clause,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """
+        List memories from both tables using UNION ALL (database-level pagination)
+
+        This fixes the critical memory exhaustion issue by using database-level
+        pagination instead of loading all results into memory.
+        """
+        try:
+            # Build short-term query
+            # CRITICAL: All columns must have explicit .label() for UNION ALL subquery column access
+            short_select = self.session.query(
+                ShortTermMemory.memory_id.label("memory_id"),
+                literal("short_term").label("memory_type"),
+                ShortTermMemory.processed_data.label("processed_data"),
+                ShortTermMemory.importance_score.label("importance_score"),
+                ShortTermMemory.created_at.label("created_at"),
+                ShortTermMemory.summary.label("summary"),
+                ShortTermMemory.category_primary.label("category_primary"),
+                ShortTermMemory.user_id.label("user_id"),
+                ShortTermMemory.assistant_id.label("assistant_id"),
+                ShortTermMemory.session_id.label("session_id"),
+            )
+
+            # Apply filters conditionally (only if provided)
+            if user_id is not None:
+                short_select = short_select.filter(ShortTermMemory.user_id == user_id)
+            if assistant_id is not None:
+                short_select = short_select.filter(
+                    ShortTermMemory.assistant_id == assistant_id
+                )
+            if session_id is not None:
+                short_select = short_select.filter(
+                    ShortTermMemory.session_id == session_id
+                )
+
+            # Build long-term query
+            # CRITICAL: All columns must have explicit .label() for UNION ALL subquery column access
+            long_select = self.session.query(
+                LongTermMemory.memory_id.label("memory_id"),
+                literal("long_term").label("memory_type"),
+                LongTermMemory.processed_data.label("processed_data"),
+                LongTermMemory.importance_score.label("importance_score"),
+                LongTermMemory.created_at.label("created_at"),
+                LongTermMemory.summary.label("summary"),
+                LongTermMemory.category_primary.label("category_primary"),
+                LongTermMemory.user_id.label("user_id"),
+                LongTermMemory.assistant_id.label("assistant_id"),
+                LongTermMemory.session_id.label("session_id"),
+            )
+
+            # Apply filters conditionally (only if provided)
+            if user_id is not None:
+                long_select = long_select.filter(LongTermMemory.user_id == user_id)
+            if assistant_id is not None:
+                long_select = long_select.filter(
+                    LongTermMemory.assistant_id == assistant_id
+                )
+            if session_id is not None:
+                long_select = long_select.filter(
+                    LongTermMemory.session_id == session_id
+                )
+
+            # Combine with UNION ALL
+            combined = union_all(short_select, long_select).subquery()
+
+            # Get total count efficiently
+            count_query = self.session.query(func.count()).select_from(combined)
+            total_count = count_query.scalar()
+
+            # Apply sorting and pagination at database level
+            # Use bracket notation for reliable column access in UNION ALL subqueries
+            # Additional safety: Verify column exists in combined result set
+            if sort_by not in combined.c:
+                logger.warning(
+                    f"[LIST] Sort field '{sort_by}' not found in combined results, falling back to 'created_at'"
+                )
+                sort_by = "created_at"
+            sort_column = combined.c[sort_by]
+            query = self.session.query(combined).order_by(order_clause(sort_column))
+            results = query.limit(limit).offset(offset).all()
+
+            # Convert to dictionaries
+            formatted_results = []
+            for row in results:
+                formatted_results.append(
+                    {
+                        "memory_id": row.memory_id,
+                        "memory_type": row.memory_type,
+                        "processed_data": row.processed_data,
+                        "importance_score": row.importance_score,
+                        "created_at": row.created_at,
+                        "summary": row.summary,
+                        "category_primary": row.category_primary,
+                        "user_id": row.user_id,
+                        "assistant_id": row.assistant_id,
+                        "session_id": row.session_id,
+                    }
+                )
+
+            logger.debug(
+                f"[LIST] Combined query completed - {len(formatted_results)} results returned (total: {total_count})"
+            )
+
+            return formatted_results, total_count
+
+        except Exception as e:
+            logger.error(f"[LIST] Error in combined memory query: {e}", exc_info=True)
+            raise
+
+    def _list_single_type_memories(
+        self,
+        model_class,
+        memory_type: str,
+        user_id: str | None,
+        assistant_id: str | None,
+        session_id: str | None,
+        limit: int,
+        offset: int,
+        sort_by: str,
+        order_clause,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """
+        List memories from a single table with pagination
+
+        More efficient than combined query when filtering by specific memory type.
+        """
+        try:
+            # Build base query
+            query = self.session.query(model_class)
+
+            # Apply filters conditionally (only if provided)
+            if user_id is not None:
+                query = query.filter(model_class.user_id == user_id)
+
+            if assistant_id is not None:
+                query = query.filter(model_class.assistant_id == assistant_id)
+
+            if session_id is not None:
+                query = query.filter(model_class.session_id == session_id)
+
+            # Get total count
+            total_count = query.count()
+
+            # Apply sorting and pagination
+            sort_field = getattr(model_class, sort_by)
+            query = query.order_by(order_clause(sort_field))
+            results = query.limit(limit).offset(offset).all()
+
+            # Convert to dictionaries
+            formatted_results = []
+            for result in results:
+                formatted_results.append(
+                    {
+                        "memory_id": result.memory_id,
+                        "memory_type": memory_type,
+                        "processed_data": result.processed_data,
+                        "importance_score": result.importance_score,
+                        "created_at": result.created_at,
+                        "summary": result.summary,
+                        "category_primary": result.category_primary,
+                        "user_id": result.user_id,
+                        "assistant_id": result.assistant_id,
+                        "session_id": result.session_id,
+                    }
+                )
+
+            logger.debug(
+                f"[LIST] Single type query completed - {len(formatted_results)} results returned (total: {total_count})"
+            )
+
+            return formatted_results, total_count
+
+        except Exception as e:
+            logger.error(
+                f"[LIST] Error in single type memory query: {e}", exc_info=True
+            )
+            raise
+
+    def get_list_metadata(
+        self,
+        user_id: str | None = None,
+        assistant_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get metadata for list endpoint (available filters and stats)
+
+        Args:
+            user_id: User identifier for multi-tenant isolation
+            assistant_id: Optional assistant filter for scoping metadata
+
+        Returns:
+            Dictionary with available_filters and stats
+        """
+        logger.debug(
+            f"[METADATA] Getting list metadata - user_id: '{user_id}' | assistant_id: '{assistant_id}'"
+        )
+
+        try:
+            metadata = {
+                "available_filters": {
+                    "user_ids": [],
+                    "assistant_ids": [],
+                    "session_ids": [],
+                    "memory_types": ["short_term", "long_term"],
+                },
+                "stats": {
+                    "total_memories": 0,
+                    "by_type": {"short_term": 0, "long_term": 0},
+                    "by_category": {},
+                },
+            }
+
+            # Get distinct user_ids (from both tables)
+            short_query = self.session.query(ShortTermMemory.user_id).distinct()
+            long_query = self.session.query(LongTermMemory.user_id).distinct()
+
+            # Apply user_id filter if provided
+            if user_id is not None:
+                short_query = short_query.filter(ShortTermMemory.user_id == user_id)
+                long_query = long_query.filter(LongTermMemory.user_id == user_id)
+
+            short_users = short_query.all()
+            long_users = long_query.all()
+            all_users = set([u[0] for u in short_users] + [u[0] for u in long_users])
+            metadata["available_filters"]["user_ids"] = sorted(list(all_users))
+
+            # Get distinct assistant_ids
+            base_short_query = self.session.query(
+                ShortTermMemory.assistant_id
+            ).distinct()
+            base_long_query = self.session.query(LongTermMemory.assistant_id).distinct()
+
+            # Apply user_id filter if provided
+            if user_id is not None:
+                base_short_query = base_short_query.filter(
+                    ShortTermMemory.user_id == user_id
+                )
+                base_long_query = base_long_query.filter(
+                    LongTermMemory.user_id == user_id
+                )
+
+            # Apply assistant_id filter if provided
+            if assistant_id is not None:
+                base_short_query = base_short_query.filter(
+                    ShortTermMemory.assistant_id == assistant_id
+                )
+                base_long_query = base_long_query.filter(
+                    LongTermMemory.assistant_id == assistant_id
+                )
+
+            short_assistants = base_short_query.all()
+            long_assistants = base_long_query.all()
+            all_assistants = set(
+                [a[0] for a in short_assistants if a[0]]
+                + [a[0] for a in long_assistants if a[0]]
+            )
+            metadata["available_filters"]["assistant_ids"] = sorted(
+                list(all_assistants)
+            )
+
+            # Get distinct session_ids
+            short_sessions_query = self.session.query(
+                ShortTermMemory.session_id
+            ).distinct()
+            long_sessions_query = self.session.query(
+                LongTermMemory.session_id
+            ).distinct()
+
+            # Apply user_id filter if provided
+            if user_id is not None:
+                short_sessions_query = short_sessions_query.filter(
+                    ShortTermMemory.user_id == user_id
+                )
+                long_sessions_query = long_sessions_query.filter(
+                    LongTermMemory.user_id == user_id
+                )
+
+            short_sessions = short_sessions_query.all()
+            long_sessions = long_sessions_query.all()
+            all_sessions = set(
+                [s[0] for s in short_sessions if s[0]]
+                + [s[0] for s in long_sessions if s[0]]
+            )
+            metadata["available_filters"]["session_ids"] = sorted(list(all_sessions))
+
+            # Get counts
+            short_count_query = self.session.query(ShortTermMemory)
+            long_count_query = self.session.query(LongTermMemory)
+
+            # Apply user_id filter if provided
+            if user_id is not None:
+                short_count_query = short_count_query.filter(
+                    ShortTermMemory.user_id == user_id
+                )
+                long_count_query = long_count_query.filter(
+                    LongTermMemory.user_id == user_id
+                )
+
+            short_count = short_count_query.count()
+            long_count = long_count_query.count()
+
+            metadata["stats"]["by_type"]["short_term"] = short_count
+            metadata["stats"]["by_type"]["long_term"] = long_count
+            metadata["stats"]["total_memories"] = short_count + long_count
+
+            # Get category breakdown (from both tables)
+            short_categories_query = self.session.query(
+                ShortTermMemory.category_primary, func.count().label("count")
+            )
+            long_categories_query = self.session.query(
+                LongTermMemory.category_primary, func.count().label("count")
+            )
+
+            # Apply user_id filter if provided
+            if user_id is not None:
+                short_categories_query = short_categories_query.filter(
+                    ShortTermMemory.user_id == user_id
+                )
+                long_categories_query = long_categories_query.filter(
+                    LongTermMemory.user_id == user_id
+                )
+
+            short_categories = short_categories_query.group_by(
+                ShortTermMemory.category_primary
+            ).all()
+
+            long_categories = long_categories_query.group_by(
+                LongTermMemory.category_primary
+            ).all()
+
+            # Combine category counts
+            category_counts = {}
+            for cat, count in short_categories:
+                category_counts[cat] = category_counts.get(cat, 0) + count
+            for cat, count in long_categories:
+                category_counts[cat] = category_counts.get(cat, 0) + count
+
+            metadata["stats"]["by_category"] = category_counts
+
+            logger.debug(
+                f"[METADATA] Completed - {metadata['stats']['total_memories']} total memories"
+            )
+
+            return metadata
+
+        except Exception as e:
+            logger.error(f"[METADATA] Error getting metadata: {e}")
+            logger.debug("[METADATA] Error details", exc_info=True)
+            return {
+                "available_filters": {
+                    "user_ids": [],
+                    "assistant_ids": [],
+                    "session_ids": [],
+                    "memory_types": ["short_term", "long_term"],
+                },
+                "stats": {
+                    "total_memories": 0,
+                    "by_type": {"short_term": 0, "long_term": 0},
+                    "by_category": {},
+                },
+            }

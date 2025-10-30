@@ -97,7 +97,7 @@ class MemoryTool:
             results = self._search_engine.execute_search(
                 query=query,
                 db_manager=self.memori.db_manager,
-                namespace=self.memori.namespace,
+                user_id=self.memori.user_id,
                 limit=5,
             )
 
@@ -108,7 +108,7 @@ class MemoryTool:
                 # Try fallback direct database search
                 try:
                     fallback_results = self.memori.db_manager.search_memories(
-                        query=query, namespace=self.memori.namespace, limit=5
+                        query=query, user_id=self.memori.user_id, limit=5
                     )
 
                     if fallback_results:
@@ -363,7 +363,7 @@ class MemoryTool:
                 return {"error": "Query is required for search"}
 
             search_results = self.memori.db_manager.search_memories(
-                query=query, namespace=self.memori.namespace, limit=limit
+                query=query, user_id=self.memori.user_id, limit=limit
             )
 
             return {
@@ -390,7 +390,7 @@ class MemoryTool:
                 "success": True,
                 "memory_stats": memory_stats,
                 "integration_stats": integration_stats,
-                "namespace": self.memori.namespace,
+                "user_id": self.memori.user_id,
                 "session_id": self.memori.session_id,
                 "enabled": self.memori.is_enabled,
             }
@@ -569,7 +569,7 @@ def create_memory_search_tool(memori_instance: Memori):
         try:
             # Use the SQL-based search from the database manager
             results = memori_instance.db_manager.search_memories(
-                query=query, namespace=memori_instance.namespace, limit=max_results
+                query=query, user_id=memori_instance.user_id, limit=max_results
             )
 
             if not results:
