@@ -32,7 +32,7 @@ from .database.queries import (  # EntityQueries removed (graph search simplifie
     MemoryQueries,
 )
 
-# Wrapper integrations
+# Wrapper integrations (legacy - will show deprecation warnings)
 from .integrations import MemoriAnthropic, MemoriOpenAI
 
 # Tools and integrations
@@ -90,6 +90,31 @@ except ImportError:
     # Agents are not available, use placeholder None values
     pass
 
+# Integration factory functions (recommended way to use integrations)
+create_openai_client: Any | None = None
+create_genai_model: Any | None = None
+setup_openai_interceptor: Any | None = None
+setup_genai_interceptor: Any | None = None
+_INTEGRATIONS_AVAILABLE = {"openai": False, "genai": False, "anthropic": False}
+
+try:
+    from .integrations.openai_integration import (
+        create_openai_client,
+        setup_openai_interceptor,
+    )
+    _INTEGRATIONS_AVAILABLE["openai"] = True
+except ImportError:
+    pass
+
+try:
+    from .integrations.google_genai_integration import (
+        create_genai_model,
+        setup_genai_interceptor,
+    )
+    _INTEGRATIONS_AVAILABLE["genai"] = True
+except ImportError:
+    pass
+
 # Build __all__ list dynamically based on available components
 _all_components = [
     # Core
@@ -113,7 +138,7 @@ _all_components = [
     "MemoryTool",
     "create_memory_tool",
     "create_memory_search_tool",
-    # Integrations
+    # Integrations (legacy wrappers)
     "MemoriOpenAI",
     "MemoriAnthropic",
     # Pydantic Models
@@ -161,4 +186,39 @@ _all_components = [
 if _AGENTS_AVAILABLE:
     _all_components.extend(["MemoryAgent", "MemorySearchEngine"])
 
+# Add integration factory functions if available
+if _INTEGRATIONS_AVAILABLE["openai"]:
+    _all_components.extend(["create_openai_client", "setup_openai_interceptor"])
+
+if _INTEGRATIONS_AVAILABLE["genai"]:
+    _all_components.extend(["create_genai_model", "setup_genai_interceptor"])
+
+__all__ = _all_components
+
+
+# Convenience function to show available integrations
+def get_available_integrations():
+    """
+    Get a dictionary of available LLM integrations.
+    
+    Returns:
+        dict: Dictionary with provider names as keys and availability as values
+    """
+    return _INTEGRATIONS_AVAILABLE.copy()
+
+
+def get_integration_status():
+    """
+    Print a formatted status of all available integrations.
+    """
+    logger = get_logger(__name__)
+    logger.info("🔌 Memori Integration Status:")
+    logger.info(f"  OpenAI: {'✅ Available' if _INTEGRATIONS_AVAILABLE['openai'] else '❌ Not installed'}")
+    logger.info(f"  Google GenAI: {'✅ Available' if _INTEGRATIONS_AVAILABLE['genai'] else '❌ Not installed'}")
+    logger.info(f"  Anthropic: {'✅ Available' if _INTEGRATIONS_AVAILABLE['anthropic'] else '❌ Not installed'}")
+    logger.info(f"  Agents: {'✅ Available' if _AGENTS_AVAILABLE else '❌ Not available'}")
+
+
+# Add these to __all__ as well
+_all_components.extend(["get_available_integrations", "get_integration_status"])
 __all__ = _all_components
