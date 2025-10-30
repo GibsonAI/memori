@@ -5,6 +5,25 @@ All notable changes to Memori will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+###  **Added**
+
+####  **Minimal CLI for Memori**
+- `memori --version`: Display version
+- `memori init [--force]`: Create starter config (`memori.json`)
+- `memori health [--config <path>] [--check-db]`: Validate environment and configuration
+- Console script automatically available after `pip install memorisdk`
+- Pure Python implementation using only standard library (argparse, json, pathlib, importlib.metadata)
+- 26 unit tests with comprehensive coverage
+
+#### **Documentation**
+- Added CLI reference guide with examples and troubleshooting
+- Updated quick-start to mention CLI availability
+- Integrated CLI reference into navigation
+
+---
+
 ## [2.3.0] - 2025-09-29
 
 ### 🚀 **Major Performance Improvements**
