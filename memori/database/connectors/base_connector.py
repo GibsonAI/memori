@@ -15,6 +15,7 @@ class DatabaseType(str, Enum):
     MYSQL = "mysql"
     POSTGRESQL = "postgresql"
     MONGODB = "mongodb"
+    COUCHBASE = "couchbase"
 
 
 class SearchStrategy(str, Enum):
