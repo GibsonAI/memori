@@ -27,37 +27,41 @@ class ChatQueries(BaseQueries):
     # INSERT Queries
     INSERT_CHAT_HISTORY = """
         INSERT INTO chat_history (
-            chat_id, user_input, ai_output, model, timestamp,
-            session_id, namespace, tokens_used, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            chat_id, user_input, ai_output, model, created_at,
+            session_id, user_id, assistant_id, tokens_used, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     # SELECT Queries
+    # NOTE: These queries now support multi-column filtering (user_id + assistant_id + session_id)
+    # The calling code should pass None for optional filters (assistant_id, session_id)
+    # and build WHERE clauses dynamically
+
     SELECT_CHAT_BY_ID = """
         SELECT * FROM chat_history
-        WHERE chat_id = ? AND namespace = ?
+        WHERE chat_id = ? AND user_id = ?
     """
 
     SELECT_CHAT_BY_SESSION = """
-        SELECT chat_id, user_input, ai_output, model, timestamp, tokens_used
+        SELECT chat_id, user_input, ai_output, model, created_at, tokens_used
         FROM chat_history
-        WHERE session_id = ? AND namespace = ?
-        ORDER BY timestamp ASC
+        WHERE session_id = ? AND user_id = ?
+        ORDER BY created_at ASC
     """
 
     SELECT_RECENT_CHATS = """
-        SELECT chat_id, user_input, ai_output, model, timestamp, tokens_used
+        SELECT chat_id, user_input, ai_output, model, created_at, tokens_used
         FROM chat_history
-        WHERE namespace = ? AND timestamp >= ?
-        ORDER BY timestamp DESC
+        WHERE user_id = ? AND created_at >= ?
+        ORDER BY created_at DESC
         LIMIT ?
     """
 
     SELECT_CHATS_BY_MODEL = """
-        SELECT chat_id, user_input, ai_output, timestamp, tokens_used
+        SELECT chat_id, user_input, ai_output, created_at, tokens_used
         FROM chat_history
-        WHERE namespace = ? AND model = ?
-        ORDER BY timestamp DESC
+        WHERE user_id = ? AND model = ?
+        ORDER BY created_at DESC
         LIMIT ?
     """
 
@@ -68,17 +72,17 @@ class ChatQueries(BaseQueries):
             COUNT(DISTINCT model) as unique_models,
             SUM(tokens_used) as total_tokens,
             AVG(tokens_used) as avg_tokens,
-            MIN(timestamp) as first_chat,
-            MAX(timestamp) as last_chat
+            MIN(created_at) as first_chat,
+            MAX(created_at) as last_chat
         FROM chat_history
-        WHERE namespace = ?
+        WHERE user_id = ?
     """
 
     SELECT_CHATS_BY_DATE_RANGE = """
-        SELECT chat_id, user_input, ai_output, model, timestamp, tokens_used
+        SELECT chat_id, user_input, ai_output, model, created_at, tokens_used
         FROM chat_history
-        WHERE namespace = ? AND timestamp BETWEEN ? AND ?
-        ORDER BY timestamp DESC
+        WHERE user_id = ? AND created_at BETWEEN ? AND ?
+        ORDER BY created_at DESC
         LIMIT ?
     """
 
@@ -86,34 +90,34 @@ class ChatQueries(BaseQueries):
     UPDATE_CHAT_METADATA = """
         UPDATE chat_history
         SET metadata = ?
-        WHERE chat_id = ? AND namespace = ?
+        WHERE chat_id = ? AND user_id = ?
     """
 
     # DELETE Queries
     DELETE_CHAT = """
         DELETE FROM chat_history
-        WHERE chat_id = ? AND namespace = ?
+        WHERE chat_id = ? AND user_id = ?
     """
 
     DELETE_OLD_CHATS = """
         DELETE FROM chat_history
-        WHERE namespace = ? AND timestamp < ?
+        WHERE user_id = ? AND created_at < ?
     """
 
     DELETE_CHATS_BY_SESSION = """
         DELETE FROM chat_history
-        WHERE session_id = ? AND namespace = ?
+        WHERE session_id = ? AND user_id = ?
     """
 
     # ANALYTICS Queries
     GET_CHAT_VOLUME_BY_DATE = """
         SELECT
-            DATE(timestamp) as chat_date,
+            DATE(created_at) as chat_date,
             COUNT(*) as chat_count,
             SUM(tokens_used) as tokens_used
         FROM chat_history
-        WHERE namespace = ? AND timestamp >= ?
-        GROUP BY DATE(timestamp)
+        WHERE user_id = ? AND created_at >= ?
+        GROUP BY DATE(created_at)
         ORDER BY chat_date DESC
     """
 
@@ -124,7 +128,7 @@ class ChatQueries(BaseQueries):
             SUM(tokens_used) as total_tokens,
             AVG(tokens_used) as avg_tokens
         FROM chat_history
-        WHERE namespace = ?
+        WHERE user_id = ?
         GROUP BY model
         ORDER BY usage_count DESC
     """
@@ -133,23 +137,23 @@ class ChatQueries(BaseQueries):
         SELECT
             session_id,
             COUNT(*) as message_count,
-            MIN(timestamp) as session_start,
-            MAX(timestamp) as session_end,
+            MIN(created_at) as session_start,
+            MAX(created_at) as session_end,
             SUM(tokens_used) as total_tokens
         FROM chat_history
-        WHERE namespace = ?
+        WHERE user_id = ?
         GROUP BY session_id
         ORDER BY session_start DESC
         LIMIT ?
     """
 
     SEARCH_CHAT_CONTENT = """
-        SELECT chat_id, user_input, ai_output, model, timestamp
+        SELECT chat_id, user_input, ai_output, model, created_at
         FROM chat_history
-        WHERE namespace = ? AND (
+        WHERE user_id = ? AND (
             user_input LIKE ? OR
             ai_output LIKE ?
         )
-        ORDER BY timestamp DESC
+        ORDER BY created_at DESC
         LIMIT ?
     """

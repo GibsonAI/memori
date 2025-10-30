@@ -78,46 +78,47 @@ class SchemaQueries:
                 actionability_score REAL DEFAULT 0.5
             )
         """,
-        "rules_memory": """
-            CREATE TABLE IF NOT EXISTS rules_memory (
-                rule_id TEXT PRIMARY KEY,
-                rule_text TEXT NOT NULL,
-                rule_type TEXT NOT NULL,
-                priority INTEGER DEFAULT 5,
-                active BOOLEAN DEFAULT TRUE,
-                context_conditions TEXT,
-                namespace TEXT NOT NULL DEFAULT 'default',
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                processed_data TEXT,
-                metadata TEXT DEFAULT '{}'
-            )
-        """,
-        "memory_entities": """
-            CREATE TABLE IF NOT EXISTS memory_entities (
-                entity_id TEXT PRIMARY KEY,
-                memory_id TEXT NOT NULL,
-                memory_type TEXT NOT NULL,
-                entity_type TEXT NOT NULL,
-                entity_value TEXT NOT NULL,
-                relevance_score REAL NOT NULL DEFAULT 0.5,
-                entity_context TEXT,
-                namespace TEXT NOT NULL DEFAULT 'default',
-                created_at TIMESTAMP NOT NULL
-            )
-        """,
-        "memory_relationships": """
-            CREATE TABLE IF NOT EXISTS memory_relationships (
-                relationship_id TEXT PRIMARY KEY,
-                source_memory_id TEXT NOT NULL,
-                target_memory_id TEXT NOT NULL,
-                relationship_type TEXT NOT NULL,
-                strength REAL NOT NULL DEFAULT 0.5,
-                reasoning TEXT,
-                namespace TEXT NOT NULL DEFAULT 'default',
-                created_at TIMESTAMP NOT NULL
-            )
-        """,
+        # REMOVED: Graph search tables simplified - entities/relationships stored as JSON
+        # "rules_memory": """
+        #     CREATE TABLE IF NOT EXISTS rules_memory (
+        #         rule_id TEXT PRIMARY KEY,
+        #         rule_text TEXT NOT NULL,
+        #         rule_type TEXT NOT NULL,
+        #         priority INTEGER DEFAULT 5,
+        #         active BOOLEAN DEFAULT TRUE,
+        #         context_conditions TEXT,
+        #         namespace TEXT NOT NULL DEFAULT 'default',
+        #         created_at TIMESTAMP NOT NULL,
+        #         updated_at TIMESTAMP NOT NULL,
+        #         processed_data TEXT,
+        #         metadata TEXT DEFAULT '{}'
+        #     )
+        # """,
+        # "memory_entities": """
+        #     CREATE TABLE IF NOT EXISTS memory_entities (
+        #         entity_id TEXT PRIMARY KEY,
+        #         memory_id TEXT NOT NULL,
+        #         memory_type TEXT NOT NULL,
+        #         entity_type TEXT NOT NULL,
+        #         entity_value TEXT NOT NULL,
+        #         relevance_score REAL NOT NULL DEFAULT 0.5,
+        #         entity_context TEXT,
+        #         namespace TEXT NOT NULL DEFAULT 'default',
+        #         created_at TIMESTAMP NOT NULL
+        #     )
+        # """,
+        # "memory_relationships": """
+        #     CREATE TABLE IF NOT EXISTS memory_relationships (
+        #         relationship_id TEXT PRIMARY KEY,
+        #         source_memory_id TEXT NOT NULL,
+        #         target_memory_id TEXT NOT NULL,
+        #         relationship_type TEXT NOT NULL,
+        #         strength REAL NOT NULL DEFAULT 0.5,
+        #         reasoning TEXT,
+        #         namespace TEXT NOT NULL DEFAULT 'default',
+        #         created_at TIMESTAMP NOT NULL
+        #     )
+        # """,
         "memory_search_fts": """
             CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
                 memory_id,
@@ -153,24 +154,25 @@ class SchemaQueries:
         "idx_long_term_searchable": "CREATE INDEX IF NOT EXISTS idx_long_term_searchable ON long_term_memory(searchable_content)",
         "idx_long_term_access": "CREATE INDEX IF NOT EXISTS idx_long_term_access ON long_term_memory(access_count, last_accessed)",
         "idx_long_term_scores": "CREATE INDEX IF NOT EXISTS idx_long_term_scores ON long_term_memory(novelty_score, relevance_score, actionability_score)",
-        # Rules Memory Indexes
-        "idx_rules_namespace": "CREATE INDEX IF NOT EXISTS idx_rules_namespace ON rules_memory(namespace)",
-        "idx_rules_active": "CREATE INDEX IF NOT EXISTS idx_rules_active ON rules_memory(active)",
-        "idx_rules_priority": "CREATE INDEX IF NOT EXISTS idx_rules_priority ON rules_memory(priority)",
-        "idx_rules_type": "CREATE INDEX IF NOT EXISTS idx_rules_type ON rules_memory(rule_type)",
-        "idx_rules_updated": "CREATE INDEX IF NOT EXISTS idx_rules_updated ON rules_memory(updated_at)",
-        # Entity Indexes
-        "idx_entities_namespace": "CREATE INDEX IF NOT EXISTS idx_entities_namespace ON memory_entities(namespace)",
-        "idx_entities_type": "CREATE INDEX IF NOT EXISTS idx_entities_type ON memory_entities(entity_type)",
-        "idx_entities_value": "CREATE INDEX IF NOT EXISTS idx_entities_value ON memory_entities(entity_value)",
-        "idx_entities_memory": "CREATE INDEX IF NOT EXISTS idx_entities_memory ON memory_entities(memory_id, memory_type)",
-        "idx_entities_relevance": "CREATE INDEX IF NOT EXISTS idx_entities_relevance ON memory_entities(relevance_score)",
-        "idx_entities_value_type": "CREATE INDEX IF NOT EXISTS idx_entities_value_type ON memory_entities(entity_value, entity_type)",
-        # Relationship Indexes
-        "idx_relationships_source": "CREATE INDEX IF NOT EXISTS idx_relationships_source ON memory_relationships(source_memory_id)",
-        "idx_relationships_target": "CREATE INDEX IF NOT EXISTS idx_relationships_target ON memory_relationships(target_memory_id)",
-        "idx_relationships_type": "CREATE INDEX IF NOT EXISTS idx_relationships_type ON memory_relationships(relationship_type)",
-        "idx_relationships_strength": "CREATE INDEX IF NOT EXISTS idx_relationships_strength ON memory_relationships(strength)",
+        # REMOVED: Graph search indexes - tables simplified
+        # # Rules Memory Indexes
+        # "idx_rules_namespace": "CREATE INDEX IF NOT EXISTS idx_rules_namespace ON rules_memory(namespace)",
+        # "idx_rules_active": "CREATE INDEX IF NOT EXISTS idx_rules_active ON rules_memory(active)",
+        # "idx_rules_priority": "CREATE INDEX IF NOT EXISTS idx_rules_priority ON rules_memory(priority)",
+        # "idx_rules_type": "CREATE INDEX IF NOT EXISTS idx_rules_type ON rules_memory(rule_type)",
+        # "idx_rules_updated": "CREATE INDEX IF NOT EXISTS idx_rules_updated ON rules_memory(updated_at)",
+        # # Entity Indexes
+        # "idx_entities_namespace": "CREATE INDEX IF NOT EXISTS idx_entities_namespace ON memory_entities(namespace)",
+        # "idx_entities_type": "CREATE INDEX IF NOT EXISTS idx_entities_type ON memory_entities(entity_type)",
+        # "idx_entities_value": "CREATE INDEX IF NOT EXISTS idx_entities_value ON memory_entities(entity_value)",
+        # "idx_entities_memory": "CREATE INDEX IF NOT EXISTS idx_entities_memory ON memory_entities(memory_id, memory_type)",
+        # "idx_entities_relevance": "CREATE INDEX IF NOT EXISTS idx_entities_relevance ON memory_entities(relevance_score)",
+        # "idx_entities_value_type": "CREATE INDEX IF NOT EXISTS idx_entities_value_type ON memory_entities(entity_value, entity_type)",
+        # # Relationship Indexes
+        # "idx_relationships_source": "CREATE INDEX IF NOT EXISTS idx_relationships_source ON memory_relationships(source_memory_id)",
+        # "idx_relationships_target": "CREATE INDEX IF NOT EXISTS idx_relationships_target ON memory_relationships(target_memory_id)",
+        # "idx_relationships_type": "CREATE INDEX IF NOT EXISTS idx_relationships_type ON memory_relationships(relationship_type)",
+        # "idx_relationships_strength": "CREATE INDEX IF NOT EXISTS idx_relationships_strength ON memory_relationships(strength)",
     }
 
     TRIGGER_CREATION = {

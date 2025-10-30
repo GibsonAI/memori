@@ -1,6 +1,4 @@
-[![GibsonAI](https://github.com/user-attachments/assets/878e341b-5a93-4489-a398-abeca91b6b11)](https://gibsonai.com/)
-
-# memori
+[![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
 
 <p align="center">
   <strong>An open-source SQL-Native memory engine for AI</strong>
@@ -11,9 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="https://memori.gibsonai.com/docs">Learn more</a>
+  <a href="https://www.gibsonai.com/docs/memori">Learn more</a>
   ·
-  <a href="https://www.gibsonai.com/discord">Join Discord</a>
+  <a href="https://discord.gg/abD4eGym6v">Join Discord</a>
 </p>
 
 <p align="center">
@@ -237,6 +235,7 @@ memori = Memori(
     database_connect="sqlite:///my_memory.db",
     template="basic", 
     conscious_ingest=True,  # One-shot context injection
+    conscious_memory_limit=100,  # Must be an integer between 1 and 500
     openai_api_key="sk-..."
 )
 
@@ -414,7 +413,7 @@ Explore Memori's capabilities through these interactive demonstrations:
 ## 🤝 Contributing
 
 - See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
-- Community: [Discord](https://www.gibsonai.com/discord)
+- Community: [Discord](https://discord.gg/abD4eGym6v)
 
 ## ⭐️ Star us on GitHub to support the project 
 

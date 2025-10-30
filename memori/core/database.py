@@ -170,7 +170,7 @@ class DatabaseManager:
                     model TEXT NOT NULL,
                     timestamp TIMESTAMP NOT NULL,
                     session_id TEXT NOT NULL,
-                    namespace TEXT NOT NULL DEFAULT 'default',
+                    user_id TEXT NOT NULL DEFAULT 'default',
                     tokens_used INTEGER DEFAULT 0,
                     metadata TEXT DEFAULT '{}'
                 )
@@ -186,7 +186,7 @@ class DatabaseManager:
                     importance_score REAL NOT NULL DEFAULT 0.5,
                     category_primary TEXT NOT NULL,
                     retention_type TEXT NOT NULL DEFAULT 'short_term',
-                    namespace TEXT NOT NULL DEFAULT 'default',
+                    user_id TEXT NOT NULL DEFAULT 'default',
                     created_at TIMESTAMP NOT NULL,
                     expires_at TIMESTAMP,
                     access_count INTEGER DEFAULT 0,
@@ -206,7 +206,7 @@ class DatabaseManager:
                     importance_score REAL NOT NULL DEFAULT 0.5,
                     category_primary TEXT NOT NULL,
                     retention_type TEXT NOT NULL DEFAULT 'long_term',
-                    namespace TEXT NOT NULL DEFAULT 'default',
+                    user_id TEXT NOT NULL DEFAULT 'default',
                     created_at TIMESTAMP NOT NULL,
                     access_count INTEGER DEFAULT 0,
                     last_accessed TIMESTAMP,
@@ -230,11 +230,12 @@ class DatabaseManager:
         model: str,
         timestamp: datetime,
         session_id: str,
-        namespace: str = "default",
+        user_id: str = "default",
+        assistant_id: str = None,
         tokens_used: int = 0,
         metadata: dict[str, Any] | None = None,
     ):
-        """Store chat history with input validation"""
+        """Store chat history with input validation and multi-tenant isolation"""
         try:
             # Validate and sanitize all inputs
             validated_data = DatabaseInputValidator.validate_insert_params(
@@ -246,7 +247,8 @@ class DatabaseManager:
                     "model": model,
                     "timestamp": timestamp,
                     "session_id": session_id,
-                    "namespace": namespace,
+                    "user_id": user_id,
+                    "assistant_id": assistant_id,
                     "tokens_used": max(0, int(tokens_used)) if tokens_used else 0,
                     "metadata": metadata or {},
                 },
@@ -260,8 +262,8 @@ class DatabaseManager:
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO chat_history
-                (chat_id, user_input, ai_output, model, timestamp, session_id, namespace, tokens_used, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (chat_id, user_input, ai_output, model, timestamp, session_id, user_id, assistant_id, tokens_used, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     validated_data["chat_id"],
@@ -270,7 +272,8 @@ class DatabaseManager:
                     validated_data["model"],
                     validated_data["timestamp"],
                     validated_data["session_id"],
-                    validated_data["namespace"],
+                    validated_data["user_id"],
+                    validated_data["assistant_id"],
                     validated_data["tokens_used"],
                     validated_data["metadata"],
                 ),
@@ -279,14 +282,14 @@ class DatabaseManager:
 
     def get_chat_history(
         self,
-        namespace: str = "default",
+        user_id: str = "default",
         session_id: str | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
         """Get chat history with optional session filtering"""
         try:
             # Validate inputs
-            namespace = InputValidator.validate_namespace(namespace)
+            user_id = InputValidator.validate_user_id(user_id)
             limit = InputValidator.validate_limit(limit)
             if session_id:
                 session_id = InputValidator.validate_memory_id(session_id)
@@ -301,25 +304,25 @@ class DatabaseManager:
                 cursor.execute(
                     """
                     SELECT chat_id, user_input, ai_output, model, timestamp,
-                           session_id, namespace, tokens_used, metadata
+                           session_id, user_id, assistant_id, tokens_used, metadata
                     FROM chat_history
-                    WHERE namespace = ? AND session_id = ?
+                    WHERE user_id = ? AND session_id = ?
                     ORDER BY timestamp DESC
                     LIMIT ?
                     """,
-                    (namespace, session_id, limit),
+                    (user_id, session_id, limit),
                 )
             else:
                 cursor.execute(
                     """
                     SELECT chat_id, user_input, ai_output, model, timestamp,
-                           session_id, namespace, tokens_used, metadata
+                           session_id, user_id, assistant_id, tokens_used, metadata
                     FROM chat_history
-                    WHERE namespace = ?
+                    WHERE user_id = ?
                     ORDER BY timestamp DESC
                     LIMIT ?
                     """,
-                    (namespace, limit),
+                    (user_id, limit),
                 )
 
             rows = cursor.fetchall()
@@ -337,15 +340,20 @@ class DatabaseManager:
             return result
 
     def store_long_term_memory_enhanced(
-        self, memory: ProcessedLongTermMemory, chat_id: str, namespace: str = "default"
+        self,
+        memory: ProcessedLongTermMemory,
+        chat_id: str,
+        user_id: str = "default",
+        assistant_id: str = None,
+        session_id: str = "default",
     ) -> str:
-        """Store a ProcessedLongTermMemory with enhanced schema using transactions"""
+        """Store a ProcessedLongTermMemory with enhanced schema using transactions and multi-tenant isolation"""
         try:
             memory_id = str(uuid.uuid4())
 
             # Validate inputs
             chat_id = InputValidator.validate_memory_id(chat_id)
-            namespace = InputValidator.validate_namespace(namespace)
+            user_id = InputValidator.validate_user_id(user_id)
 
             # Prepare operations for atomic execution
             operations = []
@@ -355,12 +363,12 @@ class DatabaseManager:
                 query="""
                     INSERT INTO long_term_memory (
                         memory_id, original_chat_id, processed_data, importance_score, category_primary,
-                        retention_type, namespace, created_at, searchable_content, summary,
+                        retention_type, user_id, assistant_id, session_id, created_at, searchable_content, summary,
                         novelty_score, relevance_score, actionability_score, classification, memory_importance,
                         topic, entities_json, keywords_json, is_user_context, is_preference, is_skill_knowledge,
                         is_current_project, promotion_eligible, duplicate_of, supersedes_json, related_memories_json,
                         confidence_score, extraction_timestamp, classification_reason, processed_for_duplicates, conscious_processed
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 params=[
                     memory_id,
@@ -369,7 +377,9 @@ class DatabaseManager:
                     memory.importance_score,
                     memory.classification.value,
                     "long_term",
-                    namespace,
+                    user_id,
+                    assistant_id,
+                    session_id,
                     datetime.now().isoformat(),
                     memory.content,
                     memory.summary,
@@ -426,9 +436,11 @@ class DatabaseManager:
         memory_id: str,
         memory: ProcessedMemory,
         chat_id: str,
-        namespace: str,
+        user_id: str,
+        assistant_id: str = None,
+        session_id: str = "default",
     ):
-        """Store memory in short-term table"""
+        """Store memory in short-term table with multi-tenant isolation"""
         # Ensure we have a valid timestamp (timezone-naive for SQLite compatibility)
         created_at = memory.timestamp
         if created_at is None:
@@ -443,9 +455,9 @@ class DatabaseManager:
             """
             INSERT INTO short_term_memory
             (memory_id, chat_id, processed_data, importance_score, category_primary,
-             retention_type, namespace, created_at, expires_at, access_count,
+             retention_type, user_id, assistant_id, session_id, created_at, expires_at, access_count,
              searchable_content, summary)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 memory_id,
@@ -454,7 +466,9 @@ class DatabaseManager:
                 memory.importance.importance_score,
                 memory.category.primary_category.value,
                 memory.importance.retention_type.value,
-                namespace,
+                user_id,
+                assistant_id,
+                session_id,
                 created_at,
                 expires_at,
                 0,
@@ -469,9 +483,11 @@ class DatabaseManager:
         memory_id: str,
         memory: ProcessedMemory,
         chat_id: str,
-        namespace: str,
+        user_id: str,
+        assistant_id: str = None,
+        session_id: str = "default",
     ):
-        """Store memory in long-term table"""
+        """Store memory in long-term table with multi-tenant isolation"""
         # Ensure we have a valid timestamp (timezone-naive for SQLite compatibility)
         created_at = memory.timestamp
         if created_at is None:
@@ -484,9 +500,9 @@ class DatabaseManager:
             """
             INSERT INTO long_term_memory
             (memory_id, original_chat_id, processed_data, importance_score, category_primary,
-             retention_type, namespace, created_at, access_count, searchable_content, summary,
+             retention_type, user_id, assistant_id, session_id, created_at, access_count, searchable_content, summary,
              novelty_score, relevance_score, actionability_score)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 memory_id,
@@ -495,7 +511,9 @@ class DatabaseManager:
                 memory.importance.importance_score,
                 memory.category.primary_category.value,
                 memory.importance.retention_type.value,
-                namespace,
+                user_id,
+                assistant_id,
+                session_id,
                 created_at,
                 0,
                 memory.searchable_content,
@@ -509,7 +527,7 @@ class DatabaseManager:
     def search_memories(
         self,
         query: str,
-        namespace: str = "default",
+        user_id: str = "default",
         category_filter: list[str] | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
@@ -517,10 +535,10 @@ class DatabaseManager:
         try:
             # Validate and sanitize all input parameters
             validated_params = DatabaseInputValidator.validate_search_params(
-                query, namespace, category_filter, limit
+                query, user_id, category_filter, limit
             )
             query = validated_params["query"]
-            namespace = validated_params["namespace"]
+            user_id = validated_params["user_id"]
             category_filter = validated_params["category_filter"]
             limit = validated_params["limit"]
 
@@ -535,7 +553,7 @@ class DatabaseManager:
 
             # 1. Try FTS search first (most relevant)
             fts_results = self._execute_fts_search(
-                cursor, query, namespace, category_filter, limit
+                cursor, query, user_id, category_filter, limit
             )
             if fts_results:
                 for result in fts_results:
@@ -548,7 +566,7 @@ class DatabaseManager:
             # 3. Category-based search if specified
             if category_filter:
                 category_results = self._execute_category_search(
-                    cursor, query, namespace, category_filter, limit
+                    cursor, query, user_id, category_filter, limit
                 )
                 for result in category_results:
                     result["search_strategy"] = "category_search"
@@ -558,7 +576,7 @@ class DatabaseManager:
             # 4. Fallback to LIKE search if no other results
             if not all_results:
                 like_results = self._execute_like_search(
-                    cursor, query, namespace, category_filter, limit
+                    cursor, query, user_id, category_filter, limit
                 )
                 for result in like_results:
                     result["search_strategy"] = "like_search"
@@ -593,7 +611,7 @@ class DatabaseManager:
         self,
         cursor,
         query: str,
-        namespace: str,
+        user_id: str,
         category_filter: list[str] | None,
         limit: int,
     ):
@@ -609,7 +627,7 @@ class DatabaseManager:
                 fts_query = "*"
 
             # Build parameterized query - avoid string concatenation
-            params = [fts_query, namespace]
+            params = [fts_query, user_id]
 
             if category_filter and isinstance(category_filter, list):
                 # Validate category filter is a list of strings
@@ -640,7 +658,7 @@ class DatabaseManager:
                         FROM memory_search_fts fts
                         LEFT JOIN short_term_memory st ON fts.memory_id = st.memory_id AND fts.memory_type = 'short_term'
                         LEFT JOIN long_term_memory lt ON fts.memory_id = lt.memory_id AND fts.memory_type = 'long_term'
-                        WHERE memory_search_fts MATCH ? AND fts.namespace = ?
+                        WHERE memory_search_fts MATCH ? AND fts.user_id = ?
                             AND fts.category_primary IN ({category_placeholders})
                         ORDER BY rank, importance_score DESC
                         LIMIT ?
@@ -669,7 +687,7 @@ class DatabaseManager:
                         FROM memory_search_fts fts
                         LEFT JOIN short_term_memory st ON fts.memory_id = st.memory_id AND fts.memory_type = 'short_term'
                         LEFT JOIN long_term_memory lt ON fts.memory_id = lt.memory_id AND fts.memory_type = 'long_term'
-                        WHERE memory_search_fts MATCH ? AND fts.namespace = ?
+                        WHERE memory_search_fts MATCH ? AND fts.user_id = ?
                         ORDER BY rank, importance_score DESC
                         LIMIT ?
                     """
@@ -696,7 +714,7 @@ class DatabaseManager:
                     FROM memory_search_fts fts
                     LEFT JOIN short_term_memory st ON fts.memory_id = st.memory_id AND fts.memory_type = 'short_term'
                     LEFT JOIN long_term_memory lt ON fts.memory_id = lt.memory_id AND fts.memory_type = 'long_term'
-                    WHERE memory_search_fts MATCH ? AND fts.namespace = ?
+                    WHERE memory_search_fts MATCH ? AND fts.user_id = ?
                     ORDER BY rank, importance_score DESC
                     LIMIT ?
                 """
@@ -712,7 +730,7 @@ class DatabaseManager:
             return []
 
     def _execute_category_search(
-        self, cursor, query: str, namespace: str, category_filter: list[str], limit: int
+        self, cursor, query: str, user_id: str, category_filter: list[str], limit: int
     ):
         """Execute category-based search with proper input validation"""
         try:
@@ -722,7 +740,7 @@ class DatabaseManager:
 
             # Sanitize inputs
             sanitized_query = str(query).strip() if query else ""
-            sanitized_namespace = str(namespace).strip()
+            sanitized_user_id = str(user_id).strip()
             sanitized_categories = [str(cat).strip() for cat in category_filter if cat]
             sanitized_limit = max(1, min(int(limit), 1000))  # Limit between 1 and 1000
 
@@ -737,7 +755,7 @@ class DatabaseManager:
                 SELECT memory_id, processed_data, importance_score, created_at, summary,
                        category_primary, 'long_term' as memory_type
                 FROM long_term_memory
-                WHERE namespace = ? AND category_primary IN ({category_placeholders})
+                WHERE user_id = ? AND category_primary IN ({category_placeholders})
                   AND (searchable_content LIKE ? OR summary LIKE ?)
                 ORDER BY importance_score DESC, created_at DESC
                 LIMIT ?
@@ -745,7 +763,7 @@ class DatabaseManager:
 
             # Build parameters safely
             params = (
-                [sanitized_namespace]
+                [sanitized_user_id]
                 + sanitized_categories
                 + [f"%{sanitized_query}%", f"%{sanitized_query}%", sanitized_limit]
             )
@@ -761,7 +779,7 @@ class DatabaseManager:
         self,
         cursor,
         query: str,
-        namespace: str,
+        user_id: str,
         category_filter: list[str] | None,
         limit: int,
     ):
@@ -769,7 +787,7 @@ class DatabaseManager:
         try:
             # Input validation and sanitization
             sanitized_query = str(query).strip() if query else ""
-            sanitized_namespace = str(namespace).strip()
+            sanitized_user_id = str(user_id).strip()
             sanitized_limit = max(1, min(int(limit), 1000))  # Limit between 1 and 1000
             current_timestamp = datetime.now()
 
@@ -787,7 +805,7 @@ class DatabaseManager:
                 category_placeholders = ",".join(["?"] * len(sanitized_categories))
                 short_term_sql = f"""
                     SELECT *, 'short_term' as memory_type FROM short_term_memory
-                    WHERE namespace = ? AND (searchable_content LIKE ? OR summary LIKE ?)
+                    WHERE user_id = ? AND (searchable_content LIKE ? OR summary LIKE ?)
                     AND (expires_at IS NULL OR expires_at > ?)
                     AND category_primary IN ({category_placeholders})
                     ORDER BY importance_score DESC, created_at DESC
@@ -795,7 +813,7 @@ class DatabaseManager:
                 """
                 short_term_params = (
                     [
-                        sanitized_namespace,
+                        sanitized_user_id,
                         f"%{sanitized_query}%",
                         f"%{sanitized_query}%",
                         current_timestamp,
@@ -806,13 +824,13 @@ class DatabaseManager:
             else:
                 short_term_sql = """
                     SELECT *, 'short_term' as memory_type FROM short_term_memory
-                    WHERE namespace = ? AND (searchable_content LIKE ? OR summary LIKE ?)
+                    WHERE user_id = ? AND (searchable_content LIKE ? OR summary LIKE ?)
                     AND (expires_at IS NULL OR expires_at > ?)
                     ORDER BY importance_score DESC, created_at DESC
                     LIMIT ?
                 """
                 short_term_params = [
-                    sanitized_namespace,
+                    sanitized_user_id,
                     f"%{sanitized_query}%",
                     f"%{sanitized_query}%",
                     current_timestamp,
@@ -827,14 +845,14 @@ class DatabaseManager:
                 category_placeholders = ",".join(["?"] * len(sanitized_categories))
                 long_term_sql = f"""
                     SELECT *, 'long_term' as memory_type FROM long_term_memory
-                    WHERE namespace = ? AND (searchable_content LIKE ? OR summary LIKE ?)
+                    WHERE user_id = ? AND (searchable_content LIKE ? OR summary LIKE ?)
                     AND category_primary IN ({category_placeholders})
                     ORDER BY importance_score DESC, created_at DESC
                     LIMIT ?
                 """
                 long_term_params = (
                     [
-                        sanitized_namespace,
+                        sanitized_user_id,
                         f"%{sanitized_query}%",
                         f"%{sanitized_query}%",
                     ]
@@ -844,12 +862,12 @@ class DatabaseManager:
             else:
                 long_term_sql = """
                     SELECT *, 'long_term' as memory_type FROM long_term_memory
-                    WHERE namespace = ? AND (searchable_content LIKE ? OR summary LIKE ?)
+                    WHERE user_id = ? AND (searchable_content LIKE ? OR summary LIKE ?)
                     ORDER BY importance_score DESC, created_at DESC
                     LIMIT ?
                 """
                 long_term_params = [
-                    sanitized_namespace,
+                    sanitized_user_id,
                     f"%{sanitized_query}%",
                     f"%{sanitized_query}%",
                     sanitized_limit,
@@ -887,7 +905,7 @@ class DatabaseManager:
         else:
             return "short_term_memory"
 
-    def get_memory_stats(self, namespace: str = "default") -> dict[str, Any]:
+    def get_memory_stats(self, user_id: str = "default") -> dict[str, Any]:
         """Get comprehensive memory statistics"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -896,19 +914,19 @@ class DatabaseManager:
 
             # Basic counts
             cursor.execute(
-                "SELECT COUNT(*) FROM chat_history WHERE namespace = ?", (namespace,)
+                "SELECT COUNT(*) FROM chat_history WHERE user_id = ?", (user_id,)
             )
             stats["chat_history_count"] = cursor.fetchone()[0]
 
             cursor.execute(
-                "SELECT COUNT(*) FROM short_term_memory WHERE namespace = ?",
-                (namespace,),
+                "SELECT COUNT(*) FROM short_term_memory WHERE user_id = ?",
+                (user_id,),
             )
             stats["short_term_count"] = cursor.fetchone()[0]
 
             cursor.execute(
-                "SELECT COUNT(*) FROM long_term_memory WHERE namespace = ?",
-                (namespace,),
+                "SELECT COUNT(*) FROM long_term_memory WHERE user_id = ?",
+                (user_id,),
             )
             stats["long_term_count"] = cursor.fetchone()[0]
 
@@ -921,13 +939,13 @@ class DatabaseManager:
                 """
                 SELECT category_primary, COUNT(*) as count
                 FROM (
-                    SELECT category_primary FROM short_term_memory WHERE namespace = ?
+                    SELECT category_primary FROM short_term_memory WHERE user_id = ?
                     UNION ALL
-                    SELECT category_primary FROM long_term_memory WHERE namespace = ?
+                    SELECT category_primary FROM long_term_memory WHERE user_id = ?
                 )
                 GROUP BY category_primary
             """,
-                (namespace, namespace),
+                (user_id, user_id),
             )
 
             stats["memories_by_category"] = {
@@ -938,12 +956,12 @@ class DatabaseManager:
             cursor.execute(
                 """
                 SELECT AVG(importance_score) FROM (
-                    SELECT importance_score FROM short_term_memory WHERE namespace = ?
+                    SELECT importance_score FROM short_term_memory WHERE user_id = ?
                     UNION ALL
-                    SELECT importance_score FROM long_term_memory WHERE namespace = ?
+                    SELECT importance_score FROM long_term_memory WHERE user_id = ?
                 )
             """,
-                (namespace, namespace),
+                (user_id, user_id),
             )
 
             avg_importance = cursor.fetchone()[0]
@@ -951,32 +969,28 @@ class DatabaseManager:
 
             return stats
 
-    def clear_memory(self, namespace: str = "default", memory_type: str | None = None):
-        """Clear memory data with entity cleanup"""
+    def clear_memory(self, user_id: str = "default", memory_type: str | None = None):
+        """Clear memory data with multi-tenant isolation"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
             if memory_type == "short_term":
                 cursor.execute(
-                    "DELETE FROM short_term_memory WHERE namespace = ?", (namespace,)
+                    "DELETE FROM short_term_memory WHERE user_id = ?", (user_id,)
                 )
             elif memory_type == "long_term":
                 cursor.execute(
-                    "DELETE FROM long_term_memory WHERE namespace = ?", (namespace,)
+                    "DELETE FROM long_term_memory WHERE user_id = ?", (user_id,)
                 )
             elif memory_type == "chat_history":
-                cursor.execute(
-                    "DELETE FROM chat_history WHERE namespace = ?", (namespace,)
-                )
+                cursor.execute("DELETE FROM chat_history WHERE user_id = ?", (user_id,))
             else:  # Clear all
                 cursor.execute(
-                    "DELETE FROM short_term_memory WHERE namespace = ?", (namespace,)
+                    "DELETE FROM short_term_memory WHERE user_id = ?", (user_id,)
                 )
                 cursor.execute(
-                    "DELETE FROM long_term_memory WHERE namespace = ?", (namespace,)
+                    "DELETE FROM long_term_memory WHERE user_id = ?", (user_id,)
                 )
-                cursor.execute(
-                    "DELETE FROM chat_history WHERE namespace = ?", (namespace,)
-                )
+                cursor.execute("DELETE FROM chat_history WHERE user_id = ?", (user_id,))
 
             conn.commit()

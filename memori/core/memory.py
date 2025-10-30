@@ -15,10 +15,11 @@ try:
     import litellm  # noqa: F401
     from litellm import success_callback  # noqa: F401
 
+    _ = litellm  # Mark as intentionally imported
     LITELLM_AVAILABLE = True
 except ImportError:
     LITELLM_AVAILABLE = False
-    logger.warning("LiteLLM not available - native callback system disabled")
+    logger.debug("LiteLLM not available - native callback system disabled")
 
 from ..agents.conscious_agent import ConsciouscAgent
 from ..config.memory_manager import MemoryManager
@@ -45,13 +46,20 @@ class Memori:
         mem_prompt: str | None = None,
         conscious_ingest: bool = False,
         auto_ingest: bool = False,
-        namespace: str | None = None,
+        # Multi-tenant isolation parameters
+        user_id: str | None = None,  # Primary tenant isolation field
+        assistant_id: str | None = None,  # Optional bot/assistant isolation
+        session_id: (
+            str | None
+        ) = "default",  # Conversation grouping within user (None = all sessions)
+        # Deprecated parameter (backward compatibility)
+        namespace: str | None = None,  # DEPRECATED: Use user_id instead
+        # Other parameters
         shared_memory: bool = False,
         memory_filters: dict[str, Any] | None = None,
         openai_api_key: str | None = None,
-        user_id: str | None = None,
         verbose: bool = False,
-        # New provider configuration parameters
+        # Provider configuration parameters
         api_key: str | None = None,
         api_type: str | None = None,
         base_url: str | None = None,
@@ -67,6 +75,12 @@ class Memori:
         database_prefix: str | None = None,  # Database name prefix
         database_suffix: str | None = None,  # Database name suffix
         conscious_memory_limit: int = 10,  # Limit for conscious memory processing
+        # Database connection pool parameters
+        pool_size: int = 2,  # SQLAlchemy connection pool size
+        max_overflow: int = 3,  # Max overflow connections
+        pool_timeout: int = 30,  # Connection timeout in seconds
+        pool_recycle: int = 3600,  # Recycle connections after seconds
+        pool_pre_ping: bool = True,  # Test connections before use
     ):
         """
         Initialize Memori memory system v1.0.
@@ -98,22 +112,49 @@ class Memori:
             database_prefix: Optional prefix for database name (for multi-tenant setups)
             database_suffix: Optional suffix for database name (e.g., 'dev', 'prod', 'test')
         """
+        # Set core configuration
         self.database_connect = database_connect
         self.template = template
         self.mem_prompt = mem_prompt
         self.conscious_ingest = conscious_ingest
         self.auto_ingest = auto_ingest
-        self.namespace = namespace or "default"
+
+        # Handle deprecated namespace parameter (backward compatibility)
+        if namespace is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'namespace' parameter is deprecated and will be removed in v3.0. "
+                "Use 'user_id' instead for multi-tenant isolation.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            # If both namespace and user_id are provided, user_id takes precedence
+            if user_id is None:
+                user_id = namespace
+
+        # Multi-tenant isolation fields
+        self.user_id = user_id or "default"
+        self.assistant_id = assistant_id  # Optional, can be None
+        self._session_id = (
+            session_id or "default"
+        )  # Private because session_id is a @property
+
         self.shared_memory = shared_memory
         self.memory_filters = memory_filters or {}
-        self.user_id = user_id
         self.verbose = verbose
         self.schema_init = schema_init
         self.database_prefix = database_prefix
         self.database_suffix = database_suffix
+
         # Validate conscious_memory_limit parameter
-        if not isinstance(conscious_memory_limit, int) or conscious_memory_limit < 1:
-            raise ValueError("conscious_memory_limit must be a positive integer")
+        if not isinstance(conscious_memory_limit, int) or isinstance(
+            conscious_memory_limit, bool
+        ):
+            raise TypeError("conscious_memory_limit must be an integer (not bool)")
+
+        if not (1 <= conscious_memory_limit <= 2000):
+            raise ValueError("conscious_memory_limit must be between 1 and 2000")
 
         self.conscious_memory_limit = conscious_memory_limit
 
@@ -194,6 +235,13 @@ class Memori:
 
         # Setup logging based on verbose mode
         self._setup_logging()
+
+        # Store connection pool settings
+        self.pool_size = pool_size
+        self.max_overflow = max_overflow
+        self.pool_timeout = pool_timeout
+        self.pool_recycle = pool_recycle
+        self.pool_pre_ping = pool_pre_ping
 
         # Initialize database manager (detect MongoDB vs SQL)
         self.db_manager = self._create_database_manager(
@@ -295,7 +343,6 @@ class Memori:
             mem_prompt=mem_prompt,
             conscious_ingest=conscious_ingest,
             auto_ingest=auto_ingest,
-            namespace=namespace,
             shared_memory=shared_memory,
             memory_filters=memory_filters,
             user_id=user_id,
@@ -305,12 +352,15 @@ class Memori:
         # Set this Memori instance for memory management
         self.memory_manager.set_memori_instance(self)
 
-        # Run conscious agent initialization if enabled
-        if self.conscious_ingest and self.conscious_agent:
-            self._initialize_conscious_memory()
+        # Don't run conscious agent initialization during __init__ - defer until enable()
+        # This prevents OpenAI API calls before context is set in multi-tenant scenarios
+        self._conscious_init_pending = (
+            True if (self.conscious_ingest and self.conscious_agent) else False
+        )
 
         logger.info(
-            f"Memori v1.0 initialized with template: {template}, namespace: {namespace}"
+            f"Memori v1.0 initialized - template: {template}, user_id: {self.user_id}, "
+            f"assistant_id: {self.assistant_id}, session_id: {self.session_id}"
         )
 
     def _setup_logging(self):
@@ -389,7 +439,14 @@ class Memori:
             else:
                 logger.info("Detected SQL connection string - using SQLAlchemy manager")
                 return SQLAlchemyDatabaseManager(
-                    database_connect, template, schema_init
+                    database_connect,
+                    template,
+                    schema_init,
+                    pool_size=self.pool_size,
+                    max_overflow=self.max_overflow,
+                    pool_timeout=self.pool_timeout,
+                    pool_recycle=self.pool_recycle,
+                    pool_pre_ping=self.pool_pre_ping,
                 )
 
         except Exception as e:
@@ -401,7 +458,16 @@ class Memori:
         """Create fallback SQLite manager when other options fail"""
         fallback_connect = "sqlite:///memori_fallback.db"
         logger.warning(f"Using fallback SQLite database: {fallback_connect}")
-        return SQLAlchemyDatabaseManager(fallback_connect, template, schema_init)
+        return SQLAlchemyDatabaseManager(
+            fallback_connect,
+            template,
+            schema_init,
+            pool_size=self.pool_size,
+            max_overflow=self.max_overflow,
+            pool_timeout=self.pool_timeout,
+            pool_recycle=self.pool_recycle,
+            pool_pre_ping=self.pool_pre_ping,
+        )
 
     def _is_mongodb_connection(self, database_connect: str) -> bool:
         """Detect if connection string is for MongoDB"""
@@ -493,7 +559,7 @@ class Memori:
                 )
                 init_success = (
                     await self.conscious_agent.initialize_existing_conscious_memories(
-                        self.db_manager, self.namespace, self.conscious_memory_limit
+                        self.db_manager, self.user_id, self.conscious_memory_limit
                     )
                 )
                 if init_success:
@@ -503,7 +569,7 @@ class Memori:
 
             logger.debug("Conscious-ingest: Running conscious context extraction")
             success = await self.conscious_agent.run_conscious_ingest(
-                self.db_manager, self.namespace
+                self.db_manager, self.user_id
             )
 
             if success:
@@ -526,10 +592,10 @@ class Memori:
 
                 # Check if we've already initialized in this session to avoid repeated work
                 # Use namespace-specific key to prevent conflicts between instances
-                init_key = f"_conscious_initialized_{self.namespace or 'default'}"
+                init_key = f"_conscious_initialized_{self.user_id or 'default'}"
                 if hasattr(self, init_key) and getattr(self, init_key):
                     logger.debug(
-                        f"[CONSCIOUS] Already initialized for namespace '{self.namespace or 'default'}', skipping"
+                        f"[CONSCIOUS] Already initialized for namespace '{self.user_id or 'default'}', skipping"
                     )
                     return
 
@@ -558,7 +624,7 @@ class Memori:
                         )
 
                 # Mark as initialized to avoid repeated work for this specific namespace
-                init_key = f"_conscious_initialized_{self.namespace or 'default'}"
+                init_key = f"_conscious_initialized_{self.user_id or 'default'}"
                 setattr(self, init_key, True)
 
                 logger.debug(
@@ -575,13 +641,14 @@ class Memori:
 
             with self.db_manager._get_connection() as connection:
                 # First, check if we already have conscious memories in short-term storage
+                # Note: 'conscious_%' is a static pattern (safe), not user input
                 existing_short_term = connection.execute(
                     text(
                         """SELECT COUNT(*) FROM short_term_memory
-                           WHERE namespace = :namespace
+                           WHERE user_id = :user_id
                            AND (category_primary = 'conscious_context' OR memory_id LIKE 'conscious_%')"""
                     ),
-                    {"namespace": self.namespace or "default"},
+                    {"user_id": self.user_id or "default"},
                 ).scalar()
 
                 if existing_short_term > 0:
@@ -596,12 +663,12 @@ class Memori:
                         """SELECT memory_id, processed_data, summary, searchable_content,
                               importance_score, created_at
                        FROM long_term_memory
-                       WHERE namespace = :namespace AND classification = 'conscious-info'
+                       WHERE user_id = :user_id AND classification = 'conscious-info'
                        ORDER BY importance_score DESC, created_at DESC
                        LIMIT :limit"""
                     ),
                     {
-                        "namespace": self.namespace or "default",
+                        "user_id": self.user_id or "default",
                         "limit": self.conscious_memory_limit,
                     },
                 )
@@ -654,25 +721,26 @@ class Memori:
 
             from datetime import datetime
 
-            from sqlalchemy import text
+            # SECURITY FIX: Use ORM methods instead of raw SQL to prevent injection
+            # Check for exact match or conscious-prefixed memories
+            from sqlalchemy import or_, text
 
-            with self.db_manager._get_connection() as connection:
-                # Database-agnostic duplicate check with safer pattern matching
-                existing_check = connection.execute(
-                    text(
-                        """SELECT COUNT(*) FROM short_term_memory
-                           WHERE namespace = :namespace
-                           AND (memory_id = :exact_id
-                               OR memory_id LIKE :conscious_pattern)"""
-                    ),
-                    {
-                        "namespace": self.namespace or "default",
-                        "exact_id": memory_id,
-                        "conscious_pattern": f"conscious_{memory_id}_%",
-                    },
+            from memori.database.models import ShortTermMemory
+
+            with self.db_manager.SessionLocal() as session:
+                # Safe parameterized query using ORM - no SQL injection possible
+                existing_count = (
+                    session.query(ShortTermMemory)
+                    .filter(
+                        ShortTermMemory.user_id == (self.user_id or "default"),
+                        or_(
+                            ShortTermMemory.memory_id == memory_id,
+                            ShortTermMemory.memory_id.like(f"conscious_{memory_id}_%"),
+                        ),
+                    )
+                    .count()
                 )
 
-                existing_count = existing_check.scalar()
                 if existing_count > 0:
                     logger.debug(
                         f"[CONSCIOUS] Skipping duplicate memory {memory_id[:8]}... - already exists in short-term memory"
@@ -689,10 +757,10 @@ class Memori:
                     text(
                         """INSERT INTO short_term_memory (
                         memory_id, processed_data, importance_score, category_primary,
-                        retention_type, namespace, created_at, expires_at,
+                        retention_type, user_id, assistant_id, session_id, created_at, expires_at,
                         searchable_content, summary, is_permanent_context
                     ) VALUES (:memory_id, :processed_data, :importance_score, :category_primary,
-                        :retention_type, :namespace, :created_at, :expires_at,
+                        :retention_type, :user_id, :assistant_id, :session_id, :created_at, :expires_at,
                         :searchable_content, :summary, :is_permanent_context)"""
                     ),
                     {
@@ -701,7 +769,9 @@ class Memori:
                         "importance_score": importance_score,
                         "category_primary": "conscious_context",
                         "retention_type": "permanent",
-                        "namespace": self.namespace or "default",
+                        "user_id": self.user_id or "default",
+                        "assistant_id": self.assistant_id,
+                        "session_id": self.session_id or "default",
                         "created_at": datetime.now().isoformat(),
                         "expires_at": None,
                         "searchable_content": searchable_content,
@@ -741,9 +811,31 @@ class Memori:
 
         # Register for automatic OpenAI interception
         try:
-            from ..integrations.openai_integration import register_memori_instance
+            from ..integrations.openai_integration import (
+                get_enabled_instances,
+                register_memori_instance,
+                set_active_memori_context,
+            )
 
             register_memori_instance(self)
+
+            # AUTO-SET CONTEXT FOR SINGLE-USER APPS (BACKWARD COMPATIBILITY)
+            # If this is the only instance, automatically set as active context
+            # This maintains backward compatibility for simple scripts
+            enabled_instances = get_enabled_instances()
+            if len(enabled_instances) == 1:
+                set_active_memori_context(self)
+                logger.info(
+                    "Automatically set as active context (single-instance mode). "
+                    "No need to call set_active_memori_context() explicitly."
+                )
+            else:
+                logger.info(
+                    f"Multiple Memori instances detected ({len(enabled_instances)} total). "
+                    "Use set_active_memori_context(memori) to specify which instance "
+                    "should handle each request in multi-tenant environments."
+                )
+
         except ImportError:
             logger.debug("OpenAI integration not available for automatic interception")
 
@@ -756,6 +848,19 @@ class Memori:
         results = self.memory_manager.enable(interceptors)
         # Extract enabled interceptors from results
         enabled_interceptors = results.get("enabled_interceptors", [])
+
+        # Run conscious initialization now that context is set
+        if self._conscious_init_pending and self.conscious_agent:
+            # Ensure context is set for this instance before running initialization
+            # This is critical for multi-tenant scenarios
+            from ..integrations.openai_integration import set_active_memori_context
+
+            set_active_memori_context(self)
+            logger.debug(
+                f"Set context to {self.user_id} before conscious initialization"
+            )
+
+            self._check_deferred_initialization()
 
         # Start background conscious agent if available
         if self.conscious_ingest and self.conscious_agent:
@@ -1119,7 +1224,7 @@ class Memori:
             if db_type == "mongodb":
                 # Use MongoDB-specific method
                 memories = self.db_manager.get_short_term_memory(
-                    namespace=self.namespace,
+                    user_id=self.user_id,
                     limit=1000,  # Large limit to get all memories
                     include_expired=False,
                 )
@@ -1160,11 +1265,11 @@ class Memori:
                                category_primary, summary, searchable_content,
                                created_at, access_count
                         FROM short_term_memory
-                        WHERE namespace = :namespace AND (expires_at IS NULL OR expires_at > :current_time)
+                        WHERE user_id = :user_id AND (expires_at IS NULL OR expires_at > :current_time)
                         ORDER BY importance_score DESC, created_at DESC
                         """
                         ),
-                        {"namespace": self.namespace, "current_time": datetime.now()},
+                        {"user_id": self.user_id, "current_time": datetime.now()},
                     )
 
                     memories = []
@@ -1211,7 +1316,11 @@ class Memori:
                     "Auto-ingest: Recursion detected, using direct database search"
                 )
                 results = self.db_manager.search_memories(
-                    query=user_input, namespace=self.namespace, limit=5
+                    query=user_input,
+                    user_id=self.user_id,
+                    assistant_id=self.assistant_id,
+                    session_id=self.session_id,
+                    limit=5,
                 )
                 logger.debug(
                     f"Auto-ingest: Recursion fallback returned {len(results)} results"
@@ -1222,7 +1331,7 @@ class Memori:
             self._in_context_retrieval = True
 
             logger.debug(
-                f"Auto-ingest: Starting context retrieval for query: '{user_input[:50]}...' in namespace: '{self.namespace}'"
+                f"Auto-ingest: Starting context retrieval for query: '{user_input[:50]}...' in namespace: '{self.user_id}'"
             )
 
             # Always try direct database search first as it's more reliable
@@ -1233,7 +1342,11 @@ class Memori:
 
             try:
                 results = self.db_manager.search_memories(
-                    query=user_input, namespace=self.namespace, limit=5
+                    query=user_input,
+                    user_id=self.user_id,
+                    assistant_id=self.assistant_id,
+                    session_id=self.session_id,
+                    limit=5,
                 )
                 logger.debug(
                     f"Auto-ingest: Database search returned {len(results) if results else 0} results"
@@ -1274,7 +1387,7 @@ class Memori:
                     engine_results = self.search_engine.execute_search(
                         query=user_input,
                         db_manager=self.db_manager,
-                        namespace=self.namespace,
+                        user_id=self.user_id,
                         limit=5,
                     )
 
@@ -1309,13 +1422,15 @@ class Memori:
                 "Auto-ingest: All search methods returned 0 results, using recent memories fallback"
             )
             logger.debug(
-                f"Auto-ingest: Attempting fallback search in namespace '{self.namespace}'"
+                f"Auto-ingest: Attempting fallback search in namespace '{self.user_id}'"
             )
 
             try:
                 fallback_results = self.db_manager.search_memories(
                     query="",  # Empty query to get recent memories
-                    namespace=self.namespace,
+                    user_id=self.user_id,
+                    assistant_id=self.assistant_id,
+                    session_id=self.session_id,
                     limit=3,
                 )
                 logger.debug(
@@ -1812,8 +1927,23 @@ class Memori:
             # Run async processing in new event loop
             import threading
 
+            # CRITICAL FIX: Capture context before creating thread
+            from ..integrations.openai_integration import set_active_memori_context
+
+            # Ensure this instance is set as active
+            set_active_memori_context(self)
+            logger.debug(
+                f"Set context before memory processing: user_id={self.user_id}, chat_id={chat_id[:8]}..."
+            )
+
             def run_memory_processing():
                 """Run memory processing with improved event loop management"""
+                # CRITICAL FIX: Set context in the new thread
+                set_active_memori_context(self)
+                logger.debug(
+                    f"Context set in memory processing thread: user_id={self.user_id}"
+                )
+
                 new_loop = None
                 try:
                     # Check if we're already in an async context
@@ -2002,9 +2132,9 @@ class Memori:
                 user_input=user_input,
                 ai_output=response_text,
                 model=response_model,
-                timestamp=timestamp,
-                session_id=self._session_id,
-                namespace=self.namespace,
+                session_id=self.session_id,
+                user_id=self.user_id,
+                assistant_id=self.assistant_id,
                 metadata=metadata or {},
             )
             logger.debug(f"[MEMORY] Chat history stored - ID: {chat_id[:8]}...")
@@ -2039,6 +2169,15 @@ class Memori:
     ):
         """Schedule memory processing (async if possible, sync fallback)."""
         try:
+            # CRITICAL FIX: Set context before scheduling async task
+            # Context DOES propagate to tasks created with create_task(), but we ensure it's set
+            from ..integrations.openai_integration import set_active_memori_context
+
+            set_active_memori_context(self)
+            logger.debug(
+                f"Context set before scheduling async memory processing: user_id={self.user_id}"
+            )
+
             loop = asyncio.get_running_loop()
             task = loop.create_task(
                 self._process_memory_async(chat_id, user_input, ai_output, model)
@@ -2062,12 +2201,26 @@ class Memori:
             logger.warning("Memory agent not available, skipping memory ingestion")
             return
 
+        # CRITICAL FIX: Ensure context is set before making any OpenAI calls
+        # This is a safety check in case context wasn't propagated correctly
+        from ..integrations.openai_integration import (
+            get_active_memori_context,
+            set_active_memori_context,
+        )
+
+        current_context = get_active_memori_context()
+        if current_context != self:
+            logger.debug(
+                f"Context mismatch detected in async processing, setting to user_id={self.user_id}"
+            )
+            set_active_memori_context(self)
+
         try:
             # Create conversation context
             context = ConversationContext(
                 user_id=self.user_id,
                 session_id=self._session_id,
-                conversation_id=chat_id,
+                chat_id=chat_id,
                 model_used=model,
                 user_preferences=self._user_context.get("user_preferences", []),
                 current_projects=self._user_context.get("current_projects", []),
@@ -2108,7 +2261,7 @@ class Memori:
 
             # Store processed memory with new schema
             memory_id = self.db_manager.store_long_term_memory_enhanced(
-                processed_memory, chat_id, self.namespace
+                processed_memory, chat_id, self.user_id
             )
 
             if memory_id:
@@ -2121,7 +2274,7 @@ class Memori:
                     and self.conscious_ingest
                 ):
                     await self.conscious_agent.check_for_context_updates(
-                        self.db_manager, self.namespace
+                        self.db_manager, self.user_id
                     )
             else:
                 logger.warning(f"Failed to store memory for chat {chat_id}")
@@ -2141,7 +2294,7 @@ class Memori:
                 result = connection.execute(
                     text(MemoryQueries.SELECT_MEMORIES_FOR_DEDUPLICATION),
                     {
-                        "namespace": self.namespace,
+                        "user_id": self.user_id,
                         "processed_for_duplicates": False,
                         "limit": 20,
                     },
@@ -2153,9 +2306,9 @@ class Memori:
                         # Create ProcessedLongTermMemory objects for proper comparison
                         # Note: Query returns (memory_id, summary, searchable_content, classification, created_at)
                         memory = ProcessedLongTermMemory(
-                            conversation_id=row[
+                            session_id=row[
                                 0
-                            ],  # Use memory_id as conversation_id for existing memories
+                            ],  # Use memory_id as session_id for existing memories
                             summary=row[1] or "",
                             content=row[2] or "",
                             classification=row[3] or "conversational",
@@ -2205,13 +2358,17 @@ class Memori:
                     specific_context = self.search_engine.execute_search(
                         query=query,
                         db_manager=self.db_manager,
-                        namespace=self.namespace,
+                        user_id=self.user_id,
                         limit=remaining_limit,
                     )
                 else:
                     # Fallback to database search
                     specific_context = self.db_manager.search_memories(
-                        query=query, namespace=self.namespace, limit=remaining_limit
+                        query=query,
+                        user_id=self.user_id,
+                        assistant_id=self.assistant_id,
+                        session_id=self.session_id,
+                        limit=remaining_limit,
                     )
 
                 # Add specific context, avoiding duplicates
@@ -2236,7 +2393,7 @@ class Memori:
         """Get recent conversation history"""
         try:
             return self.db_manager.get_chat_history(
-                namespace=self.namespace,
+                user_id=self.user_id,
                 session_id=self._session_id if not self.shared_memory else None,
                 limit=limit,
             )
@@ -2252,9 +2409,9 @@ class Memori:
             memory_type: Type of memory to clear ('short_term', 'long_term', 'all')
         """
         try:
-            self.db_manager.clear_memory(self.namespace, memory_type)
+            self.db_manager.clear_memory(self.user_id, memory_type)
             logger.info(
-                f"Cleared {memory_type or 'all'} memory for namespace: {self.namespace}"
+                f"Cleared {memory_type or 'all'} memory for namespace: {self.user_id}"
             )
         except Exception as e:
             raise MemoriError(f"Failed to clear memory: {e}")
@@ -2262,7 +2419,7 @@ class Memori:
     def get_memory_stats(self) -> dict[str, Any]:
         """Get memory statistics"""
         try:
-            return self.db_manager.get_memory_stats(self.namespace)
+            return self.db_manager.get_memory_stats(self.user_id)
         except Exception as e:
             logger.error(f"Failed to get memory stats: {e}")
             return {}
@@ -2287,7 +2444,7 @@ class Memori:
                 "integration": "memori_system",
                 "enabled": self._enabled,
                 "session_id": self._session_id,
-                "namespace": self.namespace,
+                "user_id": self.user_id,
                 "providers": {},
             }
 
@@ -2378,7 +2535,9 @@ class Memori:
         try:
             return self.db_manager.search_memories(
                 query="",
-                namespace=self.namespace,
+                user_id=self.user_id,
+                assistant_id=self.assistant_id,
+                session_id=self.session_id,
                 category_filter=[category],
                 limit=limit,
             )
@@ -2394,7 +2553,11 @@ class Memori:
             # This would use the entity index in the database
             # For now, use keyword search as fallback (entity_type is ignored for now)
             return self.db_manager.search_memories(
-                query=entity_value, namespace=self.namespace, limit=limit
+                query=entity_value,
+                user_id=self.user_id,
+                assistant_id=self.assistant_id,
+                session_id=self.session_id,
+                limit=limit,
             )
         except Exception as e:
             logger.error(f"Entity search failed: {e}")
@@ -2414,7 +2577,23 @@ class Memori:
                 # No event loop running, create a new thread for async tasks
                 import threading
 
+                # CRITICAL FIX: Capture the current context before creating the thread
+                # This ensures the Memori instance context propagates to background tasks
+                from ..integrations.openai_integration import set_active_memori_context
+
+                # Ensure this instance is set as active before setting context
+                set_active_memori_context(self)
+                logger.debug(
+                    f"Captured context for background thread: user_id={self.user_id}"
+                )
+
                 def run_background_loop():
+                    # Set the context in the new thread
+                    set_active_memori_context(self)
+                    logger.debug(
+                        f"Set context in background thread: user_id={self.user_id}"
+                    )
+
                     new_loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(new_loop)
                     try:
@@ -2426,7 +2605,9 @@ class Memori:
 
                 thread = threading.Thread(target=run_background_loop, daemon=True)
                 thread.start()
-                logger.info("Background analysis started in separate thread")
+                logger.info(
+                    f"Background analysis started in separate thread for user_id={self.user_id}"
+                )
                 return
 
             # If we have a running loop, schedule the task
@@ -2558,7 +2739,7 @@ class Memori:
 
                         # Run conscious ingestion to check for new promotable memories
                         await self.conscious_agent.run_conscious_ingest(
-                            self.db_manager, self.namespace
+                            self.db_manager, self.user_id
                         )
 
                         logger.debug("Periodic conscious analysis completed")
@@ -2591,7 +2772,7 @@ class Memori:
                 loop = asyncio.get_running_loop()
                 task = loop.create_task(
                     self.conscious_agent.run_conscious_ingest(
-                        self.db_manager, self.namespace
+                        self.db_manager, self.user_id
                     )
                 )
                 logger.info("Conscious context ingestion triggered")
@@ -2606,7 +2787,7 @@ class Memori:
                     try:
                         new_loop.run_until_complete(
                             self.conscious_agent.run_conscious_ingest(
-                                self.db_manager, self.namespace
+                                self.db_manager, self.user_id
                             )
                         )
                     finally:
@@ -2665,12 +2846,14 @@ class Memori:
         Get auto-ingest context as system prompt for direct injection.
         Returns relevant memories based on user input as formatted system prompt.
         Use this for auto_ingest mode.
+
+        Note: Context retrieval is handled by _get_auto_ingest_context().
+        This function only formats pre-retrieved context.
         """
         try:
-            # For now, use recent short-term memories as a simple approach
-            # This avoids the search engine issues and still provides context
-            # TODO: Use user_input for intelligent context retrieval
-            context = self._get_conscious_context()  # Get recent short-term memories
+            # Get recent short-term memories as fallback context
+            # The actual intelligent retrieval is handled by _get_auto_ingest_context()
+            context = self._get_conscious_context()
 
             if not context:
                 return ""
@@ -2767,13 +2950,13 @@ class Memori:
                 SELECT memory_id, summary, category_primary, importance_score,
                        created_at, searchable_content, processed_data
                 FROM short_term_memory
-                WHERE namespace = :namespace AND category_primary LIKE 'essential_%'
+                WHERE user_id = :user_id AND category_primary LIKE 'essential_%'
                 ORDER BY importance_score DESC, created_at DESC
                 LIMIT :limit
                 """
 
                 result = connection.execute(
-                    text(query), {"namespace": self.namespace, "limit": limit}
+                    text(query), {"user_id": self.user_id, "limit": limit}
                 )
 
                 essential_conversations = []
