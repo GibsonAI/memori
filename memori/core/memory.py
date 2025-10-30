@@ -362,6 +362,30 @@ class Memori:
                     logger.error(f"MongoDB connection failed: {e}")
                     logger.info("Falling back to SQLite for compatibility")
                     return self._create_fallback_sqlite_manager(template, schema_init)
+            # Detect Couchbase connection strings
+            elif self._is_couchbase_connection(database_connect):
+                logger.info(
+                    "Detected Couchbase connection string - attempting Couchbase manager"
+                )
+                try:
+                    from ..database.couchbase_manager import CouchbaseDatabaseManager
+
+                    # Test Couchbase connection before proceeding
+                    manager = CouchbaseDatabaseManager(
+                        database_connect, template, schema_init
+                    )
+                    logger.info("Couchbase manager initialized successfully")
+                    return manager
+                except ImportError:
+                    logger.error(
+                        "Couchbase support requires couchbase. Install with: pip install couchbase"
+                    )
+                    logger.info("Falling back to SQLite for compatibility")
+                    return self._create_fallback_sqlite_manager(template, schema_init)
+                except Exception as e:
+                    logger.error(f"Couchbase connection failed: {e}")
+                    logger.info("Falling back to SQLite for compatibility")
+                    return self._create_fallback_sqlite_manager(template, schema_init)
             else:
                 logger.info("Detected SQL connection string - using SQLAlchemy manager")
                 return SQLAlchemyDatabaseManager(
@@ -386,6 +410,13 @@ class Memori:
             "mongodb+srv://",
         ]
         return any(database_connect.startswith(prefix) for prefix in mongodb_prefixes)
+
+    def _is_couchbase_connection(self, database_connect: str) -> bool:
+        """Detect if connection string is for Couchbase"""
+        couchbase_prefixes = [
+            "couchbase://",
+        ]
+        return any(database_connect.startswith(prefix) for prefix in couchbase_prefixes)
 
     def _setup_database(self):
         """Setup database tables based on template"""

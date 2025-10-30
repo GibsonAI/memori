@@ -26,6 +26,7 @@ class DatabaseType(str, Enum):
     POSTGRESQL = "postgresql"
     MYSQL = "mysql"
     MONGODB = "mongodb"
+    COUCHBASE = "couchbase"
 
 
 class RetentionPolicy(str, Enum):
@@ -70,6 +71,7 @@ class DatabaseSettings(BaseModel):
             "postgresql://",
             "mysql://",
             "mongodb://",
+            "couchbase://",
         ]
         if not any(v.startswith(prefix) for prefix in valid_prefixes):
             raise ValueError(f"Unsupported database type in connection string: {v}")
