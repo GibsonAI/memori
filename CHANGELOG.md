@@ -5,6 +5,12 @@ All notable changes to Memori will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- Fixed retry decorator edge case in `memori/utils/helpers.py`: when all retry attempts fail the decorator now re-raises the original (last) exception instead of raising a generic `MemoriError("Retry attempts exhausted")`. This prevents masking of the real error. (Fix #110 — Hacktoberfest)
+
 ## [2.3.0] - 2025-09-29
 
 ### 🚀 **Major Performance Improvements**
