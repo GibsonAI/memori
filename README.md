@@ -9,12 +9,6 @@
 </p>
 
 <p align="center">
-  <a href="https://www.gibsonai.com/docs/memori">Learn more</a>
-  ·
-  <a href="https://discord.gg/abD4eGym6v">Join Discord</a>
-</p>
-
-<p align="center">
   <a href="https://badge.fury.io/py/memorisdk">
     <img src="https://badge.fury.io/py/memori.svg" alt="PyPI version">
   </a>
@@ -27,6 +21,13 @@
   <a href="https://www.python.org/downloads/">
     <img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+">
   </a>
+  <a href="https://discord.gg/abD4eGym6v">
+    <img src="https://img.shields.io/discord/1042405378304004156?logo=discord" alt="chat on Discord">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://www.gibsonai.com/docs/memori">Documentation</a>
 </p>
 
 <p align="center">
