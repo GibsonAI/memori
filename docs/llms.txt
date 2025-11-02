@@ -12,7 +12,7 @@
 
 ## Why Memori?
 
-Memomi uses multi-agents working together to intelligently promote essential long-term memories to short-term storage for faster context injection.
+Memori uses multi-agents working together to intelligently promote essential long-term memories to short-term storage for faster context injection.
 
 Give your AI agents structured, persistent memory with professional-grade architecture:
 
