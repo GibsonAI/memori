@@ -40,7 +40,7 @@
 
 ## What is Memori
 
-Memori uses structured entity extraction, relationship mapping, and SQL-based retrieval to create transparent, portable, and queryable AI memory. Memomi uses multiple agents working together to intelligently promote essential long-term memories to short-term storage for faster context injection.
+Memori uses structured entity extraction, relationship mapping, and SQL-based retrieval to create transparent, portable, and queryable AI memory. Memori uses multiple agents working together to intelligently promote essential long-term memories to short-term storage for faster context injection.
 
 With a single line of code `memori.enable()` any LLM gains the ability to remember conversations, learn from interactions, and maintain context across sessions. The entire memory system is stored in a standard SQLite database (or PostgreSQL/MySQL for enterprise deployments), making it fully portable, auditable, and owned by the user.
 
