@@ -34,11 +34,17 @@ class ChatHistory(Base):
     user_input = Column(Text, nullable=False)
     ai_output = Column(Text, nullable=False)
     model = Column(String(255), nullable=False)
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     session_id = Column(String(255), nullable=False)
-    namespace = Column(String(255), nullable=False, default="default")
     tokens_used = Column(Integer, default=0)
     metadata_json = Column(JSON)
+
+    # Multi-tenant isolation columns
+    user_id = Column(String(255), nullable=False, default="default")
+    assistant_id = Column(String(255), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     short_term_memories = relationship(
@@ -47,8 +53,9 @@ class ChatHistory(Base):
 
     # Indexes
     __table_args__ = (
-        Index("idx_chat_namespace_session", "namespace", "session_id"),
-        Index("idx_chat_timestamp", "timestamp"),
+        Index("idx_chat_user_id", "user_id"),
+        Index("idx_chat_user_assistant", "user_id", "assistant_id"),
+        Index("idx_chat_created", "created_at"),
         Index("idx_chat_model", "model"),
     )
 
@@ -66,11 +73,14 @@ class ShortTermMemory(Base):
     importance_score = Column(Float, nullable=False, default=0.5)
     category_primary = Column(String(255), nullable=False)
     retention_type = Column(String(50), nullable=False, default="short_term")
-    namespace = Column(String(255), nullable=False, default="default")
+
+    # Multi-tenant isolation columns
+    user_id = Column(String(255), nullable=False, default="default")
+    assistant_id = Column(String(255), nullable=True)
+    session_id = Column(String(255), nullable=False, default="default")
+
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     expires_at = Column(DateTime)
-    access_count = Column(Integer, default=0)
-    last_accessed = Column(DateTime)
     searchable_content = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
     is_permanent_context = Column(Boolean, default=False)
@@ -80,16 +90,16 @@ class ShortTermMemory(Base):
 
     # Indexes
     __table_args__ = (
-        Index("idx_short_term_namespace", "namespace"),
+        Index("idx_short_term_user_id", "user_id"),
+        Index("idx_short_term_user_assistant", "user_id", "assistant_id"),
         Index("idx_short_term_category", "category_primary"),
         Index("idx_short_term_importance", "importance_score"),
         Index("idx_short_term_expires", "expires_at"),
         Index("idx_short_term_created", "created_at"),
-        Index("idx_short_term_access", "access_count", "last_accessed"),
         Index("idx_short_term_permanent", "is_permanent_context"),
         Index(
-            "idx_short_term_namespace_category",
-            "namespace",
+            "idx_short_term_user_category",
+            "user_id",
             "category_primary",
             "importance_score",
         ),
@@ -102,15 +112,17 @@ class LongTermMemory(Base):
     __tablename__ = "long_term_memory"
 
     memory_id = Column(String(255), primary_key=True)
-    original_chat_id = Column(String(255))
     processed_data = Column(JSON, nullable=False)
     importance_score = Column(Float, nullable=False, default=0.5)
     category_primary = Column(String(255), nullable=False)
     retention_type = Column(String(50), nullable=False, default="long_term")
-    namespace = Column(String(255), nullable=False, default="default")
+
+    # Multi-tenant isolation columns
+    user_id = Column(String(255), nullable=False, default="default")
+    assistant_id = Column(String(255), nullable=True)
+    session_id = Column(String(255), nullable=False, default="default")
+
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    access_count = Column(Integer, default=0)
-    last_accessed = Column(DateTime)
     searchable_content = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
     novelty_score = Column(Float, default=0.5)
@@ -138,20 +150,24 @@ class LongTermMemory(Base):
 
     # Technical Metadata
     confidence_score = Column(Float, default=0.8)
-    extraction_timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     classification_reason = Column(Text)
 
     # Processing Status
     processed_for_duplicates = Column(Boolean, default=False)
     conscious_processed = Column(Boolean, default=False)
 
+    # Concurrency Control (for optimistic locking)
+    # TODO: Implement optimistic locking logic using this column
+    # Currently unused - planned for future enhancement to prevent concurrent updates
+    version = Column(Integer, nullable=False, default=1)
+
     # Indexes
     __table_args__ = (
-        Index("idx_long_term_namespace", "namespace"),
+        Index("idx_long_term_user_id", "user_id"),
+        Index("idx_long_term_user_assistant", "user_id", "assistant_id"),
         Index("idx_long_term_category", "category_primary"),
         Index("idx_long_term_importance", "importance_score"),
         Index("idx_long_term_created", "created_at"),
-        Index("idx_long_term_access", "access_count", "last_accessed"),
         Index(
             "idx_long_term_scores",
             "novelty_score",
@@ -172,11 +188,14 @@ class LongTermMemory(Base):
         Index("idx_long_term_duplicates", "processed_for_duplicates"),
         Index("idx_long_term_confidence", "confidence_score"),
         Index(
-            "idx_long_term_namespace_category",
-            "namespace",
+            "idx_long_term_user_category",
+            "user_id",
             "category_primary",
             "importance_score",
         ),
+        Index(
+            "idx_long_term_version", "memory_id", "version"
+        ),  # For optimistic locking
     )
 
 
@@ -279,7 +298,7 @@ def configure_sqlite_fts(engine):
                     CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
                         memory_id,
                         memory_type,
-                        namespace,
+                        user_id,
                         searchable_content,
                         summary,
                         category_primary,
@@ -294,8 +313,8 @@ def configure_sqlite_fts(engine):
                     """
                     CREATE TRIGGER IF NOT EXISTS short_term_memory_fts_insert AFTER INSERT ON short_term_memory
                     BEGIN
-                        INSERT INTO memory_search_fts(memory_id, memory_type, namespace, searchable_content, summary, category_primary)
-                        VALUES (NEW.memory_id, 'short_term', NEW.namespace, NEW.searchable_content, NEW.summary, NEW.category_primary);
+                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, searchable_content, summary, category_primary)
+                        VALUES (NEW.memory_id, 'short_term', NEW.user_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
                     END
                 """
                 )
@@ -304,8 +323,8 @@ def configure_sqlite_fts(engine):
                     """
                     CREATE TRIGGER IF NOT EXISTS long_term_memory_fts_insert AFTER INSERT ON long_term_memory
                     BEGIN
-                        INSERT INTO memory_search_fts(memory_id, memory_type, namespace, searchable_content, summary, category_primary)
-                        VALUES (NEW.memory_id, 'long_term', NEW.namespace, NEW.searchable_content, NEW.summary, NEW.category_primary);
+                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, searchable_content, summary, category_primary)
+                        VALUES (NEW.memory_id, 'long_term', NEW.user_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
                     END
                 """
                 )

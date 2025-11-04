@@ -69,10 +69,11 @@ class MemoryManager:
         self.mem_prompt = mem_prompt
         self.conscious_ingest = conscious_ingest
         self.auto_ingest = auto_ingest
-        self.namespace = namespace
+        self.user_id = (
+            user_id or namespace or "default"
+        )  # Support both params for backward compat
         self.shared_memory = shared_memory
         self.memory_filters = memory_filters or []
-        self.user_id = user_id
         self.verbose = verbose
         self.provider_config = provider_config
 
@@ -108,9 +109,9 @@ class MemoryManager:
             if self.litellm_callback_manager:
                 logger.debug("LiteLLM callback manager initialized")
             else:
-                logger.warning("Failed to initialize LiteLLM callback manager")
+                logger.debug("Failed to initialize LiteLLM callback manager")
         except ImportError as e:
-            logger.warning(f"Could not initialize LiteLLM callback manager: {e}")
+            logger.debug(f"Could not initialize LiteLLM callback manager: {e}")
 
         logger.debug("MemoryManager configured with Memori instance")
 
@@ -147,7 +148,7 @@ class MemoryManager:
                         "message": "Failed to register LiteLLM callbacks",
                     }
             elif not self.litellm_callback_manager:
-                logger.warning("No LiteLLM callback manager available")
+                logger.debug("No LiteLLM callback manager available")
 
             self._enabled = True
 
@@ -230,7 +231,6 @@ class MemoryManager:
         return {
             "session_id": self._session_id,
             "enabled": self._enabled,
-            "namespace": self.namespace,
             "user_id": self.user_id,
             "litellm_callback_manager": self.litellm_callback_manager is not None,
             "litellm_callbacks_registered": (

@@ -251,7 +251,7 @@ class MemoryNotFoundError(MemoriError):
         self,
         message: str,
         memory_id: str | None = None,
-        namespace: str | None = None,
+        user_id: str | None = None,
         search_criteria: dict[str, Any] | None = None,
         error_code: str | None = None,
         cause: Exception | None = None,
@@ -259,8 +259,8 @@ class MemoryNotFoundError(MemoriError):
         context = {}
         if memory_id:
             context["memory_id"] = memory_id
-        if namespace:
-            context["namespace"] = namespace
+        if user_id:
+            context["user_id"] = user_id
         if search_criteria:
             context["search_criteria"] = search_criteria
 
@@ -350,6 +350,69 @@ class ResourceExhaustedError(MemoriError):
         super().__init__(
             message=message,
             error_code=error_code or "RESOURCE_EXHAUSTED",
+            context=context,
+            cause=cause,
+        )
+
+
+class SecurityError(MemoriError):
+    """Security-related errors with security context"""
+
+    def __init__(
+        self,
+        message: str,
+        security_check: str | None = None,
+        user_id: str | None = None,
+        operation: str | None = None,
+        error_code: str | None = None,
+        cause: Exception | None = None,
+    ):
+        context = {}
+        if security_check:
+            context["security_check"] = security_check
+        if user_id:
+            context["user_id"] = user_id
+        if operation:
+            context["operation"] = operation
+
+        super().__init__(
+            message=message,
+            error_code=error_code or "SECURITY_ERROR",
+            context=context,
+            cause=cause,
+        )
+
+
+class ConcurrentUpdateError(MemoriError):
+    """Concurrent update/modification errors with version context
+
+    TODO: Currently unused - reserved for future optimistic locking implementation.
+    Will be raised when concurrent updates are detected using version column.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        resource_id: str | None = None,
+        expected_version: int | None = None,
+        actual_version: int | None = None,
+        user_id: str | None = None,
+        error_code: str | None = None,
+        cause: Exception | None = None,
+    ):
+        context = {}
+        if resource_id:
+            context["resource_id"] = resource_id
+        if expected_version is not None:
+            context["expected_version"] = expected_version
+        if actual_version is not None:
+            context["actual_version"] = actual_version
+        if user_id:
+            context["user_id"] = user_id
+
+        super().__init__(
+            message=message,
+            error_code=error_code or "CONCURRENT_UPDATE",
             context=context,
             cause=cause,
         )

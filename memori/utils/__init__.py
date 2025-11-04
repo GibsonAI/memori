@@ -6,6 +6,7 @@ Utils package for Memoriai - Comprehensive utilities and helpers
 from .exceptions import (
     AgentError,
     AuthenticationError,
+    ConcurrentUpdateError,
     ConfigurationError,
     DatabaseError,
     ExceptionHandler,
@@ -15,6 +16,7 @@ from .exceptions import (
     ProcessingError,
     RateLimitError,
     ResourceExhaustedError,
+    SecurityError,
     TimeoutError,
     ValidationError,
 )
@@ -76,6 +78,8 @@ __all__ = [
     "ProcessingError",
     "TimeoutError",
     "ResourceExhaustedError",
+    "SecurityError",
+    "ConcurrentUpdateError",
     "ExceptionHandler",
     # Validators
     "DataValidator",

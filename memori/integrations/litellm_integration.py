@@ -31,7 +31,7 @@ try:
 except ImportError:
     LITELLM_AVAILABLE = False
     HAS_MODIFYING_ROUTER = False
-    logger.warning("LiteLLM not available - native callback system disabled")
+    logger.debug("LiteLLM not available - native callback system disabled")
 
 
 class LiteLLMCallbackManager:
@@ -62,7 +62,7 @@ class LiteLLMCallbackManager:
             True if registration successful, False otherwise
         """
         if not LITELLM_AVAILABLE:
-            logger.error("LiteLLM not available - cannot register callbacks")
+            logger.debug("LiteLLM not available - cannot register callbacks")
             return False
 
         if self._callback_registered:
@@ -353,7 +353,7 @@ def setup_litellm_callbacks(memori_instance) -> LiteLLMCallbackManager | None:
         LiteLLMCallbackManager instance if successful, None otherwise
     """
     if not LITELLM_AVAILABLE:
-        logger.error("LiteLLM not available - cannot set up callbacks")
+        logger.debug("LiteLLM not available - cannot set up callbacks")
         return None
 
     callback_manager = LiteLLMCallbackManager(memori_instance)

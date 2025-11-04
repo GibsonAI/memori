@@ -1,6 +1,4 @@
-[![GibsonAI](https://github.com/user-attachments/assets/878e341b-5a93-4489-a398-abeca91b6b11)](https://gibsonai.com/)
-
-# memori
+[![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
 
 <p align="center">
   <strong>An open-source SQL-Native memory engine for AI</strong>
@@ -8,12 +6,6 @@
 
 <p align="center">
   <i>From Postgres to MySQL, Memori plugs into the SQL databases you already use. Simple setup, infinite scale without new infrastructure.</i>
-</p>
-
-<p align="center">
-  <a href="https://memori.gibsonai.com/docs">Learn more</a>
-  ·
-  <a href="https://discord.gg/abD4eGym6v">Join Discord</a>
 </p>
 
 <p align="center">
@@ -29,6 +21,13 @@
   <a href="https://www.python.org/downloads/">
     <img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+">
   </a>
+  <a href="https://discord.gg/abD4eGym6v">
+    <img src="https://img.shields.io/discord/1042405378304004156?logo=discord" alt="chat on Discord">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://www.gibsonai.com/docs/memori">Documentation</a>
 </p>
 
 <p align="center">
@@ -41,7 +40,7 @@
 
 ## What is Memori
 
-Memori uses structured entity extraction, relationship mapping, and SQL-based retrieval to create transparent, portable, and queryable AI memory. Memomi uses multiple agents working together to intelligently promote essential long-term memories to short-term storage for faster context injection.
+Memori uses structured entity extraction, relationship mapping, and SQL-based retrieval to create transparent, portable, and queryable AI memory. Memori uses multiple agents working together to intelligently promote essential long-term memories to short-term storage for faster context injection.
 
 With a single line of code `memori.enable()` any LLM gains the ability to remember conversations, learn from interactions, and maintain context across sessions. The entire memory system is stored in a standard SQLite database (or PostgreSQL/MySQL for enterprise deployments), making it fully portable, auditable, and owned by the user.
 
@@ -237,6 +236,7 @@ memori = Memori(
     database_connect="sqlite:///my_memory.db",
     template="basic", 
     conscious_ingest=True,  # One-shot context injection
+    conscious_memory_limit=100,  # Must be an integer between 1 and 500
     openai_api_key="sk-..."
 )
 

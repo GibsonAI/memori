@@ -36,11 +36,26 @@ class SQLAlchemyDatabaseManager:
     """SQLAlchemy-based database manager with cross-database support"""
 
     def __init__(
-        self, database_connect: str, template: str = "basic", schema_init: bool = True
+        self,
+        database_connect: str,
+        template: str = "basic",
+        schema_init: bool = True,
+        pool_size: int = 5,  # Updated from 2 to 5 for better multi-agent support
+        max_overflow: int = 10,  # Updated from 3 to 10 for production workloads
+        pool_timeout: int = 30,
+        pool_recycle: int = 3600,
+        pool_pre_ping: bool = True,
     ):
         self.database_connect = database_connect
         self.template = template
         self.schema_init = schema_init
+
+        # Connection pool settings
+        self.pool_size = pool_size
+        self.max_overflow = max_overflow
+        self.pool_timeout = pool_timeout
+        self.pool_recycle = pool_recycle
+        self.pool_pre_ping = pool_pre_ping
 
         # Initialize database auto-creator
         self.auto_creator = DatabaseAutoCreator(schema_init)
@@ -63,7 +78,10 @@ class SQLAlchemyDatabaseManager:
         # Initialize query parameter translator for cross-database compatibility
         self.query_translator = QueryParameterTranslator(self.database_type)
 
-        logger.info(f"Initialized SQLAlchemy database manager for {self.database_type}")
+        logger.info(
+            f"Initialized SQLAlchemy database manager for {self.database_type} "
+            f"(pool_size={pool_size}, max_overflow={max_overflow})"
+        )
 
     def _validate_database_dependencies(self, database_connect: str):
         """Validate that required database drivers are installed"""
@@ -213,14 +231,17 @@ class SQLAlchemyDatabaseManager:
             elif database_connect.startswith(
                 "postgresql:"
             ) or database_connect.startswith("postgresql+"):
-                # PostgreSQL-specific configuration
+                # PostgreSQL-specific configuration with connection pool management
                 engine = create_engine(
                     database_connect,
                     json_serializer=json.dumps,
                     json_deserializer=json.loads,
                     echo=False,
-                    pool_pre_ping=True,
-                    pool_recycle=3600,
+                    pool_size=self.pool_size,  # Base pool size
+                    max_overflow=self.max_overflow,  # Additional connections when pool is full
+                    pool_timeout=self.pool_timeout,  # Wait time for connection
+                    pool_recycle=self.pool_recycle,  # Recycle connections to prevent stale connections
+                    pool_pre_ping=self.pool_pre_ping,  # Test connections before use
                 )
 
             else:
@@ -304,7 +325,9 @@ class SQLAlchemyDatabaseManager:
                 CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
                     memory_id,
                     memory_type,
-                    namespace,
+                    user_id,
+                    assistant_id,
+                    session_id,
                     searchable_content,
                     summary,
                     category_primary,
@@ -321,8 +344,8 @@ class SQLAlchemyDatabaseManager:
                     """
                 CREATE TRIGGER IF NOT EXISTS short_term_memory_fts_insert AFTER INSERT ON short_term_memory
                 BEGIN
-                    INSERT INTO memory_search_fts(memory_id, memory_type, namespace, searchable_content, summary, category_primary)
-                    VALUES (NEW.memory_id, 'short_term', NEW.namespace, NEW.searchable_content, NEW.summary, NEW.category_primary);
+                    INSERT INTO memory_search_fts(memory_id, memory_type, user_id, assistant_id, session_id, searchable_content, summary, category_primary)
+                    VALUES (NEW.memory_id, 'short_term', NEW.user_id, NEW.assistant_id, NEW.session_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
                 END
             """
                 )
@@ -333,8 +356,8 @@ class SQLAlchemyDatabaseManager:
                     """
                 CREATE TRIGGER IF NOT EXISTS long_term_memory_fts_insert AFTER INSERT ON long_term_memory
                 BEGIN
-                    INSERT INTO memory_search_fts(memory_id, memory_type, namespace, searchable_content, summary, category_primary)
-                    VALUES (NEW.memory_id, 'long_term', NEW.namespace, NEW.searchable_content, NEW.summary, NEW.category_primary);
+                    INSERT INTO memory_search_fts(memory_id, memory_type, user_id, assistant_id, session_id, searchable_content, summary, category_primary)
+                    VALUES (NEW.memory_id, 'long_term', NEW.user_id, NEW.assistant_id, NEW.session_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
                 END
             """
                 )
@@ -474,8 +497,9 @@ class SQLAlchemyDatabaseManager:
 
     def _get_search_service(self) -> SearchService:
         """Get search service instance with fresh session and proper error handling"""
+        session = None
         try:
-            if not self.SessionLocal:
+            if not hasattr(self, "SessionLocal") or not self.SessionLocal:
                 logger.error("SessionLocal not available for search service")
                 return None
 
@@ -485,7 +509,27 @@ class SQLAlchemyDatabaseManager:
                 logger.error("Failed to create database session")
                 return None
 
+            # Verify session is valid
+            try:
+                # Test the session connection
+                session.execute(text("SELECT 1"))
+            except Exception as e:
+                logger.error(f"Database session is not functional: {e}")
+                if session:
+                    session.close()
+                return None
+
             search_service = SearchService(session, self.database_type)
+
+            # Verify SearchService was initialized correctly
+            if not hasattr(search_service, "session") or search_service.session is None:
+                logger.error(
+                    "SearchService was not properly initialized with a session"
+                )
+                if session:
+                    session.close()
+                return None
+
             logger.debug(
                 f"Created new search service instance for database type: {self.database_type}"
             )
@@ -497,6 +541,12 @@ class SQLAlchemyDatabaseManager:
                 f"Search service creation error: {type(e).__name__}: {str(e)}",
                 exc_info=True,
             )
+            if session:
+                try:
+                    session.close()
+                except Exception:
+                    # Ignore session close errors during cleanup
+                    pass
             return None
 
     def store_chat_history(
@@ -505,26 +555,34 @@ class SQLAlchemyDatabaseManager:
         user_input: str,
         ai_output: str,
         model: str,
-        timestamp: datetime,
         session_id: str,
-        namespace: str = "default",
+        user_id: str = "default",
+        assistant_id: str = None,
         tokens_used: int = 0,
         metadata: dict[str, Any] | None = None,
+        timestamp: datetime = None,
     ):
-        """Store chat history"""
+        """Store chat history with multi-tenant isolation"""
         with self.SessionLocal() as session:
             try:
-                chat_history = ChatHistory(
-                    chat_id=chat_id,
-                    user_input=user_input,
-                    ai_output=ai_output,
-                    model=model,
-                    timestamp=timestamp,
-                    session_id=session_id,
-                    namespace=namespace,
-                    tokens_used=tokens_used,
-                    metadata_json=metadata or {},
-                )
+                # Build ChatHistory kwargs - map timestamp to created_at if provided
+                chat_kwargs = {
+                    "chat_id": chat_id,
+                    "user_input": user_input,
+                    "ai_output": ai_output,
+                    "model": model,
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "assistant_id": assistant_id,
+                    "tokens_used": tokens_used,
+                    "metadata_json": metadata or {},
+                }
+
+                # Map timestamp parameter to created_at field for backward compatibility
+                if timestamp is not None:
+                    chat_kwargs["created_at"] = timestamp
+
+                chat_history = ChatHistory(**chat_kwargs)
 
                 session.merge(chat_history)  # Use merge for INSERT OR REPLACE behavior
                 session.commit()
@@ -535,7 +593,7 @@ class SQLAlchemyDatabaseManager:
 
     def get_chat_history(
         self,
-        namespace: str = "default",
+        user_id: str = "default",
         session_id: str | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
@@ -543,7 +601,7 @@ class SQLAlchemyDatabaseManager:
         with self.SessionLocal() as session:
             try:
                 query = session.query(ChatHistory).filter(
-                    ChatHistory.namespace == namespace
+                    ChatHistory.user_id == user_id
                 )
 
                 if session_id:
@@ -560,9 +618,9 @@ class SQLAlchemyDatabaseManager:
                         "user_input": result.user_input,
                         "ai_output": result.ai_output,
                         "model": result.model,
-                        "timestamp": result.timestamp,
+                        "timestamp": result.created_at,
                         "session_id": result.session_id,
-                        "namespace": result.namespace,
+                        "user_id": result.user_id,
                         "tokens_used": result.tokens_used,
                         "metadata": result.metadata_json or {},
                     }
@@ -572,44 +630,28 @@ class SQLAlchemyDatabaseManager:
             except SQLAlchemyError as e:
                 raise DatabaseError(f"Failed to get chat history: {e}")
 
-    def _check_milestone(self, memory_count: int):
-        """
-        Check and celebrate memory storage milestones to encourage user engagement.
-        Displays celebration messages at key milestones: 10, 50, 100, 500, 1000 memories.
-
-        Args:
-            memory_count: Current count of long-term memories
-        """
-        milestones = [10, 50, 100, 500, 1000]
-
-        if memory_count in milestones:
-            celebration_msg = (
-                f"\n{'=' * 60}\n"
-                f"🎉 Milestone Achieved: {memory_count} memories stored!\n"
-                f"{'=' * 60}\n"
-                f"⭐️ Loving Memori? Give us a star on GitHub!\n"
-                f"👉 https://github.com/GibsonAI/memori\n"
-                f"Your support helps us build better open AI memory tools ❤️\n"
-                f"{'=' * 60}\n"
-            )
-            logger.info(celebration_msg)
-
     def store_long_term_memory_enhanced(
-        self, memory: ProcessedLongTermMemory, chat_id: str, namespace: str = "default"
+        self,
+        memory: ProcessedLongTermMemory,
+        chat_id: str,
+        user_id: str = "default",
+        assistant_id: str = None,
+        session_id: str = "default",
     ) -> str:
-        """Store a ProcessedLongTermMemory with enhanced schema"""
+        """Store a ProcessedLongTermMemory with enhanced schema and multi-tenant isolation"""
         memory_id = str(uuid.uuid4())
 
         with self.SessionLocal() as session:
             try:
                 long_term_memory = LongTermMemory(
                     memory_id=memory_id,
-                    original_chat_id=chat_id,
                     processed_data=memory.model_dump(mode="json"),
                     importance_score=memory.importance_score,
                     category_primary=memory.classification.value,
                     retention_type="long_term",
-                    namespace=namespace,
+                    user_id=user_id,
+                    assistant_id=assistant_id,
+                    session_id=session_id,
                     created_at=datetime.now(),
                     searchable_content=memory.content,
                     summary=memory.summary,
@@ -630,7 +672,6 @@ class SQLAlchemyDatabaseManager:
                     supersedes_json=memory.supersedes,
                     related_memories_json=memory.related_memories,
                     confidence_score=memory.confidence_score,
-                    extraction_timestamp=memory.extraction_timestamp,
                     classification_reason=memory.classification_reason,
                     processed_for_duplicates=False,
                     conscious_processed=False,
@@ -640,17 +681,6 @@ class SQLAlchemyDatabaseManager:
                 session.commit()
 
                 logger.debug(f"Stored enhanced long-term memory {memory_id}")
-
-                # Get current memory count and check for milestones
-                total_memories = (
-                    session.query(LongTermMemory)
-                    .filter(LongTermMemory.namespace == namespace)
-                    .count()
-                )
-
-                # Celebrate milestone if reached
-                self._check_milestone(total_memories)
-
                 return memory_id
 
             except SQLAlchemyError as e:
@@ -661,7 +691,9 @@ class SQLAlchemyDatabaseManager:
     def search_memories(
         self,
         query: str,
-        namespace: str = "default",
+        user_id: str = "default",
+        assistant_id: str | None = None,
+        session_id: str | None = None,
         category_filter: list[str] | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
@@ -669,7 +701,7 @@ class SQLAlchemyDatabaseManager:
         search_service = None
         try:
             logger.debug(
-                f"Starting memory search for query '{query}' in namespace '{namespace}' with category_filter={category_filter}"
+                f"Starting memory search for query '{query}' in user_id '{user_id}', assistant_id '{assistant_id}', session_id '{session_id}' with category_filter={category_filter}"
             )
             search_service = self._get_search_service()
 
@@ -678,7 +710,7 @@ class SQLAlchemyDatabaseManager:
                 return []
 
             results = search_service.search_memories(
-                query, namespace, category_filter, limit
+                query, user_id, assistant_id, session_id, category_filter, limit
             )
             logger.debug(f"Search for '{query}' returned {len(results)} results")
 
@@ -693,7 +725,7 @@ class SQLAlchemyDatabaseManager:
 
         except Exception as e:
             logger.error(
-                f"Memory search failed for query '{query}' in namespace '{namespace}': {e}"
+                f"Memory search failed for query '{query}' in user_id '{user_id}': {e}"
             )
             logger.debug(
                 f"Search error details: {type(e).__name__}: {str(e)}", exc_info=True
@@ -711,7 +743,7 @@ class SQLAlchemyDatabaseManager:
                 except Exception as session_e:
                     logger.warning(f"Error closing search service session: {session_e}")
 
-    def get_memory_stats(self, namespace: str = "default") -> dict[str, Any]:
+    def get_memory_stats(self, user_id: str = "default") -> dict[str, Any]:
         """Get comprehensive memory statistics"""
         with self.SessionLocal() as session:
             try:
@@ -720,19 +752,19 @@ class SQLAlchemyDatabaseManager:
                 # Basic counts
                 stats["chat_history_count"] = (
                     session.query(ChatHistory)
-                    .filter(ChatHistory.namespace == namespace)
+                    .filter(ChatHistory.user_id == user_id)
                     .count()
                 )
 
                 stats["short_term_count"] = (
                     session.query(ShortTermMemory)
-                    .filter(ShortTermMemory.namespace == namespace)
+                    .filter(ShortTermMemory.user_id == user_id)
                     .count()
                 )
 
                 stats["long_term_count"] = (
                     session.query(LongTermMemory)
-                    .filter(LongTermMemory.namespace == namespace)
+                    .filter(LongTermMemory.user_id == user_id)
                     .count()
                 )
 
@@ -745,7 +777,7 @@ class SQLAlchemyDatabaseManager:
                         ShortTermMemory.category_primary,
                         func.count(ShortTermMemory.memory_id).label("count"),
                     )
-                    .filter(ShortTermMemory.namespace == namespace)
+                    .filter(ShortTermMemory.user_id == user_id)
                     .group_by(ShortTermMemory.category_primary)
                     .all()
                 )
@@ -759,7 +791,7 @@ class SQLAlchemyDatabaseManager:
                         LongTermMemory.category_primary,
                         func.count(LongTermMemory.memory_id).label("count"),
                     )
-                    .filter(LongTermMemory.namespace == namespace)
+                    .filter(LongTermMemory.user_id == user_id)
                     .group_by(LongTermMemory.category_primary)
                     .all()
                 )
@@ -772,14 +804,14 @@ class SQLAlchemyDatabaseManager:
                 # Average importance
                 short_avg = (
                     session.query(func.avg(ShortTermMemory.importance_score))
-                    .filter(ShortTermMemory.namespace == namespace)
+                    .filter(ShortTermMemory.user_id == user_id)
                     .scalar()
                     or 0
                 )
 
                 long_avg = (
                     session.query(func.avg(LongTermMemory.importance_score))
-                    .filter(LongTermMemory.namespace == namespace)
+                    .filter(LongTermMemory.user_id == user_id)
                     .scalar()
                     or 0
                 )
@@ -808,31 +840,31 @@ class SQLAlchemyDatabaseManager:
             except SQLAlchemyError as e:
                 raise DatabaseError(f"Failed to get memory stats: {e}")
 
-    def clear_memory(self, namespace: str = "default", memory_type: str | None = None):
+    def clear_memory(self, user_id: str = "default", memory_type: str | None = None):
         """Clear memory data"""
         with self.SessionLocal() as session:
             try:
                 if memory_type == "short_term":
                     session.query(ShortTermMemory).filter(
-                        ShortTermMemory.namespace == namespace
+                        ShortTermMemory.user_id == user_id
                     ).delete()
                 elif memory_type == "long_term":
                     session.query(LongTermMemory).filter(
-                        LongTermMemory.namespace == namespace
+                        LongTermMemory.user_id == user_id
                     ).delete()
                 elif memory_type == "chat_history":
                     session.query(ChatHistory).filter(
-                        ChatHistory.namespace == namespace
+                        ChatHistory.user_id == user_id
                     ).delete()
                 else:  # Clear all
                     session.query(ShortTermMemory).filter(
-                        ShortTermMemory.namespace == namespace
+                        ShortTermMemory.user_id == user_id
                     ).delete()
                     session.query(LongTermMemory).filter(
-                        LongTermMemory.namespace == namespace
+                        LongTermMemory.user_id == user_id
                     ).delete()
                     session.query(ChatHistory).filter(
-                        ChatHistory.namespace == namespace
+                        ChatHistory.user_id == user_id
                     ).delete()
 
                 session.commit()
