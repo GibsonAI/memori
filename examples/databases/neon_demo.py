@@ -16,8 +16,9 @@ postgresql://username:password@hostname/database?sslmode=require&channel_binding
 Note: SSL parameters (sslmode=require&channel_binding=require) are required for Neon connections.
 """
 
-from memori import Memori
 from openai import OpenAI
+
+from memori import Memori
 
 # Initialize OpenAI client
 openai_client = OpenAI()

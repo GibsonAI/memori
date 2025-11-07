@@ -9,9 +9,8 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
-from loguru import logger
-
 import openai
+from loguru import logger
 
 if TYPE_CHECKING:
     from ..core.providers import ProviderConfig
@@ -820,7 +819,7 @@ Be strategic and comprehensive in your search planning."""
                         self._execute_keyword_search,
                         search_plan,
                         db_manager,
-                        namespace,
+                        # namespace,
                         limit,
                     )
                 )
@@ -836,7 +835,7 @@ Be strategic and comprehensive in your search planning."""
                         self._execute_category_search,
                         search_plan,
                         db_manager,
-                        namespace,
+                        # namespace,
                         limit,
                     )
                 )

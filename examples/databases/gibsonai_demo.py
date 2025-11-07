@@ -19,8 +19,9 @@ mysql+mysqlconnector://username:password@mysql-assembly.gibsonai.com/database_na
 
 """
 
-from memori import Memori
 from openai import OpenAI
+
+from memori import Memori
 
 # Initialize OpenAI client
 openai_client = OpenAI()

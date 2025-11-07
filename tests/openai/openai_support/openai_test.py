@@ -2,8 +2,9 @@ import os
 import sys
 import time
 
-from memori import Memori
 from openai import OpenAI
+
+from memori import Memori
 
 # Fix imports to work from any directory
 script_dir = os.path.dirname(os.path.abspath(__file__))

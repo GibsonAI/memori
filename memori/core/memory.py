@@ -692,7 +692,7 @@ class Memori:
 
             # SECURITY FIX: Use ORM methods instead of raw SQL to prevent injection
             # Check for exact match or conscious-prefixed memories
-            from sqlalchemy import or_, text
+            from sqlalchemy import or_
 
             from memori.database.models import ShortTermMemory
 
@@ -722,33 +722,33 @@ class Memori:
                 )
 
                 # Insert directly into short-term memory with conscious_context category
-                connection.execute(
-                    text(
-                        """INSERT INTO short_term_memory (
-                        memory_id, processed_data, importance_score, category_primary,
-                        retention_type, user_id, assistant_id, session_id, created_at, expires_at,
-                        searchable_content, summary, is_permanent_context
-                    ) VALUES (:memory_id, :processed_data, :importance_score, :category_primary,
-                        :retention_type, :user_id, :assistant_id, :session_id, :created_at, :expires_at,
-                        :searchable_content, :summary, :is_permanent_context)"""
-                    ),
-                    {
-                        "memory_id": short_term_id,
-                        "processed_data": processed_data,
-                        "importance_score": importance_score,
-                        "category_primary": "conscious_context",
-                        "retention_type": "permanent",
-                        "user_id": self.user_id or "default",
-                        "assistant_id": self.assistant_id,
-                        "session_id": self.session_id or "default",
-                        "created_at": datetime.now().isoformat(),
-                        "expires_at": None,
-                        "searchable_content": searchable_content,
-                        "summary": summary,
-                        "is_permanent_context": True,
-                    },
-                )
-                connection.commit()
+                # connection.execute(
+                #     text(
+                #         """INSERT INTO short_term_memory (
+                #         memory_id, processed_data, importance_score, category_primary,
+                #         retention_type, user_id, assistant_id, session_id, created_at, expires_at,
+                #         searchable_content, summary, is_permanent_context
+                #     ) VALUES (:memory_id, :processed_data, :importance_score, :category_primary,
+                #         :retention_type, :user_id, :assistant_id, :session_id, :created_at, :expires_at,
+                #         :searchable_content, :summary, :is_permanent_context)"""
+                #     ),
+                #     {
+                #         "memory_id": short_term_id,
+                #         "processed_data": processed_data,
+                #         "importance_score": importance_score,
+                #         "category_primary": "conscious_context",
+                #         "retention_type": "permanent",
+                #         "user_id": self.user_id or "default",
+                #         "assistant_id": self.assistant_id,
+                #         "session_id": self.session_id or "default",
+                #         "created_at": datetime.now().isoformat(),
+                #         "expires_at": None,
+                #         "searchable_content": searchable_content,
+                #         "summary": summary,
+                #         "is_permanent_context": True,
+                #     },
+                # )
+                # connection.commit()
 
             logger.debug(
                 f"Conscious-ingest: Copied memory {memory_id} to short-term as {short_term_id}"
@@ -2092,7 +2092,7 @@ class Memori:
 
         # Generate ID and timestamp
         chat_id = str(uuid.uuid4())
-        timestamp = datetime.now()
+        # timestamp = datetime.now()
 
         try:
             # Store conversation

@@ -25,9 +25,9 @@ Requirements
 """
 
 import agentops
+from openai import OpenAI
 
 from memori import Memori
-from openai import OpenAI
 
 # Start a trace to group related operations
 agentops.start_trace("memori_conversation_flow", tags=["memori_memory_example"])

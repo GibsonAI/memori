@@ -2,9 +2,9 @@ import asyncio
 import os
 
 import dotenv
+from openai import AsyncOpenAI
 
 from memori import Memori
-from openai import AsyncOpenAI
 
 # Load environment variables from .env file
 dotenv.load_dotenv()

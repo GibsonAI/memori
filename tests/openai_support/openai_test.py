@@ -3,8 +3,9 @@ import shutil
 import sys
 import time
 
-from memori import Memori
 from openai import OpenAI
+
+from memori import Memori
 
 # Fix imports to work from any directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -165,7 +166,7 @@ def run_openai_test_scenario(
 
     print(f"\n✓ OpenAI Test '{test_name}' completed.")
     print(f"  Database saved at: {db_path}")
-    total = max(1, len(test_inputs))  # Prevent divide-by-zero
+    # total = max(1, len(test_inputs))  # Prevent divide-by-zero
     print(
         f"  Success rate: {success_count}/{len(test_inputs)} ({100 * success_count / len(test_inputs):.1f}%)\n"
     )
