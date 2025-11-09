@@ -240,7 +240,6 @@ For detailed architecture documentation, see [docs/architecture.md](https://www.
 | Demo | Description | Live |
 |------|-------------|------|
 | [Personal Diary](./demos/personal_diary_assistant/) | Mood tracking and pattern analysis | [Try it](https://personal-diary-assistant.streamlit.app/) |
-| [Travel Planner](./demos/travel_planner/) | CrewAI travel planning with memory | - |
 | [Researcher](./demos/researcher_agent/) | Research assistant with web search | [Try it](https://researcher-agent-memori.streamlit.app/) |
 
 ---
