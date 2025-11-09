@@ -28,6 +28,11 @@
   </a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/GibsonAI/memori/stargazers">
+    <img src="https://img.shields.io/badge/⭐%20Give%20a%20Star-Support%20the%20project-orange?style=for-the-badge" alt="Give a Star">
+  </a>
+</p>
 ---
 
 ## Overview
@@ -89,7 +94,6 @@ Memori works with any SQL database you already use:
 | **MySQL** | `mysql://user:pass@localhost/memori` |
 | **Neon** | `postgresql://user:pass@ep-*.neon.tech/memori` |
 | **Supabase** | `postgresql://postgres:pass@db.*.supabase.co/postgres` |
-| **GibsonAI** | Get free instance at [app.gibsonai.com](https://app.gibsonai.com/signup) |
 
 ---
 
