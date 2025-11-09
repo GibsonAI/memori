@@ -433,14 +433,14 @@ jobs:
               
               | Scan Type | Status |
               |-----------|---------|
-              | Dependency Scan | ${needs['dependency-scan'].result === 'skipped' ? '⏭️ Skipped' : (needs['dependency-scan'].result === 'success' ? '✅ Passed' : '❌ Failed')} |
-              | Code Security | ${needs['code-security-scan'].result === 'skipped' ? '⏭️ Skipped' : (needs['code-security-scan'].result === 'success' ? '✅ Passed' : '❌ Failed')} |
-              | Secrets Scan | ${needs['secrets-scan'].result === 'skipped' ? '⏭️ Skipped' : (needs['secrets-scan'].result === 'success' ? '✅ Passed' : '❌ Failed')} |
+              | Dependency Scan | ${needs['dependency-scan'].result === 'skipped' ? '[SKIP] Skipped' : (needs['dependency-scan'].result === 'success' ? '[SUCCESS] Passed' : '[FAILED] Failed')} |
+              | Code Security | ${needs['code-security-scan'].result === 'skipped' ? '[SKIP] Skipped' : (needs['code-security-scan'].result === 'success' ? '[SUCCESS] Passed' : '[FAILED] Failed')} |
+              | Secrets Scan | ${needs['secrets-scan'].result === 'skipped' ? '[SKIP] Skipped' : (needs['secrets-scan'].result === 'success' ? '[SUCCESS] Passed' : '[FAILED] Failed')} |
               
               View detailed reports in the workflow artifacts (if available).
               
               <details>
-              <summary>🔧 Workflow Information</summary>
+              <summary>[FIX] Workflow Information</summary>
               
               - **Workflow Run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
               - **Triggered by**: ${{ github.event_name }}

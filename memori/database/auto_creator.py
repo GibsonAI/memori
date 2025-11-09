@@ -225,7 +225,7 @@ class DatabaseAutoCreator:
             if "mysql" in str(e).lower():
                 logger.error(f"MySQL database existence check failed: {e}")
                 error_msg = (
-                    "❌ MySQL driver not found for database existence check. Install one of:\n"
+                    "ERROR: MySQL driver not found for database existence check. Install one of:\n"
                     "- pip install mysql-connector-python\n"
                     "- pip install PyMySQL\n"
                     "- pip install memorisdk[mysql]"
@@ -323,7 +323,7 @@ class DatabaseAutoCreator:
         except ModuleNotFoundError as e:
             if "mysql" in str(e).lower():
                 error_msg = (
-                    "❌ MySQL driver not found for database creation. Install one of:\n"
+                    "ERROR: MySQL driver not found for database creation. Install one of:\n"
                     "- pip install mysql-connector-python\n"
                     "- pip install PyMySQL\n"
                     "- pip install memorisdk[mysql]"

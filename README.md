@@ -1,11 +1,13 @@
 [![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
 
 <p align="center">
-  <strong>An open-source SQL-Native memory engine for AI</strong>
+  <strong>An open-source SQL-Native memory engine for AI
+
+</strong>
 </p>
 
 <p align="center">
-  <i>From Postgres to MySQL, Memori plugs into the SQL databases you already use. Simple setup, infinite scale without new infrastructure.</i>
+  <i>One line of code to give any LLM persistent, queryable memory using standard SQL databases</i>
 </p>
 
 <p align="center">
@@ -16,18 +18,14 @@
     <img src="https://static.pepy.tech/badge/memorisdk" alt="Downloads">
   </a>
   <a href="https://opensource.org/license/apache-2-0">
-    <img src="https://img.shields.io/badge/license-Apache%20License%202.0-blue" alt="License: Apache 2.0">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License">
   </a>
   <a href="https://www.python.org/downloads/">
     <img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Python 3.8+">
   </a>
   <a href="https://discord.gg/abD4eGym6v">
-    <img src="https://img.shields.io/discord/1042405378304004156?logo=discord" alt="chat on Discord">
+    <img src="https://img.shields.io/discord/1042405378304004156?logo=discord" alt="Discord">
   </a>
-</p>
-
-<p align="center">
-  <a href="https://www.gibsonai.com/docs/memori">Documentation</a>
 </p>
 
 <p align="center">
@@ -40,390 +38,242 @@
 
 ## What is Memori
 
-Memori uses structured entity extraction, relationship mapping, and SQL-based retrieval to create transparent, portable, and queryable AI memory. Memori uses multiple agents working together to intelligently promote essential long-term memories to short-term storage for faster context injection.
+Memori enables any LLM to remember conversations, learn from interactions, and maintain context across sessions with a single line: `memori.enable()`. Memory is stored in standard SQL databases (SQLite, PostgreSQL, MySQL) that you fully own and control.
 
-With a single line of code `memori.enable()` any LLM gains the ability to remember conversations, learn from interactions, and maintain context across sessions. The entire memory system is stored in a standard SQLite database (or PostgreSQL/MySQL for enterprise deployments), making it fully portable, auditable, and owned by the user.
+**Why Memori?**
+- **One-line integration** - Works with OpenAI, Anthropic, LiteLLM, LangChain, and any LLM framework
+- **SQL-native storage** - Portable, queryable, and auditable memory in databases you control
+- **80-90% cost savings** - No expensive vector databases required
+- **Zero vendor lock-in** - Export your memory as SQLite and move anywhere
+- **Intelligent memory** - Automatic entity extraction, relationship mapping, and context prioritization
 
-## Key Differentiators
+[Documentation](https://www.gibsonai.com/docs/memori) | [Examples](#examples) | [Discord](https://discord.gg/abD4eGym6v)
 
-- **Radical Simplicity**: One line to enable memory for any LLM framework (OpenAI, Anthropic, LiteLLM, LangChain)
-- **True Data Ownership**: Memory stored in standard SQL databases that users fully control
-- **Complete Transparency**: Every memory decision is queryable with SQL and fully explainable
-- **Zero Vendor Lock-in**: Export your entire memory as a SQLite file and move anywhere
-- **Cost Efficiency**: 80-90% cheaper than vector database solutions at scale
-- **Compliance Ready**: SQL-based storage enables audit trails, data residency, and regulatory compliance
+---
 
-## ⚡ Quick Start
-
-Install Memori:
+## Quick Start
 
 ```bash
 pip install memorisdk
 ```
 
-### Example with OpenAI
-
-1. Install OpenAI:
-
-```bash
-pip install openai
-```
-
-2. Set OpenAI API Key:
-
-```bash
-export OPENAI_API_KEY="sk-your-openai-key-here"
-```
-
-3. Run this Python script:
-
 ```python
 from memori import Memori
 from openai import OpenAI
 
-# Initialize OpenAI client
-openai_client = OpenAI()
-
-# Initialize memory
+# Initialize
 memori = Memori(conscious_ingest=True)
 memori.enable()
 
-print("=== First Conversation - Establishing Context ===")
-response1 = openai_client.chat.completions.create(
+client = OpenAI()
+
+# First conversation
+response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[{
-        "role": "user", 
-        "content": "I'm working on a Python FastAPI project"
-    }]
+    messages=[{"role": "user", "content": "I'm building a FastAPI project"}]
 )
 
-print("Assistant:", response1.choices[0].message.content)
-print("\n" + "="*50)
-print("=== Second Conversation - Memory Provides Context ===")
-
-response2 = openai_client.chat.completions.create(
-    model="gpt-4o-mini", 
-    messages=[{
-        "role": "user",
-        "content": "Help me add user authentication"
-    }]
+# Later conversation - Memori automatically provides context
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Help me add authentication"}]
 )
-print("Assistant:", response2.choices[0].message.content)
-print("\n💡 Notice: Memori automatically knows about your FastAPI Python project!")
+# LLM automatically knows about your FastAPI project
 ```
+
 
 ---
 
-⭐️ **Enjoying Memori?** Give us a star to support open development
+## Database Support
 
-> By default, Memori uses in-memory SQLite database. Get **FREE** serverless database instance in [GibsonAI](https://app.gibsonai.com/signup) platform.
+Memori works with any SQL database you already use:
 
-**🚀 Ready to explore more?**
-- [📖 Examples](#examples) - Basic usage patterns and code samples
-- [🔌 Framework Integrations](#framework-integrations) - LangChain, Agno & CrewAI examples  
-- [🎮 Interactive Demos](#interactive-demos) - Live applications & tutorials
+| Database | Connection String Example |
+|----------|--------------------------|
+| **SQLite** | `sqlite:///my_memory.db` |
+| **PostgreSQL** | `postgresql://user:pass@localhost/memori` |
+| **MySQL** | `mysql://user:pass@localhost/memori` |
+| **Neon** | `postgresql://user:pass@ep-*.neon.tech/memori` |
+| **Supabase** | `postgresql://postgres:pass@db.*.supabase.co/postgres` |
 
 ---
 
-## 🧠 How It Works
+## LLM Framework Support
 
-### 1. **Universal Recording**
-```python
-office_work.enable()  # Records ALL LLM conversations automatically
-```
+Works with any LLM framework through LiteLLM's native callback system:
 
-### 2. **Intelligent Processing**
-- **Entity Extraction**: Extracts people, technologies, projects
-- **Smart Categorization**: Facts, preferences, skills, rules
-- **Pydantic Validation**: Structured, type-safe memory storage
+| Framework | Status | Usage |
+|-----------|--------|-------|
+| **OpenAI** | ✓ Native | `from openai import OpenAI` |
+| **Anthropic** | ✓ Native | `from anthropic import Anthropic` |
+| **LiteLLM** | ✓ Native | `from litellm import completion` |
+| **LangChain** | ✓ Supported | Use with LiteLLM integration |
+| **Azure OpenAI** | ✓ Supported | Configure with `ProviderConfig.from_azure()` |
+| **100+ Models** | ✓ Supported | Any LiteLLM-compatible provider |
 
-### 3. **Dual Memory Modes**
+---
 
-#### **🧠 Conscious Mode** - Short-Term Working Memory
-```python
-conscious_ingest=True  # One-shot short-term memory injection
-```
-- **At Startup**: Conscious agent analyzes long-term memory patterns
-- **Memory Promotion**: Moves essential conversations to short-term storage
-- **One-Shot Injection**: Injects working memory once at conversation start
-- **Like Human Short-Term Memory**: Names, current projects, preferences readily available
+## Configuration
 
-#### **🔍 Auto Mode** - Dynamic Database Search
-```python
-auto_ingest=True  # Continuous intelligent memory retrieval
-```
-- **Every LLM Call**: Retrieval agent analyzes user query intelligently
-- **Full Database Search**: Searches through entire memory database
-- **Context-Aware**: Injects relevant memories based on current conversation
-- **Performance Optimized**: Caching, async processing, background threads
+### Persistent Storage
 
-## 🧠 Memory Modes Explained
-
-### **Conscious Mode** - Short-Term Working Memory
-```python
-# Mimics human conscious memory - essential info readily available
-memori = Memori(
-    database_connect="sqlite:///my_memory.db",
-    conscious_ingest=True,  # 🧠 Short-term working memory
-    openai_api_key="sk-..."
-)
-```
-
-**How Conscious Mode Works:**
-1. **At Startup**: Conscious agent analyzes long-term memory patterns
-2. **Essential Selection**: Promotes 5-10 most important conversations to short-term
-3. **One-Shot Injection**: Injects this working memory once at conversation start
-4. **No Repeats**: Won't inject again during the same session
-
-### **Auto Mode** - Dynamic Intelligent Search
-```python
-# Searches entire database dynamically based on user queries
-memori = Memori(
-    database_connect="sqlite:///my_memory.db", 
-    auto_ingest=True,  # 🔍 Smart database search
-    openai_api_key="sk-..."
-)
-```
-
-**How Auto Mode Works:**
-1. **Every LLM Call**: Retrieval agent analyzes user input
-2. **Query Planning**: Uses AI to understand what memories are needed
-3. **Smart Search**: Searches through entire database (short-term + long-term)
-4. **Context Injection**: Injects 3-5 most relevant memories per call
-
-### **Combined Mode** - Best of Both Worlds
-```python
-# Get both working memory AND dynamic search
-memori = Memori(
-    conscious_ingest=True,  # Working memory once
-    auto_ingest=True,       # Dynamic search every call
-    openai_api_key="sk-..."
-)
-```
-
-### **Intelligence Layers:**
-
-1. **Memory Agent** - Processes every conversation with Pydantic structured outputs
-2. **Conscious Agent** - Analyzes patterns, promotes long-term → short-term memories
-3. **Retrieval Agent** - Intelligently searches and selects relevant context
-
-### **What gets prioritized in Conscious Mode:**
-- 👤 **Personal Identity**: Your name, role, location, basic info
-- ❤️ **Preferences & Habits**: What you like, work patterns, routines
-- 🛠️ **Skills & Tools**: Technologies you use, expertise areas
-- 📊 **Current Projects**: Ongoing work, learning goals
-- 🤝 **Relationships**: Important people, colleagues, connections
-- 🔄 **Repeated References**: Information you mention frequently
-
-## 🗄️ Memory Types
-
-| Type | Purpose | Example | Auto-Promoted |
-|------|---------|---------|---------------|
-| **Facts** | Objective information | "I use PostgreSQL for databases" | ✅ High frequency |
-| **Preferences** | User choices | "I prefer clean, readable code" | ✅ Personal identity |
-| **Skills** | Abilities & knowledge | "Experienced with FastAPI" | ✅ Expertise areas |
-| **Rules** | Constraints & guidelines | "Always write tests first" | ✅ Work patterns |
-| **Context** | Session information | "Working on e-commerce project" | ✅ Current projects |
-
-## 🔧 Configuration
-
-### Simple Setup
 ```python
 from memori import Memori
 
-# Conscious mode - Short-term working memory
 memori = Memori(
-    database_connect="sqlite:///my_memory.db",
-    template="basic", 
-    conscious_ingest=True,  # One-shot context injection
-    conscious_memory_limit=100,  # Must be an integer between 1 and 500
+    database_connect="postgresql://user:pass@localhost/memori",
+    conscious_ingest=True,  # Short-term working memory
+    auto_ingest=True,       # Dynamic search per query
     openai_api_key="sk-..."
 )
-
-# Auto mode - Dynamic database search
-memori = Memori(
-    database_connect="sqlite:///my_memory.db",
-    auto_ingest=True,  # Continuous memory retrieval
-    openai_api_key="sk-..."
-)
-
-# Combined mode - Best of both worlds
-memori = Memori(
-    conscious_ingest=True,  # Working memory + 
-    auto_ingest=True,       # Dynamic search
-    openai_api_key="sk-..."
-)
+memori.enable()
 ```
 
-### Advanced Configuration
+### Memory Modes
+
+**Conscious Mode** - One-shot working memory injection
+```python
+memori = Memori(conscious_ingest=True)
+```
+
+**Auto Mode** - Dynamic search per query
+```python
+memori = Memori(auto_ingest=True)
+```
+
+**Combined Mode** - Best of both
+```python
+memori = Memori(conscious_ingest=True, auto_ingest=True)
+```
+
+### Using ConfigManager
+
 ```python
 from memori import Memori, ConfigManager
 
-# Load from memori.json or environment
 config = ConfigManager()
-config.auto_load()
+config.auto_load()  # Loads from environment or config files
 
 memori = Memori()
 memori.enable()
 ```
 
-Create `memori.json`:
-```json
-{
-  "database": {
-    "connection_string": "postgresql://user:pass@localhost/memori"
-  },
-  "agents": {
-    "openai_api_key": "sk-...",
-    "conscious_ingest": true,
-    "auto_ingest": false
-  },
-  "memory": {
-    "namespace": "my_project",
-    "retention_policy": "30_days"
-  }
-}
+Set environment variables:
+```bash
+export MEMORI_DATABASE__CONNECTION_STRING="postgresql://..."
+export MEMORI_AGENTS__OPENAI_API_KEY="sk-..."
+export MEMORI_MEMORY__NAMESPACE="production"
 ```
-
-## 🔌 Universal Integration
-
-Works with **ANY** LLM library:
-
-```python
-memori.enable()  # Enable universal recording
-
-# OpenAI
-from openai import OpenAI
-client = OpenAI()
-client.chat.completions.create(...)
-
-# LiteLLM
-from litellm import completion
-completion(model="gpt-4", messages=[...])
-
-# Anthropic  
-import anthropic
-client = anthropic.Anthropic()
-client.messages.create(...)
-
-# All automatically recorded and contextualized!
-```
-
-## 🛠️ Memory Management
-
-### **Automatic Background Analysis**
-```python
-# Automatic analysis every 6 hours (when conscious_ingest=True)
-memori.enable()  # Starts background conscious agent
-
-# Manual analysis trigger
-memori.trigger_conscious_analysis()
-
-# Get essential conversations
-essential = memori.get_essential_conversations(limit=5)
-```
-
-### **Memory Retrieval Tools**
-```python
-from memori.tools import create_memory_tool
-
-# Create memory search tool for your LLM
-memory_tool = create_memory_tool(memori)
-
-# Use in function calling
-tools = [memory_tool]
-completion(model="gpt-4", messages=[...], tools=tools)
-```
-
-### **Context Control**
-```python
-# Get relevant context for a query
-context = memori.retrieve_context("Python testing", limit=5)
-# Returns: 3 essential + 2 specific memories
-
-# Search by category
-skills = memori.search_memories_by_category("skill", limit=10)
-
-# Get memory statistics
-stats = memori.get_memory_stats()
-```
-
-## 📋 Database Schema
-
-```sql
--- Core tables created automatically
-chat_history        # All conversations
-short_term_memory   # Recent context (expires)
-long_term_memory    # Permanent insights  
-rules_memory        # User preferences
-memory_entities     # Extracted entities
-memory_relationships # Entity connections
-```
-
-## 📁 Project Structure
-
-```
-memori/
-├── core/           # Main Memori class, database manager
-├── agents/         # Memory processing with Pydantic  
-├── database/       # SQLite/PostgreSQL/MySQL support
-├── integrations/   # LiteLLM, OpenAI, Anthropic
-├── config/         # Configuration management
-├── utils/          # Helpers, validation, logging
-└── tools/          # Memory search tools
-```
-
-## Examples
-
-- **[Basic Usage](./examples/basic_usage.py)** - Simple memory setup with conscious ingestion
-- **[Personal Assistant](./examples/personal_assistant.py)** - AI assistant with intelligent memory
-- **[Memory Retrieval](./memory_retrival_example.py)** - Function calling with memory tools
-- **[Advanced Config](./examples/advanced_config.py)** - Production configuration
-- **[Interactive Demo](./memori_example.py)** - Live conscious ingestion showcase
-- **[Simple Multi-User](./examples/multiple-users/simple_multiuser.py)** - Basic demonstration of user memory isolation with namespaces
-- **[FastAPI Multi-User App](./examples/multiple-users/fastapi_multiuser_app.py)** - Full-featured REST API with Swagger UI for testing multi-user functionality
-
-## Framework Integrations
-
-Memori works seamlessly with popular AI frameworks:
-
-| Framework | Description | Example |
-|-----------|-------------|---------|
-| [AgentOps](./examples/integrations/agentops_example.py) | Track and monitor Memori memory operations with comprehensive observability | Memory operation tracking with AgentOps analytics |
-| [Agno](./examples/integrations/agno_example.py) | Memory-enhanced agent framework integration with persistent conversations | Simple chat agent with memory search |
-| [AWS Strands](./examples/integrations/aws_strands_example.py) | Professional development coach with Strands SDK and persistent memory | Career coaching agent with goal tracking |
-| [Azure AI Foundry](./examples/integrations/azure_ai_foundry_example.py) | Azure AI Foundry agents with persistent memory across conversations | Enterprise AI agents with Azure integration |
-| [AutoGen](./examples/integrations/autogen_example.py) |  Multi-agent group chat memory recording | Agent chats with memory integration |
-| [CamelAI](./examples/integrations/camelai_example.py) | Multi-agent communication framework with automatic memory recording and retrieval | Memory-enhanced chat agents with conversation continuity |
-| [CrewAI](./examples/integrations/crewai_example.py) | Multi-agent system with shared memory across agent interactions | Collaborative agents with memory |
-| [Digital Ocean AI](./examples/integrations/digital_ocean_example.py) | Memory-enhanced customer support using Digital Ocean's AI platform | Customer support assistant with conversation history |
-| [LangChain](./examples/integrations/langchain_example.py) | Enterprise-grade agent framework with advanced memory integration | AI assistant with LangChain tools and memory |
-| [OpenAI Agent](./examples/integrations/openai_agent_example.py) | Memory-enhanced OpenAI Agent with function calling and user preference tracking | Interactive assistant with memory search and user info storage |
-| [Swarms](./examples/integrations/swarms_example.py) | Multi-agent system framework with persistent memory capabilities | Memory-enhanced Swarms agents with auto/conscious ingestion |
-
-## Interactive Demos
-
-Explore Memori's capabilities through these interactive demonstrations:
-
-| Title | Description | Tools Used | Live Demo |
-|------------|-------------|------------|-----------|
-| 🌟 [Personal Diary Assistant](./demos/personal_diary_assistant/) | A comprehensive diary assistant with mood tracking, pattern analysis, and personalized recommendations. | Streamlit, LiteLLM, OpenAI, SQLite | [Run Demo](https://personal-diary-assistant.streamlit.app/) |
-| 🌍 [Travel Planner Agent](./demos/travel_planner/) | Intelligent travel planning with CrewAI agents, real-time web search, and memory-based personalization. Plans complete itineraries with budget analysis. | CrewAI, Streamlit, OpenAI, SQLite |  |
-| 🧑‍🔬 [Researcher Agent](./demos/researcher_agent/) | Advanced AI research assistant with persistent memory, real-time web search, and comprehensive report generation. Builds upon previous research sessions. | Agno, Streamlit, OpenAI, ExaAI, SQLite | [Run Demo](https://researcher-agent-memori.streamlit.app/) |
-
-## 🤝 Contributing
-
-- See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
-- Community: [Discord](https://discord.gg/abD4eGym6v)
-
-## ⭐️ Star us on GitHub to support the project 
-
-[![Star History Chart](https://api.star-history.com/svg?repos=GibsonAI/memori&type=date&legend=top-left)](https://www.star-history.com/#GibsonAI/memori&type=date&legend=top-left)
-
-## 📄 License
-
-Apache 2.0 License - see [LICENSE](./LICENSE) for details.
 
 ---
 
-*Made for developers who want their AI agents to remember and learn*
+## Architecture Overview
+
+Memori works by **intercepting** LLM calls - injecting context before the call and recording after:
+
+```mermaid
+graph LR
+    A[Your App] -->|1. client.chat.completions.create| B[Memori Interceptor]
+    B -->|2. Get Context| C[(SQL Database)]
+    C -->|3. Relevant Memories| B
+    B -->|4. Inject Context + Call| D[OpenAI/Anthropic/etc]
+    D -->|5. Response| B
+    B -->|6. Extract & Store| C
+    B -->|7. Return Response| A
+
+    E[Conscious Agent] -.->|Background: Analyze & Promote| C
+```
+
+### How It Works
+
+**Pre-Call (Context Injection)**
+
+1. Your app calls `client.chat.completions.create(messages=[...])`
+2. Memori intercepts the call transparently
+3. **Retrieval Agent** (auto mode) or **Conscious Agent** (conscious mode) retrieves relevant memories
+4. Context injected into messages before sending to the LLM provider
+
+**Post-Call (Recording)**
+
+5. LLM provider returns response
+6. **Memory Agent** extracts entities, categorizes (facts, preferences, skills, rules, context)
+7. Conversation stored in SQL database with full-text search indexes
+8. Original response returned to your app
+
+**Background (every 6 hours)**
+
+- **Conscious Agent** analyzes patterns and promotes essential memories from long-term to short-term storage
+
+For detailed architecture documentation, see [docs/architecture.md](https://www.gibsonai.com/docs/memori/architecture).
+
+---
+
+## Examples
+
+**Basic Examples**
+- [Basic Usage](./examples/basic_usage.py) - Simple memory setup
+- [Personal Assistant](./examples/personal_assistant.py) - AI assistant with memory
+- [Memory Retrieval](./memory_retrival_example.py) - Function calling
+- [Advanced Config](./examples/advanced_config.py) - Production setup
+
+**Multi-User**
+- [Simple Multi-User](./examples/multiple-users/simple_multiuser.py) - User memory isolation
+- [FastAPI Multi-User App](./examples/multiple-users/fastapi_multiuser_app.py) - REST API with Swagger
+
+---
+
+## Framework Integrations
+
+| Framework | Description |
+|-----------|-------------|
+| [AgentOps](./examples/integrations/agentops_example.py) | Memory operation tracking with observability |
+| [Agno](./examples/integrations/agno_example.py) | Agent framework with persistent conversations |
+| [AWS Strands](./examples/integrations/aws_strands_example.py) | Strands SDK with persistent memory |
+| [Azure AI Foundry](./examples/integrations/azure_ai_foundry_example.py) | Enterprise AI agents with Azure |
+| [AutoGen](./examples/integrations/autogen_example.py) | Multi-agent group chat memory |
+| [CamelAI](./examples/integrations/camelai_example.py) | Multi-agent communication framework |
+| [CrewAI](./examples/integrations/crewai_example.py) | Multi-agent shared memory |
+| [Digital Ocean AI](./examples/integrations/digital_ocean_example.py) | Customer support with history |
+| [LangChain](./examples/integrations/langchain_example.py) | Enterprise agent framework |
+| [OpenAI Agent](./examples/integrations/openai_agent_example.py) | Function calling with preferences |
+| [Swarms](./examples/integrations/swarms_example.py) | Multi-agent persistent memory |
+
+---
+
+## Interactive Demos
+
+| Demo | Description | Live |
+|------|-------------|------|
+| [Personal Diary](./demos/personal_diary_assistant/) | Mood tracking and pattern analysis | [Try it](https://personal-diary-assistant.streamlit.app/) |
+| [Researcher](./demos/researcher_agent/) | Research assistant with web search | [Try it](https://researcher-agent-memori.streamlit.app/) |
+
+---
+
+## Contributing
+
+We welcome contributions from the community! Please see our [Contributing Guidelines](./CONTRIBUTING.md) for details on:
+
+- Setting up your development environment
+- Code style and standards
+- Submitting pull requests
+- Reporting issues
+
+---
+
+## Support
+
+- **Documentation**: [https://www.gibsonai.com/docs/memori](https://www.gibsonai.com/docs/memori)
+- **Discord**: [https://discord.gg/abD4eGym6v](https://discord.gg/abD4eGym6v)
+- **Issues**: [GitHub Issues](https://github.com/GibsonAI/memori/issues)
+
+---
+
+## License
+
+Apache 2.0 - see [LICENSE](./LICENSE)
+
+---
+
+**Star us on GitHub** to support the project
+
+[![Star History](https://api.star-history.com/svg?repos=GibsonAI/memori&type=date)](https://star-history.com/#GibsonAI/memori)

@@ -47,7 +47,7 @@ jobs:
 
       - name: Check current dependencies
         run: |
-          echo "📋 Current dependencies:"
+          echo "[INFO] Current dependencies:"
           if [[ -f "pyproject.toml" ]]; then
             echo "Found pyproject.toml"
             cat pyproject.toml
@@ -60,7 +60,7 @@ jobs:
       - name: Update dependencies with pip-tools
         if: hashFiles('requirements.in') != ''
         run: |
-          echo "🔄 Updating dependencies with pip-tools..."
+          echo "[SYNC] Updating dependencies with pip-tools..."
           pip-compile requirements.in --upgrade
           if [[ -f "requirements-dev.in" ]]; then
             pip-compile requirements-dev.in --upgrade
@@ -69,7 +69,7 @@ jobs:
       - name: Update dependencies with Poetry
         if: hashFiles('poetry.lock') != ''
         run: |
-          echo "🔄 Updating dependencies with Poetry..."
+          echo "[SYNC] Updating dependencies with Poetry..."
           UPDATE_TYPE="${{ github.event.inputs.update_type || 'minor' }}"
           
           case $UPDATE_TYPE in

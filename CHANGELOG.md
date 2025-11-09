@@ -7,31 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.3.0] - 2025-09-29
 
-### 🚀 **Major Performance Improvements**
+### [NEW] **Major Performance Improvements**
 
 **Feature Release**: Revolutionary 10x speed improvement in conscious memory initialization with enhanced safety and compatibility.
 
-#### ⚡ **Conscious Memory Performance Revolution**
+#### [IMPROVE] **Conscious Memory Performance Revolution**
 - **10x Faster Initialization**: Reduced conscious memory startup time from 10+ seconds to <1 second
 - **Session-Based Caching**: Intelligent caching prevents redundant re-initialization within sessions
 - **NEW FEATURE - Configurable Memory Limits**: Added `conscious_memory_limit` parameter (default: 10) for customizable performance tuning
 - **Smart Pre-Check Optimization**: COUNT(*) queries skip expensive processing when memories already exist
 - **Optimized Duplicate Detection**: Enhanced memory_id pattern matching for faster duplicate prevention
 
-#### 🛡️ **Enhanced Safety & Compatibility**
+#### [SECURITY] **Enhanced Safety & Compatibility**
 - **Thread Safety**: Added threading locks for safe concurrent usage in multi-threaded applications
 - **Namespace Isolation**: Namespace-specific initialization prevents conflicts between multiple instances
 - **Parameter Validation**: Comprehensive input validation prevents runtime crashes from invalid parameters
 - **Database Compatibility**: Cross-database compatibility improvements for SQLite, MySQL, PostgreSQL, and MongoDB
 - **Backward Compatibility**: 100% backward compatible - existing code works without changes
 
-#### 🔧 **Technical Enhancements**
+#### [FIX] **Technical Enhancements**
 - **ConsciouscAgent Integration**: Updated async/sync initialization paths for consistent behavior
 - **Structured Logging**: Enhanced logging with [CONSCIOUS] tags for better debugging
 - **Code Quality**: Fixed all linting, formatting, and type checking issues
 - **CI/CD Ready**: All GitHub workflow checks pass (Black, isort, Ruff, mypy, Bandit, Safety)
 
-#### 📊 **Performance Metrics**
+#### [STATS] **Performance Metrics**
 - **First initialization**: <0.001s (previously 10+ seconds)
 - **Cached calls**: <0.0001s with 99%+ cache hit rate
 - **Memory usage**: 90% reduction through optimized processing
@@ -41,17 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.1] - 2025-09-23
 
-### 🐛 **Bug Fixes**
+### [BUG] **Bug Fixes**
 
 **Patch Release**: Fixed hostname resolution issues with MongoDB Atlas connections using modern mongodb+srv:// format.
 
-#### 🔧 **MongoDB Atlas Connection Fixes**
+#### [FIX] **MongoDB Atlas Connection Fixes**
 - **Fixed DNS Resolution Warnings**: Resolved hostname resolution warnings when connecting to MongoDB Atlas using mongodb+srv:// URIs
 - **Improved SRV URI Parsing**: Enhanced connection string parsing logic to properly handle DNS seedlist discovery
 - **Better Error Handling**: Added proper exception handling for server topology inspection
 - **Type Safety**: Fixed MyPy type checking errors for conditional MongoDB imports
 
-#### 🔧 **Technical Improvements**
+#### [FIX] **Technical Improvements**
 - Fixed hostname parsing logic in `mongodb_connector.py` and `mongodb_manager.py`
 - Added proper SRV URI detection to skip unnecessary DNS resolution attempts
 - Enhanced error handling for server descriptions without address attributes
@@ -61,11 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2025-09-22
 
-### 🚀 **MongoDB Integration Support**
+### [NEW] **MongoDB Integration Support**
 
 **Minor Release**: Added comprehensive MongoDB support as an alternative database backend alongside existing SQLite, PostgreSQL, and MySQL support.
 
-#### ✨ **New Database Backend**
+#### [FEATURE] **New Database Backend**
 
 **🍃 MongoDB Support**
 - **Native MongoDB Integration**: Full support for MongoDB as a document-based memory storage backend
@@ -73,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Production Ready**: Includes connection pooling, error handling, and performance optimizations
 - **Drop-in Replacement**: Seamless integration with existing Memori API
 
-#### 🔧 **Enhanced Database Architecture**
+#### [FIX] **Enhanced Database Architecture**
 
 **Multi-Database Support**
 ```python
@@ -89,7 +89,7 @@ memori = Memori(
 - **PyMongo**: MongoDB driver for Python (`pymongo>=4.0.0`)
 - **Optional Installation**: Available as `pip install memorisdk[mongodb]`
 
-#### 🏗️ **Implementation Details**
+#### [ARCH] **Implementation Details**
 
 **MongoDB Connector**
 - **Connection Management**: Robust MongoDB connection handling with automatic reconnection
@@ -97,14 +97,14 @@ memori = Memori(
 - **Document Schema**: Optimized document structure for memory storage and retrieval
 - **Query Optimization**: Efficient aggregation pipelines for memory search
 
-#### 📚 **Documentation & Examples**
+#### [DOCS] **Documentation & Examples**
 
 **New Examples**
 - **MongoDB Integration Examples**: Complete examples showcasing MongoDB backend usage
 - **Migration Guides**: Documentation for switching between database backends
 - **Configuration Examples**: MongoDB-specific configuration patterns
 
-#### 🎯 **Use Cases**
+#### [TARGET] **Use Cases**
 
 **MongoDB Perfect For:**
 - **Document-based Storage**: Natural fit for flexible memory document storage
@@ -112,7 +112,7 @@ memori = Memori(
 - **Cloud Deployments**: Easy integration with MongoDB Atlas and cloud services
 - **JSON-native Applications**: Applications already using JSON/document paradigms
 
-#### 🛠️ **Developer Experience**
+#### [TOOLS] **Developer Experience**
 
 **Enhanced Configuration**
 ```json
@@ -134,11 +134,11 @@ memori = Memori(
 
 ## [1.2.0] - 2025-08-03
 
-### 🚀 **Dual-Mode Memory System - Revolutionary Architecture**
+### [NEW] **Dual-Mode Memory System - Revolutionary Architecture**
 
 **Major Release**: Complete overhaul of memory injection system with two distinct modes - Conscious short-term memory and Auto dynamic search.
 
-#### ✨ **New Memory Modes**
+#### [FEATURE] **New Memory Modes**
 
 **🧠 Conscious Mode (`conscious_ingest=True`)**
 - **Short-Term Working Memory**: Mimics human conscious memory with essential info readily available
@@ -154,12 +154,12 @@ memori = Memori(
 - **Performance Optimized**: Caching, async processing, background threading
 - **Full Coverage**: Searches both short-term and long-term memory databases
 
-**⚡ Combined Mode (`conscious_ingest=True, auto_ingest=True`)**
+**[IMPROVE] Combined Mode (`conscious_ingest=True, auto_ingest=True`)**
 - **Best of Both Worlds**: Working memory foundation + dynamic search capability
 - **Layered Context**: Essential memories + query-specific memories
 - **Maximum Intelligence**: Comprehensive memory utilization
 
-#### 🔧 **API Changes**
+#### [FIX] **API Changes**
 
 **New Parameters**
 ```python
@@ -175,7 +175,7 @@ memori = Memori(
 - **Auto**: Query analysis → Database search → Context injection per call
 - **Combined**: Startup analysis + Per-call search
 
-#### 🏗️ **Architecture Improvements**
+#### [ARCH] **Architecture Improvements**
 
 **Enhanced Agents**
 - **Conscious Agent**: Smarter long-term → short-term memory promotion
@@ -188,7 +188,7 @@ memori = Memori(
 - **Background Threading**: Non-blocking search execution
 - **Thread Safety**: Proper locking mechanisms for concurrent access
 
-#### 📚 **Documentation & Examples**
+#### [DOCS] **Documentation & Examples**
 
 **Updated Examples**
 - **`memori_example.py`**: Complete conscious-ingest demonstration with detailed comments
@@ -200,7 +200,7 @@ memori = Memori(
 - **Mode Comparisons**: Clear distinctions between conscious vs auto modes
 - **Configuration Examples**: All possible mode combinations
 
-#### 🎯 **Use Cases**
+#### [TARGET] **Use Cases**
 
 **Conscious Mode Perfect For:**
 - Personal assistants needing user context
@@ -219,7 +219,7 @@ memori = Memori(
 - Maximum context utilization scenarios
 - Professional applications requiring both background and specific context
 
-#### 🛠️ **Developer Experience**
+#### [TOOLS] **Developer Experience**
 
 **Simplified Configuration**
 ```json
@@ -237,7 +237,7 @@ memori = Memori(
 - Performance metrics for caching and search
 - Background processing status updates
 
-#### ⚡ **Breaking Changes**
+#### [IMPROVE] **Breaking Changes**
 
 **Behavioral Changes**
 - `conscious_ingest=True` now works differently (one-shot vs continuous)
@@ -254,7 +254,7 @@ memori = Memori(
 
 Major improvements to the intelligent memory processing and context injection system.
 
-#### ✨ New Features
+#### [FEATURE] New Features
 
 **Conscious Agent System**
 - **Background Analysis**: Automatic analysis of long-term memory patterns every 6 hours
@@ -274,7 +274,7 @@ Major improvements to the intelligent memory processing and context injection sy
 - **Entity Relationship Mapping**: Enhanced entity extraction and relationship tracking
 - **Advanced Categorization**: Improved classification of facts, preferences, skills, context, and rules
 
-#### 🔧 API Enhancements
+#### [FIX] API Enhancements
 
 **Conscious Ingestion Control**
 ```python
@@ -290,7 +290,7 @@ memori = Memori(
 - `trigger_conscious_analysis()` - Manually trigger background analysis
 - `retrieve_context()` - Enhanced context retrieval with essential memory priority
 
-#### 📊 Background Processing
+#### [STATS] Background Processing
 
 **Conscious Agent Features**
 - **Automated Analysis**: Runs every 6 hours to analyze memory patterns
@@ -298,7 +298,7 @@ memori = Memori(
 - **Memory Promotion**: Automatically promotes essential conversations to short-term memory
 - **Analysis Reasoning**: Detailed reasoning for memory selection decisions
 
-#### 🎯 Context Injection Improvements
+#### [TARGET] Context Injection Improvements
 
 **Essential Memory Integration**
 - Essential conversations always included in context
@@ -306,7 +306,7 @@ memori = Memori(
 - Category-based context prioritization
 - Improved relevance scoring for memory selection
 
-#### 🛠️ Developer Experience
+#### [TOOLS] Developer Experience
 
 **Enhanced Examples**
 - Updated `memori_example.py` with conscious ingestion showcase
@@ -315,18 +315,18 @@ memori = Memori(
 
 ## [1.0.0] - 2025-08-03
 
-### 🎉 **Production-Ready Memory Layer for AI Agents**
+### [RELEASE] **Production-Ready Memory Layer for AI Agents**
 
 Complete professional-grade memory system with modular architecture, comprehensive error handling, and configuration management.
 
-### ✨ Core Features
+### [FEATURE] Core Features
 - **Universal LLM Integration**: Works with ANY LLM library (LiteLLM, OpenAI, Anthropic)
 - **Pydantic-based Intelligence**: Structured memory processing with validation
 - **Automatic Context Injection**: Relevant memories automatically added to conversations
 - **Multiple Memory Types**: Short-term, long-term, rules, and entity relationships
 - **Advanced Search**: Full-text search with semantic ranking
 
-### 🏗️ Architecture
+### [ARCH] Architecture
 - **Modular Design**: Separated concerns with clear component boundaries
 - **SQL Query Centralization**: Dedicated query modules for maintainability
 - **Configuration Management**: Pydantic-based settings with auto-loading
@@ -339,13 +339,13 @@ Complete professional-grade memory system with modular architecture, comprehensi
 - **Schema Management**: Version-controlled migrations and templates
 - **Full-Text Search**: FTS5 support for advanced text search
 
-### 🔧 Developer Experience
+### [FIX] Developer Experience
 - **Type Safety**: Full Pydantic validation throughout
 - **Simple API**: One-line enablement with `memori.enable()`
 - **Flexible Configuration**: File, environment, or programmatic setup
 - **Rich Examples**: Basic usage, personal assistant, advanced config
 
-### 📊 Memory Processing
+### [STATS] Memory Processing
 - **Entity Extraction**: People, technologies, projects, skills
 - **Smart Categorization**: Facts, preferences, skills, rules, context
 - **Importance Scoring**: Multi-dimensional relevance assessment
@@ -356,7 +356,7 @@ Complete professional-grade memory system with modular architecture, comprehensi
 - **OpenAI/Anthropic**: Clean wrapper classes for direct usage
 - **Tool Support**: Memory search tools for function calling
 
-### 🛡️ Security & Reliability
+### [SECURITY] Security & Reliability
 - **Input Sanitization**: Protection against injection attacks
 - **Error Context**: Detailed error information without exposing secrets
 - **Graceful Degradation**: Continues operation when components fail
@@ -374,13 +374,13 @@ memori/
 └── tools/             # Memory search and retrieval tools
 ```
 
-### 🎯 Philosophy Alignment
+### [TARGET] Philosophy Alignment
 - **Second-memory for LLM work**: Never repeat context again
 - **Flexible database connections**: Production-ready adapters
 - **Simple, reliable architecture**: Just works out of the box
 - **Conscious context injection**: Intelligent memory retrieval
 
-### ⚡ Quick Start
+### [IMPROVE] Quick Start
 ```python
 from memori import Memori
 
@@ -396,7 +396,7 @@ from litellm import completion
 response = completion(model="gpt-4", messages=[...])
 ```
 
-### 📚 Documentation
+### [DOCS] Documentation
 - Clean, focused README aligned with project vision
 - Essential examples without complexity bloat
 - Configuration guides for development and production

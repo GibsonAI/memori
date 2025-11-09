@@ -977,7 +977,7 @@ def smart_memory_search(query: str, memori_instance, limit: int = 5) -> str:
             return f"No relevant memories found for query: '{query}'"
 
         # Format results as a readable string
-        output = f"🔍 Smart Memory Search Results for: '{query}'\n\n"
+        output = f"Smart Memory Search Results for: '{query}'\n\n"
 
         for i, result in enumerate(results, 1):
             try:
@@ -1016,11 +1016,11 @@ def smart_memory_search(query: str, memori_instance, limit: int = 5) -> str:
                 search_reasoning = result.get("search_reasoning", "")
 
                 output += f"{i}. [{category.upper()}] {summary}\n"
-                output += f"   📊 Importance: {importance:.2f} | 📅 {created_at}\n"
-                output += f"   🔍 Strategy: {search_strategy}\n"
+                output += f"   Importance: {importance:.2f} | Created: {created_at}\n"
+                output += f"   Strategy: {search_strategy}\n"
 
                 if search_reasoning:
-                    output += f"   🎯 {search_reasoning}\n"
+                    output += f"   Reason: {search_reasoning}\n"
 
                 output += "\n"
 

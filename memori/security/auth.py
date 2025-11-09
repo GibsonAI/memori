@@ -126,7 +126,7 @@ class NoAuthProvider(AuthProvider):
 
     def __init__(self):
         logger.warning(
-            "⚠️  NoAuthProvider is being used - ALL ACCESS IS ALLOWED! "
+            "WARNING: NoAuthProvider is being used - ALL ACCESS IS ALLOWED! "
             "This should ONLY be used in development. "
             "Use a proper AuthProvider in production!"
         )

@@ -17,6 +17,7 @@ from sqlalchemy import create_engine, func, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
+from ..config.pool_config import pool_config
 from ..utils.exceptions import DatabaseError
 from ..utils.pydantic_models import (
     ProcessedLongTermMemory,
@@ -40,11 +41,11 @@ class SQLAlchemyDatabaseManager:
         database_connect: str,
         template: str = "basic",
         schema_init: bool = True,
-        pool_size: int = 5,  # Updated from 2 to 5 for better multi-agent support
-        max_overflow: int = 10,  # Updated from 3 to 10 for production workloads
-        pool_timeout: int = 30,
-        pool_recycle: int = 3600,
-        pool_pre_ping: bool = True,
+        pool_size: int = pool_config.DEFAULT_POOL_SIZE,  # Centralized configuration
+        max_overflow: int = pool_config.DEFAULT_MAX_OVERFLOW,  # Centralized configuration
+        pool_timeout: int = pool_config.DEFAULT_POOL_TIMEOUT,
+        pool_recycle: int = pool_config.DEFAULT_POOL_RECYCLE,
+        pool_pre_ping: bool = pool_config.DEFAULT_POOL_PRE_PING,
     ):
         self.database_connect = database_connect
         self.template = template
@@ -111,7 +112,7 @@ class SQLAlchemyDatabaseManager:
 
             if not mysql_drivers:
                 error_msg = (
-                    "❌ No MySQL driver found. Install one of the following:\n\n"
+                    "ERROR: No MySQL driver found. Install one of the following:\n\n"
                     "Option 1 (Recommended): pip install mysql-connector-python\n"
                     "Option 2: pip install PyMySQL\n"
                     "Option 3: pip install memorisdk[mysql]\n\n"
@@ -130,7 +131,7 @@ class SQLAlchemyDatabaseManager:
                 and importlib.util.find_spec("asyncpg") is None
             ):
                 error_msg = (
-                    "❌ No PostgreSQL driver found. Install one of the following:\n\n"
+                    "ERROR: No PostgreSQL driver found. Install one of the following:\n\n"
                     "Option 1 (Recommended): pip install psycopg2-binary\n"
                     "Option 2: pip install memorisdk[postgres]\n\n"
                     "Then use connection string: postgresql://user:pass@host:port/db"
@@ -259,7 +260,7 @@ class SQLAlchemyDatabaseManager:
         except ModuleNotFoundError as e:
             if "mysql" in str(e).lower():
                 error_msg = (
-                    "❌ MySQL driver not found. Install one of the following:\n\n"
+                    "ERROR: MySQL driver not found. Install one of the following:\n\n"
                     "Option 1 (Recommended): pip install mysql-connector-python\n"
                     "Option 2: pip install PyMySQL\n"
                     "Option 3: pip install memorisdk[mysql]\n\n"
@@ -268,7 +269,7 @@ class SQLAlchemyDatabaseManager:
                 raise DatabaseError(error_msg)
             elif "psycopg" in str(e).lower() or "postgresql" in str(e).lower():
                 error_msg = (
-                    "❌ PostgreSQL driver not found. Install one of the following:\n\n"
+                    "ERROR: PostgreSQL driver not found. Install one of the following:\n\n"
                     "Option 1 (Recommended): pip install psycopg2-binary\n"
                     "Option 2: pip install memorisdk[postgres]\n\n"
                     f"Original error: {e}"
