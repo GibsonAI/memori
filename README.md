@@ -183,18 +183,21 @@ graph LR
 ### How It Works
 
 **Pre-Call (Context Injection)**
+
 1. Your app calls `client.chat.completions.create(messages=[...])`
 2. Memori intercepts the call transparently
 3. **Retrieval Agent** (auto mode) or **Conscious Agent** (conscious mode) retrieves relevant memories
 4. Context injected into messages before sending to the LLM provider
 
 **Post-Call (Recording)**
+
 5. LLM provider returns response
 6. **Memory Agent** extracts entities, categorizes (facts, preferences, skills, rules, context)
 7. Conversation stored in SQL database with full-text search indexes
 8. Original response returned to your app
 
 **Background (every 6 hours)**
+
 - **Conscious Agent** analyzes patterns and promotes essential memories from long-term to short-term storage
 
 For detailed architecture documentation, see [docs/architecture.md](https://www.gibsonai.com/docs/memori/architecture).
