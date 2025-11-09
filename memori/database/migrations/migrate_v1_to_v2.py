@@ -83,7 +83,7 @@ class MigrationHelper:
                     sys.exit(1)
 
         elif self.db_type == "postgresql":
-            print("\n⚠️  IMPORTANT: Create PostgreSQL backup manually:")
+            print("\nWARNING: IMPORTANT: Create PostgreSQL backup manually:")
             print(f"   pg_dump {self._get_db_name()} > backup_{timestamp}.sql")
 
             if not self.force:
@@ -93,7 +93,7 @@ class MigrationHelper:
                     sys.exit(1)
 
         elif self.db_type == "mysql":
-            print("\n⚠️  IMPORTANT: Create MySQL backup manually:")
+            print("\nWARNING: IMPORTANT: Create MySQL backup manually:")
             print(f"   mysqldump {self._get_db_name()} > backup_{timestamp}.sql")
 
             if not self.force:
@@ -131,7 +131,7 @@ class MigrationHelper:
             if "namespace" not in chat_columns:
                 if "user_id" in chat_columns:
                     print(
-                        "⚠️  WARNING: Database appears to already be migrated (has user_id column)"
+                        "WARNING: WARNING: Database appears to already be migrated (has user_id column)"
                     )
                     if not self.force:
                         print("Use --force to run migration anyway")
@@ -149,7 +149,7 @@ class MigrationHelper:
 
     def show_statistics(self):
         """Show current database statistics"""
-        print("\n📊 Current database statistics:")
+        print("\nSTATS: Current database statistics:")
 
         try:
             with self.engine.connect() as conn:
@@ -187,7 +187,7 @@ class MigrationHelper:
             print(f"✗ Migration script not found: {script_path}")
             return False
 
-        print(f"\n🚀 Running migration script: {script_path.name}")
+        print(f"\nRUNNING: Running migration script: {script_path.name}")
 
         if self.dry_run:
             print("[DRY RUN] Would execute migration script")
@@ -217,7 +217,7 @@ class MigrationHelper:
                             try:
                                 conn.execute(text(stmt))
                             except Exception as e:
-                                print(f"⚠️  Warning executing statement: {e}")
+                                print(f"WARNING: Warning executing statement: {e}")
                     conn.commit()
 
             print("✓ Migration completed successfully!")
@@ -225,7 +225,7 @@ class MigrationHelper:
 
         except Exception as e:
             print(f"✗ Migration failed: {e}")
-            print("\n⚠️  Database may be in an inconsistent state!")
+            print("\nWARNING: Database may be in an inconsistent state!")
             print("   Restore from backup and check error messages above.")
             return False
 
@@ -317,7 +317,7 @@ class MigrationHelper:
 
     def verify_migration(self):
         """Verify migration completed successfully"""
-        print("\n✅ Verifying migration...")
+        print("\nSUCCESS: Verifying migration...")
 
         try:
             inspector = inspect(self.engine)
@@ -352,7 +352,7 @@ class MigrationHelper:
             print("✓ Migration verification passed!")
 
             # Show post-migration statistics
-            print("\n📊 Post-migration statistics:")
+            print("\nSTATS: Post-migration statistics:")
             with self.engine.connect() as conn:
                 for table in tables:
                     result = conn.execute(
@@ -406,7 +406,7 @@ def main():
 
     # Step 1: Validate schema
     if not helper.validate_schema():
-        print("\n❌ Schema validation failed. Migration cancelled.")
+        print("\nERROR: Schema validation failed. Migration cancelled.")
         sys.exit(1)
 
     # Step 2: Show current statistics
@@ -416,12 +416,12 @@ def main():
     if not args.skip_backup and not args.dry_run:
         helper._create_backup()
     elif args.skip_backup:
-        print("\n⚠️  WARNING: Skipping backup creation!")
+        print("\nWARNING: WARNING: Skipping backup creation!")
 
     # Step 4: Confirm migration
     if not args.dry_run and not args.force:
         print("\n" + "=" * 70)
-        print("⚠️  IMPORTANT: This migration will make breaking changes!")
+        print("WARNING: IMPORTANT: This migration will make breaking changes!")
         print("=" * 70)
         response = input("\nProceed with migration? (yes/no): ")
         if response.lower() != "yes":
@@ -431,14 +431,14 @@ def main():
     # Step 5: Run migration
     success = helper.run_migration()
     if not success:
-        print("\n❌ Migration failed!")
+        print("\nERROR: Migration failed!")
         sys.exit(1)
 
     # Step 6: Verify migration
     if not args.dry_run:
         if helper.verify_migration():
             print("\n" + "=" * 70)
-            print("✅ MIGRATION COMPLETED SUCCESSFULLY!")
+            print("SUCCESS: MIGRATION COMPLETED SUCCESSFULLY!")
             print("=" * 70)
             print("\nNext steps:")
             print("1. Test your application with the new multi-tenant schema")
@@ -449,11 +449,11 @@ def main():
             print("  ALTER TABLE short_term_memory DROP COLUMN namespace_legacy;")
             print("  ALTER TABLE long_term_memory DROP COLUMN namespace_legacy;")
         else:
-            print("\n⚠️  Migration completed but verification found issues.")
+            print("\nWARNING: Migration completed but verification found issues.")
             print("   Please review the output above.")
             sys.exit(1)
     else:
-        print("\n✅ DRY RUN COMPLETE - No changes made")
+        print("\nSUCCESS: DRY RUN COMPLETE - No changes made")
 
 
 if __name__ == "__main__":

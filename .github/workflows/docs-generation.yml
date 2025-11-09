@@ -268,7 +268,7 @@ jobs:
             fi
             
             # Create comprehensive commit message
-            COMMIT_MSG="🤖 Auto-generate documentation for example changes
+            COMMIT_MSG="[BOT] Auto-generate documentation for example changes
 
             - Generated consistent documentation following code-reciprocator pattern
             - Updated mkdocs.yml navigation with new integration examples  
@@ -315,11 +315,11 @@ jobs:
             const startTime = new Date(process.env.WORKFLOW_START_TIME || Date.now());
             const duration = Math.round((Date.now() - startTime) / 1000);
             
-            const comment = `## 🤖 Enhanced Auto-Generated Documentation
+            const comment = `## [BOT] Enhanced Auto-Generated Documentation
             
             Successfully generated documentation for the updated example files using the **enhanced code-reciprocator agent** with comprehensive error handling and production-ready reliability features.
             
-            ### 📄 Processed Files (${changedFiles.length}):
+            ### [DOC] Processed Files (${changedFiles.length}):
             ${changedFiles.map(file => `- \`${file}\``).join('\n')}
             
             ### Generated Documentation:

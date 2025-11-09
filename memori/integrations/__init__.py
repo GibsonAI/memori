@@ -1,30 +1,30 @@
 """
 Universal LLM Integration - Plug-and-Play Memory Recording
 
-🎯 SIMPLE USAGE (RECOMMENDED):
+SIMPLE USAGE (RECOMMENDED):
 Just call memori.enable() and use ANY LLM library normally!
 
 ```python
 from memori import Memori
 
 memori = Memori(...)
-memori.enable()  # 🎉 That's it!
+memori.enable()  # That's it!
 
 # Now use ANY LLM library normally - all calls will be auto-recorded:
 
 # LiteLLM (native callbacks)
 from litellm import completion
-completion(model="gpt-4o", messages=[...])  # ✅ Auto-recorded
+completion(model="gpt-4o", messages=[...])  # Auto-recorded
 
 # Direct OpenAI (auto-wrapping)
 import openai
 client = openai.OpenAI(api_key="...")
-client.chat.completions.create(...)  # ✅ Auto-recorded
+client.chat.completions.create(...)  # Auto-recorded
 
 # Direct Anthropic (auto-wrapping)
 import anthropic
 client = anthropic.Anthropic(api_key="...")
-client.messages.create(...)  # ✅ Auto-recorded
+client.messages.create(...)  # Auto-recorded
 ```
 
 The universal system automatically detects and records ALL LLM providers
@@ -64,14 +64,14 @@ try:
     def __getattr__(name):
         if name == "MemoriOpenAI":
             logger.warning(
-                "🚨 MemoriOpenAI wrapper class is deprecated!\n"
-                "✅ NEW RECOMMENDED WAY: Use MemoriOpenAIInterceptor or memori.create_openai_client()"
+                "WARNING: MemoriOpenAI wrapper class is deprecated!\n"
+                "RECOMMENDED: Use MemoriOpenAIInterceptor or memori.create_openai_client()"
             )
             return MemoriOpenAI
         elif name == "MemoriAnthropic":
             logger.warning(
-                "🚨 MemoriAnthropic wrapper class is deprecated!\n"
-                "✅ NEW SIMPLE WAY: Use memori.enable() and import anthropic normally"
+                "WARNING: MemoriAnthropic wrapper class is deprecated!\n"
+                "RECOMMENDED: Use memori.enable() and import anthropic normally"
             )
             return MemoriAnthropic
         elif name in [

@@ -139,7 +139,7 @@ class MemoryTool:
             logger.debug(
                 f"Starting to format {len(results)} results for query: '{query}'"
             )
-            formatted_output = f"🔍 Memory Search Results for: '{query}'\n\n"
+            formatted_output = f"Memory Search Results for: '{query}'\n\n"
 
             for i, result in enumerate(results, 1):
                 try:
@@ -174,11 +174,11 @@ class MemoryTool:
 
                     formatted_output += f"{i}. [{category.upper()}] {summary}\n"
                     formatted_output += (
-                        f"   📊 Importance: {importance:.2f} | 📅 {created_at}\n"
+                        f"   Importance: {importance:.2f} | Created: {created_at}\n"
                     )
 
                     if result.get("search_reasoning"):
-                        formatted_output += f"   🎯 {result['search_reasoning']}\n"
+                        formatted_output += f"   Reason: {result['search_reasoning']}\n"
 
                     formatted_output += "\n"
 
@@ -257,7 +257,7 @@ class MemoryTool:
                 summary = conv.get("summary", "")
                 importance = conv.get("importance", 0.0)
                 output += f"{i}. [{category}] {summary}\n"
-                output += f"   📊 Importance: {importance:.2f}\n\n"
+                output += f"   Importance: {importance:.2f}\n\n"
             return output.strip()
 
         elif "results" in result_dict:
@@ -265,7 +265,7 @@ class MemoryTool:
             if not results:
                 return "No memories found for your search."
 
-            output = f"🔍 Memory Search Results ({len(results)} found):\n\n"
+            output = f"Memory Search Results ({len(results)} found):\n\n"
             for i, result in enumerate(results, 1):
                 content = result.get("searchable_content", "Memory content")[:100]
                 output += f"{i}. {content}...\n\n"
@@ -615,7 +615,7 @@ def create_memory_search_tool(memori_instance: Memori):
                     )
 
             # Format as readable string instead of JSON
-            output = f"🔍 Memory Search Results for: '{query}' ({len(formatted_results)} found)\n\n"
+            output = f"Memory Search Results for: '{query}' ({len(formatted_results)} found)\n\n"
 
             for i, result in enumerate(formatted_results, 1):
                 summary = result.get("summary", "Memory content available")
@@ -624,7 +624,7 @@ def create_memory_search_tool(memori_instance: Memori):
                 created_at = result.get("created_at", "")
 
                 output += f"{i}. [{category.upper()}] {summary}\n"
-                output += f"   📊 Importance: {importance:.2f} | 📅 {created_at}\n\n"
+                output += f"   Importance: {importance:.2f} | Created: {created_at}\n\n"
 
             return output.strip()
 

@@ -60,7 +60,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const message = `## 🚨 Code Formatting Issues Found
+            const message = `## [ALERT] Code Formatting Issues Found
 
             This PR has formatting issues that need to be fixed. Please run the following commands locally:
 
