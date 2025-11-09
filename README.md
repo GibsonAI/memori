@@ -75,7 +75,6 @@ response = client.chat.completions.create(
 # LLM automatically knows about your FastAPI project
 ```
 
-> **Note**: Default uses in-memory SQLite. Get a [free serverless database](https://app.gibsonai.com/signup) for persistent storage.
 
 ---
 
@@ -248,7 +247,12 @@ For detailed architecture documentation, see [docs/architecture.md](https://www.
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+We welcome contributions from the community! Please see our [Contributing Guidelines](./CONTRIBUTING.md) for details on:
+
+- Setting up your development environment
+- Code style and standards
+- Submitting pull requests
+- Reporting issues
 
 ---
 
@@ -266,6 +270,6 @@ Apache 2.0 - see [LICENSE](./LICENSE)
 
 ---
 
-⭐ **Star us on GitHub** to support the project
+**Star us on GitHub** to support the project
 
 [![Star History](https://api.star-history.com/svg?repos=GibsonAI/memori&type=date)](https://star-history.com/#GibsonAI/memori)
