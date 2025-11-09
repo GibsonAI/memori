@@ -1,7 +1,9 @@
 [![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
 
 <p align="center">
-  <strong>SQL-Native Memory Engine for AI Agents</strong>
+  <strong>An open-source SQL-Native memory engine for AI
+
+</strong>
 </p>
 
 <p align="center">
@@ -163,32 +165,37 @@ export MEMORI_MEMORY__NAMESPACE="production"
 
 ## Architecture Overview
 
-Memori uses three intelligent agents to process and retrieve memories efficiently:
+Memori works by **intercepting** LLM calls - injecting context before the call and recording after:
 
 ```mermaid
 graph LR
-    A[Your App] -->|LLM Call| B[LiteLLM]
-    B -->|Callback| C[Memory Agent]
-    C -->|Extract & Store| D[(SQL Database)]
-    E[Conscious Agent] -->|Analyze & Promote| D
-    F[Retrieval Agent] -->|Search| D
-    F -->|Inject Context| B
-    B -->|Response| A
+    A[Your App] -->|1. client.chat.completions.create| B[Memori Interceptor]
+    B -->|2. Get Context| C[(SQL Database)]
+    C -->|3. Relevant Memories| B
+    B -->|4. Inject Context + Call| D[OpenAI/Anthropic/etc]
+    D -->|5. Response| B
+    B -->|6. Extract & Store| C
+    B -->|7. Return Response| A
+
+    E[Conscious Agent] -.->|Background: Analyze & Promote| C
 ```
 
-### Core Components
+### How It Works
 
-- **Memory Agent** - Extracts entities and relationships using Pydantic structured outputs
-- **Conscious Agent** - Analyzes patterns and promotes essential memories from long-term to short-term storage
-- **Retrieval Agent** - Intelligently searches database and injects relevant context per query
+**Pre-Call (Context Injection)**
+1. Your app calls `client.chat.completions.create(messages=[...])`
+2. Memori intercepts the call transparently
+3. **Retrieval Agent** (auto mode) or **Conscious Agent** (conscious mode) retrieves relevant memories
+4. Context injected into messages before sending to the LLM provider
 
-### Data Flow
+**Post-Call (Recording)**
+5. LLM provider returns response
+6. **Memory Agent** extracts entities, categorizes (facts, preferences, skills, rules, context)
+7. Conversation stored in SQL database with full-text search indexes
+8. Original response returned to your app
 
-1. **Capture** - LiteLLM native callbacks automatically record all conversations
-2. **Process** - Memory Agent extracts entities, categorizes (facts, preferences, skills, rules, context)
-3. **Store** - Structured data saved to SQL with full-text search indexes
-4. **Promote** - Conscious Agent analyzes and moves essential memories to short-term (every 6 hours)
-5. **Retrieve** - Retrieval Agent searches and injects relevant context for each query
+**Background (every 6 hours)**
+- **Conscious Agent** analyzes patterns and promotes essential memories from long-term to short-term storage
 
 For detailed architecture documentation, see [docs/architecture.md](https://www.gibsonai.com/docs/memori/architecture).
 
