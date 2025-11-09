@@ -33,9 +33,10 @@
     <img src="https://img.shields.io/badge/⭐%20Give%20a%20Star-Support%20the%20project-orange?style=for-the-badge" alt="Give a Star">
   </a>
 </p>
+
 ---
 
-## Overview
+## What is Memori
 
 Memori enables any LLM to remember conversations, learn from interactions, and maintain context across sessions with a single line: `memori.enable()`. Memory is stored in standard SQL databases (SQLite, PostgreSQL, MySQL) that you fully own and control.
 
