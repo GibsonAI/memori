@@ -23,6 +23,7 @@ except ImportError:
 
 from ..agents.conscious_agent import ConsciouscAgent
 from ..config.memory_manager import MemoryManager
+from ..config.pool_config import pool_config
 from ..config.settings import LoggingSettings, LogLevel
 from ..database.sqlalchemy_manager import SQLAlchemyDatabaseManager
 from ..utils.exceptions import DatabaseError, MemoriError
@@ -76,11 +77,11 @@ class Memori:
         database_suffix: str | None = None,  # Database name suffix
         conscious_memory_limit: int = 10,  # Limit for conscious memory processing
         # Database connection pool parameters
-        pool_size: int = 2,  # SQLAlchemy connection pool size
-        max_overflow: int = 3,  # Max overflow connections
-        pool_timeout: int = 30,  # Connection timeout in seconds
-        pool_recycle: int = 3600,  # Recycle connections after seconds
-        pool_pre_ping: bool = True,  # Test connections before use
+        pool_size: int = pool_config.DEFAULT_POOL_SIZE,  # SQLAlchemy connection pool size
+        max_overflow: int = pool_config.DEFAULT_MAX_OVERFLOW,  # Max overflow connections
+        pool_timeout: int = pool_config.DEFAULT_POOL_TIMEOUT,  # Connection timeout in seconds
+        pool_recycle: int = pool_config.DEFAULT_POOL_RECYCLE,  # Recycle connections after seconds
+        pool_pre_ping: bool = pool_config.DEFAULT_POOL_PRE_PING,  # Test connections before use
     ):
         """
         Initialize Memori memory system v1.0.
@@ -878,6 +879,17 @@ class Memori:
 
         # Stop background analysis task
         self._stop_background_analysis()
+
+        # Shutdown persistent background event loop if it was used
+        try:
+            from ..utils.async_bridge import BackgroundEventLoop
+
+            bg_loop = BackgroundEventLoop()
+            if bg_loop.is_running:
+                logger.debug("Shutting down background event loop...")
+                bg_loop.shutdown(timeout=5.0)
+        except Exception as e:
+            logger.debug(f"Background loop shutdown skipped or failed: {e}")
 
         self._enabled = False
 
@@ -1899,19 +1911,12 @@ class Memori:
         try:
             # Run async processing in new event loop
             import threading
-
-            # CRITICAL FIX: Capture context before creating thread
             from ..integrations.openai_integration import set_active_memori_context
-
-            # Ensure this instance is set as active
-            set_active_memori_context(self)
-            logger.debug(
-                f"Set context before memory processing: user_id={self.user_id}, chat_id={chat_id[:8]}..."
-            )
 
             def run_memory_processing():
                 """Run memory processing with improved event loop management"""
-                # CRITICAL FIX: Set context in the new thread
+                # CRITICAL FIX: Set context in the new thread (where it's actually needed)
+                # Context doesn't propagate to new threads, so we must set it here
                 set_active_memori_context(self)
                 logger.debug(
                     f"Context set in memory processing thread: user_id={self.user_id}"
@@ -1919,16 +1924,8 @@ class Memori:
 
                 new_loop = None
                 try:
-                    # Check if we're already in an async context
-                    try:
-                        asyncio.get_running_loop()
-                        logger.debug(
-                            "Found existing event loop, creating new one for memory processing"
-                        )
-                    except RuntimeError:
-                        # No running loop, safe to create new one
-                        logger.debug("No existing event loop found, creating new one")
-
+                    # Create new event loop for this thread
+                    # (We're always in a new thread here, so no existing loop)
                     new_loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(new_loop)
 
@@ -1987,7 +1984,7 @@ class Memori:
                         # Clean up pending tasks
                         pending = asyncio.all_tasks(new_loop)
                         if pending:
-                            logger.debug(f"Cancelling {len(pending)} pending tasks")
+                            # Cancel and clean up pending tasks without logging
                             for task in pending:
                                 task.cancel()
                             # Wait for cancellation to complete
@@ -1996,7 +1993,7 @@ class Memori:
                             )
 
                         new_loop.close()
-                        logger.debug(f"Event loop closed for {chat_id}")
+                        # Event loop cleanup happens silently (no need to log)
 
                     # Reset event loop policy to prevent conflicts
                     try:
@@ -2204,17 +2201,9 @@ class Memori:
     def _schedule_memory_processing(
         self, chat_id: str, user_input: str, ai_output: str, model: str
     ):
-        """Schedule memory processing (async if possible, sync fallback)."""
+        """Schedule memory processing (async if possible, background loop fallback)."""
         try:
-            # CRITICAL FIX: Set context before scheduling async task
-            # Context DOES propagate to tasks created with create_task(), but we ensure it's set
-            from ..integrations.openai_integration import set_active_memori_context
-
-            set_active_memori_context(self)
-            logger.debug(
-                f"Context set before scheduling async memory processing: user_id={self.user_id}"
-            )
-
+            # Try to use existing event loop (for async contexts)
             loop = asyncio.get_running_loop()
             task = loop.create_task(
                 self._process_memory_async(chat_id, user_input, ai_output, model)
@@ -2225,10 +2214,31 @@ class Memori:
                 self._memory_tasks = set()
             self._memory_tasks.add(task)
             task.add_done_callback(self._memory_tasks.discard)
+            logger.debug(f"[MEMORY] Processing scheduled in current loop - ID: {chat_id[:8]}...")
         except RuntimeError:
-            # No event loop, use sync fallback
-            logger.debug("No event loop, using synchronous memory processing")
-            self._process_memory_sync(chat_id, user_input, ai_output, model)
+            # No event loop - use persistent background loop instead of creating new thread
+            from ..utils.async_bridge import BackgroundEventLoop
+            from ..integrations.openai_integration import set_active_memori_context
+
+            # Set context before submitting to background loop
+            # Context needs to be explicitly set since we're crossing thread boundary
+            set_active_memori_context(self)
+
+            # Submit to persistent background loop
+            bg_loop = BackgroundEventLoop()
+            future = bg_loop.submit_task(
+                self._process_memory_async(chat_id, user_input, ai_output, model)
+            )
+
+            # Track the future to prevent garbage collection
+            if not hasattr(self, "_memory_futures"):
+                self._memory_futures = set()
+            self._memory_futures.add(future)
+            future.add_done_callback(self._memory_futures.discard)
+
+            logger.debug(
+                f"[MEMORY] Processing scheduled in background loop - ID: {chat_id[:8]}..."
+            )
 
     async def _process_memory_async(
         self, chat_id: str, user_input: str, ai_output: str, model: str = "unknown"
@@ -2245,11 +2255,14 @@ class Memori:
             set_active_memori_context,
         )
 
-        current_context = get_active_memori_context()
-        if current_context != self:
-            logger.debug(
-                f"Context mismatch detected in async processing, setting to user_id={self.user_id}"
-            )
+        current_context = get_active_memori_context(require_valid=False)
+        # Only set context if it's missing or doesn't match (using identity check)
+        if current_context is not self:
+            # Only log if context was actually wrong (not just missing)
+            if current_context is not None:
+                logger.debug(
+                    f"Context mismatch in async processing, correcting to user_id={self.user_id}"
+                )
             set_active_memori_context(self)
 
         try:
@@ -2319,13 +2332,24 @@ class Memori:
         except Exception as e:
             logger.error(f"Memory ingestion failed for {chat_id}: {e}")
 
-    async def _get_recent_memories_for_dedup(self) -> list:
-        """Get recent memories for deduplication check"""
+    async def _get_recent_memories_for_dedup(self, hours: int = 24) -> list:
+        """
+        Get recent memories for deduplication check.
+
+        Args:
+            hours: Time window in hours to check for duplicates (default: 24)
+        """
         try:
+            from datetime import datetime, timedelta
             from sqlalchemy import text
 
             from ..database.queries.memory_queries import MemoryQueries
             from ..utils.pydantic_models import ProcessedLongTermMemory
+
+            # FIX #3: Only check duplicates within time window (default 24 hours)
+            # This prevents old memories from blocking new ones
+            time_threshold = datetime.now() - timedelta(hours=hours)
+            time_threshold_str = time_threshold.isoformat()
 
             with self.db_manager._get_connection() as connection:
                 result = connection.execute(
@@ -2333,6 +2357,7 @@ class Memori:
                     {
                         "user_id": self.user_id,
                         "processed_for_duplicates": False,
+                        "time_threshold": time_threshold_str,
                         "limit": 20,
                     },
                 )
@@ -2613,19 +2638,11 @@ class Memori:
             except RuntimeError:
                 # No event loop running, create a new thread for async tasks
                 import threading
-
-                # CRITICAL FIX: Capture the current context before creating the thread
-                # This ensures the Memori instance context propagates to background tasks
                 from ..integrations.openai_integration import set_active_memori_context
 
-                # Ensure this instance is set as active before setting context
-                set_active_memori_context(self)
-                logger.debug(
-                    f"Captured context for background thread: user_id={self.user_id}"
-                )
-
                 def run_background_loop():
-                    # Set the context in the new thread
+                    # CRITICAL FIX: Set context in the new thread (where it's actually needed)
+                    # Context doesn't propagate to new threads, so we must set it here
                     set_active_memori_context(self)
                     logger.debug(
                         f"Set context in background thread: user_id={self.user_id}"

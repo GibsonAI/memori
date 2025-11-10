@@ -362,13 +362,54 @@ def configure_sqlite_fts(engine):
 class DatabaseManager:
     """SQLAlchemy-based database manager for cross-database compatibility"""
 
-    def __init__(self, database_url: str):
+    def __init__(
+        self,
+        database_url: str,
+        pool_size: int = None,
+        max_overflow: int = None,
+        pool_timeout: int = None,
+        pool_recycle: int = None,
+        pool_pre_ping: bool = None,
+    ):
+        # Import pool_config for default values
+        from ..config.pool_config import pool_config
+
+        # Use provided values or defaults from pool_config
+        self.pool_size = (
+            pool_size if pool_size is not None else pool_config.DEFAULT_POOL_SIZE
+        )
+        self.max_overflow = (
+            max_overflow
+            if max_overflow is not None
+            else pool_config.DEFAULT_MAX_OVERFLOW
+        )
+        self.pool_timeout = (
+            pool_timeout
+            if pool_timeout is not None
+            else pool_config.DEFAULT_POOL_TIMEOUT
+        )
+        self.pool_recycle = (
+            pool_recycle
+            if pool_recycle is not None
+            else pool_config.DEFAULT_POOL_RECYCLE
+        )
+        self.pool_pre_ping = (
+            pool_pre_ping
+            if pool_pre_ping is not None
+            else pool_config.DEFAULT_POOL_PRE_PING
+        )
+
         self.database_url = database_url
         self.engine = create_engine(
             database_url,
             json_serializer=self._json_serializer,
             json_deserializer=self._json_deserializer,
             echo=False,  # Set to True for SQL debugging
+            pool_size=self.pool_size,
+            max_overflow=self.max_overflow,
+            pool_timeout=self.pool_timeout,
+            pool_recycle=self.pool_recycle,
+            pool_pre_ping=self.pool_pre_ping,
         )
 
         # Configure database-specific features

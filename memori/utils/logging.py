@@ -138,11 +138,15 @@ class LoggingManager:
         This ensures all log output is controlled and formatted by Loguru.
         """
 
+        # Suppress asyncio internal DEBUG logs entirely
+        # These logs like "[asyncio] Using selector: KqueueSelector" provide no value to users
+        logging.getLogger("asyncio").setLevel(logging.WARNING)
+
         class InterceptStandardLoggingHandler(logging.Handler):
             def emit(self, record: logging.LogRecord) -> None:
-                # Filter DEBUG/INFO logs from OpenAI, httpcore, LiteLLM, httpx
+                # Filter DEBUG/INFO logs from OpenAI, httpcore, LiteLLM, httpx, asyncio
                 # Only show their ERROR logs, but keep all Memori DEBUG logs
-                suppressed_loggers = ("openai", "httpcore", "LiteLLM", "httpx")
+                suppressed_loggers = ("openai", "httpcore", "LiteLLM", "httpx", "asyncio")
                 if record.name.startswith(suppressed_loggers):
                     # Only emit ERROR and above for these loggers
                     if record.levelno < logging.ERROR:

@@ -115,6 +115,8 @@ def set_active_memori_context(memori_instance, request_id: str | None = None):
     """
     # Check for unexpected context switches (potential race condition)
     existing_context = _active_memori_context.get()
+    context_changed = False  # Track if context actually changed
+
     if existing_context and existing_context.is_active:
         # Only warn if switching between DIFFERENT users (potential race condition)
         if existing_context.memori_instance.user_id != memori_instance.user_id:
@@ -123,12 +125,22 @@ def set_active_memori_context(memori_instance, request_id: str | None = None):
                 f"Previous: user_id={existing_context.memori_instance.user_id}, "
                 f"New: user_id={memori_instance.user_id}"
             )
-        # Same user re-setting context is normal, just debug log
-        else:
+            context_changed = True
+        # Same user - check if it's actually the same instance
+        elif existing_context.memori_instance is not memori_instance:
+            # Different instance object, same user - this is unusual but valid
             logger.debug(
-                f"Context reset for same user: user_id={memori_instance.user_id}, "
+                f"Context reset for same user (different instance): user_id={memori_instance.user_id}, "
                 f"request_id={existing_context.request_id} -> {request_id or 'auto'}"
             )
+            context_changed = True
+        # Same instance, same user - completely redundant, don't log
+        else:
+            # Silently update context without logging (instance is the same)
+            context_changed = False
+    else:
+        # No existing context - this is a new context
+        context_changed = True
 
     # Create new context with validation
     context = MemoriContext(
@@ -136,12 +148,14 @@ def set_active_memori_context(memori_instance, request_id: str | None = None):
     )
     _active_memori_context.set(context)
 
-    logger.debug(
-        f"Set active Memori context: request_id={context.request_id}, "
-        f"user_id={memori_instance.user_id}, "
-        f"assistant_id={memori_instance.assistant_id}, "
-        f"session_id={memori_instance.session_id}"
-    )
+    # ONLY log if context actually changed
+    if context_changed:
+        logger.debug(
+            f"Set active Memori context: request_id={context.request_id}, "
+            f"user_id={memori_instance.user_id}, "
+            f"assistant_id={memori_instance.assistant_id}, "
+            f"session_id={memori_instance.session_id}"
+        )
 
 
 def get_active_memori_context(require_valid: bool = True):

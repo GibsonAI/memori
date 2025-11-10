@@ -312,7 +312,7 @@ CONVERSATION CONTEXT:
         self,
         new_memory: ProcessedLongTermMemory,
         existing_memories: list[ProcessedLongTermMemory],
-        similarity_threshold: float = 0.8,
+        similarity_threshold: float = 0.92,  # Increased from 0.8 to reduce false positives
     ) -> str | None:
         """
         Detect if new memory is a duplicate of existing memories
@@ -320,11 +320,20 @@ CONVERSATION CONTEXT:
         Args:
             new_memory: New memory to check
             existing_memories: List of existing memories to compare against
-            similarity_threshold: Threshold for considering memories similar
+            similarity_threshold: Threshold for considering memories similar (default: 0.92)
 
         Returns:
             Memory ID of duplicate if found, None otherwise
         """
+        # FIX #2: Skip deduplication for conversational/query memories
+        # Queries like "What's my name?" are valid every time and shouldn't be deduplicated
+        skip_classifications = ["conversational", "query", "question", "reference"]
+        if new_memory.classification in skip_classifications:
+            logger.debug(
+                f"[AGENT] Skipping duplicate check for {new_memory.classification} memory"
+            )
+            return None
+
         # Simple text similarity check - could be enhanced with embeddings
         new_content = new_memory.content.lower().strip()
         new_summary = new_memory.summary.lower().strip()
@@ -345,8 +354,15 @@ CONVERSATION CONTEXT:
             avg_similarity = (content_similarity + summary_similarity) / 2
 
             if avg_similarity >= similarity_threshold:
+                # FIX #4: Improved logging with details
                 logger.info(
                     f"[AGENT] Duplicate detected - {avg_similarity:.2f} similarity with {existing.session_id[:8]}..."
+                )
+                logger.debug(
+                    f"[AGENT] Duplicate match details:\n"
+                    f"  New content: '{new_content[:80]}...'\n"
+                    f"  Existing content: '{existing_content[:80]}...'\n"
+                    f"  Content similarity: {content_similarity:.2f}, Summary similarity: {summary_similarity:.2f}"
                 )
                 return existing.session_id
 
