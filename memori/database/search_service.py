@@ -124,10 +124,13 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"[SEARCH] Full-text search failed for '{query[:30]}...' in user_id '{user_id}' - {type(e).__name__}: {e}"
+                f"Full-text search failed | query='{query[:50]}...' | user_id={user_id} | "
+                f"assistant_id={assistant_id} | database={self.database_type} | "
+                f"error={type(e).__name__}: {str(e)}"
             )
-            logger.debug("[SEARCH] Full-text error details", exc_info=True)
-            logger.warning("[SEARCH] Attempting LIKE fallback search")
+            logger.warning(
+                f"Attempting LIKE fallback search | user_id={user_id} | query='{query[:30]}...'"
+            )
             try:
                 results = self._search_like_fallback(
                     query,
@@ -139,10 +142,10 @@ class SearchService:
                     search_short_term,
                     search_long_term,
                 )
-                logger.debug(f"[SEARCH] LIKE fallback results: {len(results)} matches")
             except Exception as fallback_e:
                 logger.error(
-                    f"[SEARCH] LIKE fallback also failed - {type(fallback_e).__name__}: {fallback_e}"
+                    f"LIKE fallback search failed | query='{query[:30]}...' | user_id={user_id} | "
+                    f"error={type(fallback_e).__name__}: {str(fallback_e)}"
                 )
                 results = []
 
@@ -276,11 +279,9 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"SQLite FTS5 search failed for query '{query}' in user_id '{user_id}': {e}"
-            )
-            logger.debug(
-                f"SQLite FTS5 error details: {type(e).__name__}: {str(e)}",
-                exc_info=True,
+                f"SQLite FTS5 search failed | query='{query[:50]}...' | user_id={user_id} | "
+                f"assistant_id={assistant_id} | session_id={session_id} | "
+                f"error={type(e).__name__}: {str(e)}"
             )
             # Roll back the transaction to recover from error state
             self.session.rollback()
@@ -525,11 +526,9 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"MySQL FULLTEXT search failed for query '{query}' in user_id '{user_id}': {e}"
-            )
-            logger.debug(
-                f"MySQL FULLTEXT error details: {type(e).__name__}: {str(e)}",
-                exc_info=True,
+                f"MySQL FULLTEXT search failed | query='{query[:50]}...' | user_id={user_id} | "
+                f"assistant_id={assistant_id} | session_id={session_id} | "
+                f"error={type(e).__name__}: {str(e)}"
             )
             # Roll back the transaction to recover from error state
             self.session.rollback()
@@ -698,11 +697,9 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"PostgreSQL FTS search failed for query '{query}' in user_id '{user_id}': {e}"
-            )
-            logger.debug(
-                f"PostgreSQL FTS error details: {type(e).__name__}: {str(e)}",
-                exc_info=True,
+                f"PostgreSQL FTS search failed | query='{query[:50]}...' | user_id={user_id} | "
+                f"assistant_id={assistant_id} | session_id={session_id} | "
+                f"error={type(e).__name__}: {str(e)}"
             )
             # Roll back the transaction to recover from error state
             self.session.rollback()
@@ -1453,8 +1450,10 @@ class SearchService:
             return metadata
 
         except Exception as e:
-            logger.error(f"[METADATA] Error getting metadata: {e}")
-            logger.debug("[METADATA] Error details", exc_info=True)
+            logger.error(
+                f"Failed to get list metadata | user_id={user_id} | assistant_id={assistant_id} | "
+                f"error={type(e).__name__}: {str(e)}"
+            )
             return {
                 "available_filters": {
                     "user_ids": [],

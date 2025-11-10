@@ -26,9 +26,22 @@ class LoggingManager:
             if not cls._initialized:
                 logger.remove()
 
-            if verbose:
-                cls._disable_other_loggers()
+            # Always intercept other loggers (LiteLLM, OpenAI, httpcore, etc.)
+            cls._disable_other_loggers()
 
+            # ALWAYS suppress LiteLLM's own logger to avoid duplicate logs
+            # We'll show LiteLLM logs through our interceptor only
+            try:
+                import litellm
+                litellm.suppress_debug_info = True
+                litellm.set_verbose = False
+                # Set litellm's logger to ERROR level to prevent duplicate logs
+                litellm_logger = logging.getLogger("LiteLLM")
+                litellm_logger.setLevel(logging.ERROR)
+            except ImportError:
+                pass
+
+            if verbose:
                 logger.add(
                     sys.stderr,
                     level="DEBUG",
@@ -40,7 +53,7 @@ class LoggingManager:
             else:
                 logger.add(
                     sys.stderr,
-                    level="WARNING",
+                    level="ERROR",
                     format="<level>{level}</level>: {message}",
                     colorize=False,
                     backtrace=False,
@@ -127,6 +140,14 @@ class LoggingManager:
 
         class InterceptStandardLoggingHandler(logging.Handler):
             def emit(self, record: logging.LogRecord) -> None:
+                # Filter DEBUG/INFO logs from OpenAI, httpcore, LiteLLM, httpx
+                # Only show their ERROR logs, but keep all Memori DEBUG logs
+                suppressed_loggers = ("openai", "httpcore", "LiteLLM", "httpx")
+                if record.name.startswith(suppressed_loggers):
+                    # Only emit ERROR and above for these loggers
+                    if record.levelno < logging.ERROR:
+                        return
+
                 try:
                     level = logger.level(record.levelname).name
                 except ValueError:

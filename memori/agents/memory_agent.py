@@ -5,6 +5,7 @@ This agent processes conversations and extracts structured information with
 enhanced classification and conscious context detection.
 """
 
+import asyncio
 import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
@@ -51,9 +52,9 @@ class MemoryAgent:
             logger.debug(f"Memory agent initialized with model: {self.model}")
             self.provider_config = provider_config
         else:
-            # Backward compatibility: use api_key directly
-            self.client = openai.OpenAI(api_key=api_key)
-            self.async_client = openai.AsyncOpenAI(api_key=api_key)
+            # Backward compatibility: use api_key directly with proper timeout and retries
+            self.client = openai.OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
+            self.async_client = openai.AsyncOpenAI(api_key=api_key, timeout=60.0, max_retries=2)
             self.model = model or "gpt-4o"
             self.provider_config = None
 
@@ -141,6 +142,36 @@ Set promotion_eligible=True for memories that should be immediately available in
 
 Focus on extracting information that would genuinely help provide better context and assistance in future conversations."""
 
+    async def _retry_with_backoff(self, func, *args, max_retries=3, **kwargs):
+        """
+        Retry a function with exponential backoff for connection errors
+
+        Args:
+            func: Async function to retry
+            max_retries: Maximum number of retry attempts (default: 3)
+            *args, **kwargs: Arguments to pass to func
+
+        Returns:
+            Result from func
+        """
+        for attempt in range(max_retries):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                error_msg = str(e).lower()
+                # Retry only on connection/timeout errors
+                if "connection" in error_msg or "timeout" in error_msg:
+                    if attempt < max_retries - 1:
+                        wait_time = (2 ** attempt) * 0.5  # 0.5s, 1s, 2s
+                        logger.debug(
+                            f"Connection error (attempt {attempt + 1}/{max_retries}), "
+                            f"retrying in {wait_time}s: {e}"
+                        )
+                        await asyncio.sleep(wait_time)
+                        continue
+                # Re-raise if not a retryable error or max retries reached
+                raise
+
     async def process_conversation_async(
         self,
         chat_id: str,
@@ -194,18 +225,20 @@ CONVERSATION CONTEXT:
 
             if self._supports_structured_outputs:
                 try:
-                    # Call OpenAI Structured Outputs (async)
-                    completion = await self.async_client.beta.chat.completions.parse(
-                        model=self.model,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {
-                                "role": "user",
-                                "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
-                            },
-                        ],
-                        response_format=ProcessedLongTermMemory,
-                        temperature=0.1,  # Low temperature for consistent processing
+                    # Call OpenAI Structured Outputs (async) with retry logic
+                    completion = await self._retry_with_backoff(
+                        lambda: self.async_client.beta.chat.completions.parse(
+                            model=self.model,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {
+                                    "role": "user",
+                                    "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
+                                },
+                            ],
+                            response_format=ProcessedLongTermMemory,
+                            temperature=0.1,  # Low temperature for consistent processing
+                        )
                     )
 
                     # Handle potential refusal
@@ -411,18 +444,20 @@ CONVERSATION CONTEXT:
             json_system_prompt += self._get_json_schema_prompt()
             json_system_prompt += "\n\nRespond ONLY with the JSON object, no additional text or formatting."
 
-            # Call regular chat completions
-            completion = await self.async_client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": json_system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
-                    },
-                ],
-                temperature=0.1,  # Low temperature for consistent processing
-                max_tokens=2000,  # Ensure enough tokens for full response
+            # Call regular chat completions with retry logic
+            completion = await self._retry_with_backoff(
+                lambda: self.async_client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": json_system_prompt},
+                        {
+                            "role": "user",
+                            "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
+                        },
+                    ],
+                    temperature=0.1,  # Low temperature for consistent processing
+                    max_tokens=2000,  # Ensure enough tokens for full response
+                )
             )
 
             # Extract and parse JSON response

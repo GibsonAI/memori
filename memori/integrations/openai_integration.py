@@ -399,6 +399,12 @@ class OpenAIInterceptor:
                         elif hasattr(options, "_messages"):
                             json_data["messages"] = options._messages
 
+                    # OPTIMIZATION: Skip context injection for internal agent calls
+                    # Internal calls (memory processing) don't need user context
+                    if json_data and cls._is_internal_agent_call(json_data):
+                        # Internal agent call - skip context injection entirely
+                        continue
+
                     if json_data and "messages" in json_data:
                         # This is a chat completion request - inject context
                         logger.debug(
@@ -418,10 +424,6 @@ class OpenAIInterceptor:
                             logger.debug(
                                 f"OpenAI: Successfully injected context for {client_type}"
                             )
-                    else:
-                        logger.debug(
-                            f"OpenAI: No messages found in options for {client_type}, skipping context injection"
-                        )
 
                 except Exception as e:
                     logger.error(f"Context injection failed for {client_type}: {e}")
@@ -496,10 +498,27 @@ class OpenAIInterceptor:
 
         for memori_instance in memori_instances:
             if memori_instance.is_enabled:
+                # DEDUPLICATION FIX: Skip OpenAI recording if LiteLLM callbacks are active
+                # When LiteLLM is handling recordings, we don't want duplicate OpenAI recordings
+                try:
+                    if hasattr(memori_instance, 'memory_manager') and \
+                       hasattr(memori_instance.memory_manager, 'litellm_callback_manager') and \
+                       memori_instance.memory_manager.litellm_callback_manager is not None and \
+                       hasattr(memori_instance.memory_manager.litellm_callback_manager, 'is_registered') and \
+                       memori_instance.memory_manager.litellm_callback_manager.is_registered:
+                        logger.debug(
+                            "Skipping OpenAI interception - LiteLLM native callbacks are active"
+                        )
+                        continue
+                except Exception:
+                    # If check fails, proceed with OpenAI recording (safe fallback)
+                    pass
+
                 try:
                     json_data = getattr(options, "json_data", None) or {}
 
                     if "messages" in json_data:
+
                         # Check if this is an internal agent processing call
                         is_internal = cls._is_internal_agent_call(json_data)
 

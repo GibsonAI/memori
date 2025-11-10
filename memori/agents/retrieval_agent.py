@@ -78,8 +78,8 @@ Be strategic and comprehensive in your search planning."""
             logger.debug(f"Search engine initialized with model: {self.model}")
             self.provider_config = provider_config
         else:
-            # Backward compatibility: use api_key directly
-            self.client = openai.OpenAI(api_key=api_key)
+            # Backward compatibility: use api_key directly with proper timeout and retries
+            self.client = openai.OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
             self.model = model or "gpt-4o"
             self.provider_config = None
 

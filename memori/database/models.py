@@ -84,6 +84,8 @@ class ShortTermMemory(Base):
     searchable_content = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
     is_permanent_context = Column(Boolean, default=False)
+    access_count = Column(Integer, default=0)
+    last_accessed = Column(DateTime)
 
     # Relationships
     chat = relationship("ChatHistory", back_populates="short_term_memories")
@@ -155,6 +157,10 @@ class LongTermMemory(Base):
     # Processing Status
     processed_for_duplicates = Column(Boolean, default=False)
     conscious_processed = Column(Boolean, default=False)
+
+    # Access tracking
+    access_count = Column(Integer, default=0)
+    last_accessed = Column(DateTime)
 
     # Concurrency Control (for optimistic locking)
     # TODO: Implement optimistic locking logic using this column

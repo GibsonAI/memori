@@ -161,6 +161,10 @@ class Memori:
         # Thread safety for conscious memory initialization
         self._conscious_init_lock = threading.RLock()
 
+        # DEDUPLICATION: Hash-based conversation deduplication safety net
+        self._recent_conversation_hashes = {}
+        self._hash_lock = threading.Lock()
+
         # Configure provider based on explicit settings ONLY - no auto-detection
         if provider_config:
             # Use provided configuration
@@ -2059,6 +2063,57 @@ class Memori:
         # Fallback
         return str(response), "unknown"
 
+    def _generate_conversation_fingerprint(self, user_input: str, ai_output: str) -> str:
+        """
+        Generate a fingerprint for conversation deduplication.
+
+        Uses first 200 chars to handle minor variations but catch obvious duplicates.
+        """
+        import hashlib
+        content = f"{user_input[:200]}|{ai_output[:200]}|{self.session_id}"
+        return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+    def _is_duplicate_conversation(self, user_input: str, ai_output: str, window_seconds: int = 5) -> bool:
+        """
+        Check if this conversation was recently recorded (within time window).
+
+        This is a safety net to catch duplicates from multiple integrations.
+        Uses a 5-second window by default to catch near-simultaneous recordings.
+
+        RACE CONDITION FIX: Marks conversation as seen BEFORE checking, using
+        a two-phase approach to handle concurrent recordings.
+
+        Args:
+            user_input: User's message
+            ai_output: AI's response
+            window_seconds: Time window for considering duplicates (default: 5 seconds)
+
+        Returns:
+            True if duplicate detected, False otherwise
+        """
+        import time
+
+        fingerprint = self._generate_conversation_fingerprint(user_input, ai_output)
+        current_time = time.time()
+
+        with self._hash_lock:
+            # Clean old entries (older than window)
+            self._recent_conversation_hashes = {
+                fp: timestamp
+                for fp, timestamp in self._recent_conversation_hashes.items()
+                if current_time - timestamp < window_seconds
+            }
+
+            # RACE CONDITION FIX: Check if already seen
+            if fingerprint in self._recent_conversation_hashes:
+                # Duplicate detected
+                return True
+
+            # Mark as seen IMMEDIATELY (before releasing lock)
+            # This prevents race condition where both integrations check simultaneously
+            self._recent_conversation_hashes[fingerprint] = current_time
+            return False
+
     def record_conversation(
         self,
         user_input: str,
@@ -2089,6 +2144,19 @@ class Memori:
         # Parse response
         response_text, detected_model = self._parse_llm_response(ai_output)
         response_model = model or detected_model
+
+        # DEDUPLICATION SAFETY NET: Check for duplicate conversations
+        fingerprint = self._generate_conversation_fingerprint(user_input, response_text)
+        if self._is_duplicate_conversation(user_input, response_text):
+            integration = metadata.get('integration', 'unknown') if metadata else 'unknown'
+            logger.warning(
+                f"Duplicate conversation detected from '{integration}' integration - skipping recording | "
+                f"fingerprint: {fingerprint}"
+            )
+            # Return a dummy chat_id - conversation was already recorded by another integration
+            return str(uuid.uuid4())
+
+        logger.debug(f"New conversation fingerprint: {fingerprint} | integration: {metadata.get('integration', 'unknown') if metadata else 'unknown'}")
 
         # Generate ID and timestamp
         chat_id = str(uuid.uuid4())
