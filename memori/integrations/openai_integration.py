@@ -512,21 +512,9 @@ class OpenAIInterceptor:
 
         for memori_instance in memori_instances:
             if memori_instance.is_enabled:
-                # DEDUPLICATION FIX: Skip OpenAI recording if LiteLLM callbacks are active
-                # When LiteLLM is handling recordings, we don't want duplicate OpenAI recordings
-                try:
-                    if hasattr(memori_instance, 'memory_manager') and \
-                       hasattr(memori_instance.memory_manager, 'litellm_callback_manager') and \
-                       memori_instance.memory_manager.litellm_callback_manager is not None and \
-                       hasattr(memori_instance.memory_manager.litellm_callback_manager, 'is_registered') and \
-                       memori_instance.memory_manager.litellm_callback_manager.is_registered:
-                        logger.debug(
-                            "Skipping OpenAI interception - LiteLLM native callbacks are active"
-                        )
-                        continue
-                except Exception:
-                    # If check fails, proceed with OpenAI recording (safe fallback)
-                    pass
+                # NOTE: We allow both OpenAI interception and LiteLLM callbacks to coexist
+                # The duplicate detection system will handle any actual duplicates
+                # This ensures OpenAI client recordings work even when LiteLLM callbacks are registered
 
                 try:
                     json_data = getattr(options, "json_data", None) or {}
