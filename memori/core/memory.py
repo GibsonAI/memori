@@ -1998,8 +1998,8 @@ class Memori:
                     # Reset event loop policy to prevent conflicts
                     try:
                         asyncio.set_event_loop(None)
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to reset event loop: {e}")
 
             # Run in background thread to avoid blocking
             thread = threading.Thread(target=run_memory_processing, daemon=True)
@@ -2777,8 +2777,12 @@ class Memori:
         """Destructor to ensure cleanup"""
         try:
             self.cleanup()
-        except:
-            pass  # Ignore errors during destruction
+        except Exception as e:
+            # Destructors shouldn't raise, but log for debugging
+            try:
+                logger.debug(f"Cleanup error in destructor: {e}")
+            except:
+                pass  # Can't do anything if logging fails in destructor
 
     async def _background_analysis_loop(self):
         """Background analysis loop for memory processing"""
