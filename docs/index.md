@@ -14,6 +14,28 @@
 
 Memori uses multi-agents working together to intelligently promote essential long-term memories to short-term storage for faster context injection.
 
+### SQL-Native: Transparent, Portable & 80-90% Cheaper
+
+Unlike vector databases (Pinecone, Weaviate), Memori stores memories in **standard SQL databases**:
+
+| Feature | Vector Databases | Memori (SQL-Native) | Winner |
+|---------|------------------|---------------------|--------|
+| **Cost (100K memories)** | $80-100/month | $0-15/month | **Memori 80-90% cheaper** |
+| **Portability** | Vendor lock-in | Export as `.db` file | **Memori** |
+| **Transparency** | Black-box embeddings | Human-readable SQL | **Memori** |
+| **Query Speed** | 25-40ms (semantic) | 8-12ms (keywords) | **Memori 3x faster** |
+| **Complex Queries** | Limited (distance only) | Full SQL power | **Memori** |
+
+**Why SQL wins for conversational memory:**
+
+- **90% of queries are explicit**: "What's my tech stack?" not "Find similar documents"
+- **Boolean logic**: Search "FastAPI AND authentication NOT migrations"
+- **Multi-factor ranking**: Combine importance, recency, and categories
+- **Complete ownership**: Your data in portable format you control
+
+!!! tip "When to Use Vector Databases"
+    Use vectors for **semantic similarity across unstructured documents**. Use Memori (SQL) for **conversational AI memory** where users know what they're asking for.
+
 Give your AI agents structured, persistent memory with professional-grade architecture:
 
 ```python
