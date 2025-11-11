@@ -16,6 +16,7 @@ from loguru import logger
 from sqlalchemy import create_engine, func, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from ..config.pool_config import pool_config
 from ..utils.exceptions import DatabaseError
@@ -150,20 +151,30 @@ class SQLAlchemyDatabaseManager:
                 # Ensure directory exists for SQLite
                 if ":///" in database_connect:
                     db_path = database_connect.replace("sqlite:///", "")
-                    db_dir = Path(db_path).parent
-                    db_dir.mkdir(parents=True, exist_ok=True)
+                    # Only create directory if it's not an in-memory database
+                    if db_path and db_path != ":memory:":
+                        db_dir = Path(db_path).parent
+                        db_dir.mkdir(parents=True, exist_ok=True)
+
+                # Check if it's an in-memory database
+                is_memory_db = database_connect == "sqlite:///:memory:"
 
                 # SQLite-specific configuration
-                engine = create_engine(
-                    database_connect,
-                    json_serializer=json.dumps,
-                    json_deserializer=json.loads,
-                    echo=False,
-                    # SQLite-specific options
-                    connect_args={
+                engine_kwargs = {
+                    "json_serializer": json.dumps,
+                    "json_deserializer": json.loads,
+                    "echo": False,
+                    "connect_args": {
                         "check_same_thread": False,  # Allow multiple threads
                     },
-                )
+                }
+
+                # Use StaticPool for in-memory databases to ensure all connections share the same database
+                if is_memory_db:
+                    engine_kwargs["poolclass"] = StaticPool
+                    logger.debug("Using StaticPool for in-memory SQLite database")
+
+                engine = create_engine(database_connect, **engine_kwargs)
 
             elif database_connect.startswith("mysql:") or database_connect.startswith(
                 "mysql+"
