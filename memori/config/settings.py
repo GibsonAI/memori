@@ -59,9 +59,7 @@ class DatabaseSettings(BaseModel):
     pool_recycle: int = Field(
         default=3600, ge=300, le=7200, description="Recycle connections after seconds"
     )
-    pool_pre_ping: bool = Field(
-        default=True, description="Test connections before use"
-    )
+    pool_pre_ping: bool = Field(default=True, description="Test connections before use")
 
     echo_sql: bool = Field(default=False, description="Echo SQL statements to logs")
     migration_auto: bool = Field(

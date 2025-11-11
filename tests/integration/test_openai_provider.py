@@ -20,7 +20,9 @@ import pytest
 class TestOpenAIBasicIntegration:
     """Test basic OpenAI integration with Memori."""
 
-    def test_openai_with_mock(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_openai_with_mock(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 1: OpenAI integration with mocked API (fast, no API cost).
 
@@ -31,6 +33,7 @@ class TestOpenAIBasicIntegration:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import OpenAI
 
         # ASPECT 1: Functional - Enable Memori and create client
@@ -38,15 +41,21 @@ class TestOpenAIBasicIntegration:
         client = OpenAI(api_key="test-key")
 
         # Mock at the OpenAI API level
-        with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            return_value=mock_openai_response,
+        ):
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[{"role": "user", "content": "What is Python?"}]
+                messages=[{"role": "user", "content": "What is Python?"}],
             )
 
             # Verify call succeeded
             assert response is not None
-            assert response.choices[0].message.content == "Python is a programming language."
+            assert (
+                response.choices[0].message.content
+                == "Python is a programming language."
+            )
 
         # ASPECT 2: Persistence - Give time for async recording (if implemented)
         time.sleep(0.5)
@@ -54,7 +63,9 @@ class TestOpenAIBasicIntegration:
         # ASPECT 3: Integration - Memori is enabled
         assert memori_sqlite._enabled == True
 
-    def test_openai_multiple_messages(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_openai_multiple_messages(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 2: Multiple OpenAI messages in sequence.
 
@@ -65,6 +76,7 @@ class TestOpenAIBasicIntegration:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import OpenAI
 
         memori_sqlite.enable()
@@ -73,15 +85,17 @@ class TestOpenAIBasicIntegration:
         messages_to_send = [
             "Tell me about Python",
             "What is FastAPI?",
-            "How do I use async/await?"
+            "How do I use async/await?",
         ]
 
         # ASPECT 1: Functional - Send multiple messages
-        with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            return_value=mock_openai_response,
+        ):
             for msg in messages_to_send:
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": msg}]
+                    model="gpt-4o-mini", messages=[{"role": "user", "content": msg}]
                 )
                 assert response is not None
 
@@ -90,7 +104,9 @@ class TestOpenAIBasicIntegration:
         # ASPECT 2 & 3: Integration - All calls succeeded
         assert memori_sqlite._enabled == True
 
-    def test_openai_conversation_recording(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_openai_conversation_recording(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 3: Verify conversation recording.
 
@@ -101,6 +117,7 @@ class TestOpenAIBasicIntegration:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import OpenAI
 
         memori_sqlite.enable()
@@ -109,10 +126,13 @@ class TestOpenAIBasicIntegration:
         user_message = "What is the capital of France?"
 
         # ASPECT 1: Functional - Make call
-        with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            return_value=mock_openai_response,
+        ):
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[{"role": "user", "content": user_message}]
+                messages=[{"role": "user", "content": user_message}],
             )
             assert response is not None
 
@@ -128,8 +148,12 @@ class TestOpenAIBasicIntegration:
         history = memori_sqlite.db_manager.get_chat_history("default", limit=10)
         assert isinstance(history, list)
 
-    @pytest.mark.skip(reason="store_short_term_memory() API not available - short-term memory is managed internally")
-    def test_openai_context_injection_conscious_mode(self, memori_sqlite_conscious, test_namespace, mock_openai_response):
+    @pytest.mark.skip(
+        reason="store_short_term_memory() API not available - short-term memory is managed internally"
+    )
+    def test_openai_context_injection_conscious_mode(
+        self, memori_sqlite_conscious, test_namespace, mock_openai_response
+    ):
         """
         Test 4: Context injection in conscious mode.
 
@@ -140,6 +164,7 @@ class TestOpenAIBasicIntegration:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import OpenAI
 
         # Setup: Store permanent context
@@ -149,17 +174,20 @@ class TestOpenAIBasicIntegration:
             category_primary="context",
             session_id="test_session",
             user_id=memori_sqlite_conscious.user_id,
-            is_permanent_context=True
+            is_permanent_context=True,
         )
 
         # ASPECT 1: Functional - Enable and make call
         memori_sqlite_conscious.enable()
         client = OpenAI(api_key="test-key")
 
-        with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            return_value=mock_openai_response,
+        ):
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[{"role": "user", "content": "Help me with my project"}]
+                messages=[{"role": "user", "content": "Help me with my project"}],
             )
             assert response is not None
 
@@ -199,8 +227,10 @@ class TestOpenAIRealAPI:
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": "Say 'test successful' and nothing else"}],
-            max_tokens=10
+            messages=[
+                {"role": "user", "content": "Say 'test successful' and nothing else"}
+            ],
+            max_tokens=10,
         )
 
         # ASPECT 2: Persistence - Validate response
@@ -230,17 +260,20 @@ class TestOpenAIErrorHandling:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import OpenAI
 
         memori_sqlite.enable()
         client = OpenAI(api_key="test-key")
 
         # ASPECT 1: Functional - Simulate API error
-        with patch('openai.resources.chat.completions.Completions.create', side_effect=Exception("API Error")):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            side_effect=Exception("API Error"),
+        ):
             with pytest.raises(Exception) as exc_info:
                 client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": "Test"}]
+                    model="gpt-4o-mini", messages=[{"role": "user", "content": "Test"}]
                 )
 
             assert "API Error" in str(exc_info.value)
@@ -280,7 +313,9 @@ class TestOpenAIErrorHandling:
 class TestOpenAIPerformance:
     """Test OpenAI integration performance."""
 
-    def test_openai_overhead_measurement(self, memori_sqlite, test_namespace, mock_openai_response, performance_tracker):
+    def test_openai_overhead_measurement(
+        self, memori_sqlite, test_namespace, mock_openai_response, performance_tracker
+    ):
         """
         Test 8: Measure Memori overhead with OpenAI.
 
@@ -291,28 +326,35 @@ class TestOpenAIPerformance:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import OpenAI
 
         client = OpenAI(api_key="test-key")
 
         # Baseline: Without Memori
         with performance_tracker.track("without_memori"):
-            with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+            with patch(
+                "openai.resources.chat.completions.Completions.create",
+                return_value=mock_openai_response,
+            ):
                 for i in range(10):
                     client.chat.completions.create(
                         model="gpt-4o-mini",
-                        messages=[{"role": "user", "content": f"Test {i}"}]
+                        messages=[{"role": "user", "content": f"Test {i}"}],
                     )
 
         # With Memori enabled
         memori_sqlite.enable()
 
         with performance_tracker.track("with_memori"):
-            with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+            with patch(
+                "openai.resources.chat.completions.Completions.create",
+                return_value=mock_openai_response,
+            ):
                 for i in range(10):
                     client.chat.completions.create(
                         model="gpt-4o-mini",
-                        messages=[{"role": "user", "content": f"Test {i}"}]
+                        messages=[{"role": "user", "content": f"Test {i}"}],
                     )
 
         # ASPECT 3: Performance - Measure overhead
@@ -323,7 +365,7 @@ class TestOpenAIPerformance:
         overhead = with_memori - without
         overhead_pct = (overhead / without) * 100 if without > 0 else 0
 
-        print(f"\nOpenAI Performance:")
+        print("\nOpenAI Performance:")
         print(f"  Without Memori: {without:.3f}s")
         print(f"  With Memori:    {with_memori:.3f}s")
         print(f"  Overhead:       {overhead:.3f}s ({overhead_pct:.1f}%)")

@@ -892,7 +892,9 @@ class DatabaseManager:
             # Exponential decay: score decreases as days increase
             return max(0, 1 - (days_old / 30))  # Full score for recent, 0 after 30 days
         except (ValueError, TypeError, AttributeError) as e:
-            logger.warning(f"Invalid date format for recency calculation: {created_at_str}, error: {e}")
+            logger.warning(
+                f"Invalid date format for recency calculation: {created_at_str}, error: {e}"
+            )
             return 0.0
 
     def _determine_storage_location(self, memory: ProcessedMemory) -> str:

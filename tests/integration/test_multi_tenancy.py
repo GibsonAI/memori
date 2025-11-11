@@ -11,11 +11,9 @@ Validates three aspects:
 These are CRITICAL tests for the new user_id and assistant_id parameters.
 """
 
-import time
 from datetime import datetime
 
 import pytest
-
 from conftest import create_simple_memory
 
 
@@ -24,7 +22,9 @@ from conftest import create_simple_memory
 class TestUserIDIsolation:
     """Test user_id provides complete data isolation."""
 
-    def test_user_isolation_basic_sqlite(self, multi_user_memori_sqlite, test_namespace):
+    def test_user_isolation_basic_sqlite(
+        self, multi_user_memori_sqlite, test_namespace
+    ):
         """
         Test 1: Basic user_id isolation in SQLite.
 
@@ -39,23 +39,21 @@ class TestUserIDIsolation:
         alice_memory = create_simple_memory(
             content="Alice's secret project uses Django",
             summary="Alice's project",
-            classification="context"
+            classification="context",
         )
         users["alice"].db_manager.store_long_term_memory_enhanced(
             memory=alice_memory,
             chat_id="alice_test_chat_1",
-            user_id=users["alice"].user_id
+            user_id=users["alice"].user_id,
         )
 
         bob_memory = create_simple_memory(
             content="Bob's secret project uses FastAPI",
             summary="Bob's project",
-            classification="context"
+            classification="context",
         )
         users["bob"].db_manager.store_long_term_memory_enhanced(
-            memory=bob_memory,
-            chat_id="bob_test_chat_1",
-            user_id=users["bob"].user_id
+            memory=bob_memory, chat_id="bob_test_chat_1", user_id=users["bob"].user_id
         )
 
         # ASPECT 2: Persistence - Data in database with user_id
@@ -67,18 +65,24 @@ class TestUserIDIsolation:
 
         # ASPECT 3: Integration - Complete isolation
         # Alice only sees her data
-        alice_results = users["alice"].db_manager.search_memories("project", user_id=users["alice"].user_id)
+        alice_results = users["alice"].db_manager.search_memories(
+            "project", user_id=users["alice"].user_id
+        )
         assert len(alice_results) == 1
         assert "Django" in alice_results[0]["processed_data"]["content"]
         assert "FastAPI" not in alice_results[0]["processed_data"]["content"]
 
         # Bob only sees his data
-        bob_results = users["bob"].db_manager.search_memories("project", user_id=users["bob"].user_id)
+        bob_results = users["bob"].db_manager.search_memories(
+            "project", user_id=users["bob"].user_id
+        )
         assert len(bob_results) == 1
         assert "FastAPI" in bob_results[0]["processed_data"]["content"]
         assert "Django" not in bob_results[0]["processed_data"]["content"]
 
-    def test_user_isolation_basic_postgresql(self, multi_user_memori_postgresql, test_namespace):
+    def test_user_isolation_basic_postgresql(
+        self, multi_user_memori_postgresql, test_namespace
+    ):
         """
         Test 2: Basic user_id isolation in PostgreSQL.
 
@@ -90,23 +94,23 @@ class TestUserIDIsolation:
         alice_memory = create_simple_memory(
             content="Alice uses PostgreSQL for production",
             summary="Alice's database choice",
-            classification="preference"
+            classification="preference",
         )
         users["alice"].db_manager.store_long_term_memory_enhanced(
             memory=alice_memory,
             chat_id="alice_pg_test_chat_1",
-            user_id=users["alice"].user_id
+            user_id=users["alice"].user_id,
         )
 
         bob_memory = create_simple_memory(
             content="Bob uses MySQL for production",
             summary="Bob's database choice",
-            classification="preference"
+            classification="preference",
         )
         users["bob"].db_manager.store_long_term_memory_enhanced(
             memory=bob_memory,
             chat_id="bob_pg_test_chat_1",
-            user_id=users["bob"].user_id
+            user_id=users["bob"].user_id,
         )
 
         # ASPECT 2: Persistence - Data stored with user isolation
@@ -117,12 +121,16 @@ class TestUserIDIsolation:
         assert bob_stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - PostgreSQL maintains isolation
-        alice_results = users["alice"].db_manager.search_memories("production", user_id=users["alice"].user_id)
+        alice_results = users["alice"].db_manager.search_memories(
+            "production", user_id=users["alice"].user_id
+        )
         assert len(alice_results) == 1
         assert "PostgreSQL" in alice_results[0]["processed_data"]["content"]
         assert "MySQL" not in alice_results[0]["processed_data"]["content"]
 
-        bob_results = users["bob"].db_manager.search_memories("production", user_id=users["bob"].user_id)
+        bob_results = users["bob"].db_manager.search_memories(
+            "production", user_id=users["bob"].user_id
+        )
         assert len(bob_results) == 1
         assert "MySQL" in bob_results[0]["processed_data"]["content"]
         assert "PostgreSQL" not in bob_results[0]["processed_data"]["content"]
@@ -147,7 +155,7 @@ class TestUserIDIsolation:
             timestamp=datetime.now(),
             session_id="alice_chat_session",
             user_id=users["alice"].user_id,
-            tokens_used=25
+            tokens_used=25,
         )
 
         users["bob"].db_manager.store_chat_history(
@@ -158,7 +166,7 @@ class TestUserIDIsolation:
             timestamp=datetime.now(),
             session_id="bob_chat_session",
             user_id=users["bob"].user_id,
-            tokens_used=25
+            tokens_used=25,
         )
 
         # ASPECT 2: Persistence - Each user has their chat
@@ -169,8 +177,12 @@ class TestUserIDIsolation:
         assert bob_stats["chat_history_count"] == 1
 
         # ASPECT 3: Integration - Chat isolation verified
-        alice_history = users["alice"].db_manager.get_chat_history(users["alice"].user_id, limit=10)
-        bob_history = users["bob"].db_manager.get_chat_history(users["bob"].user_id, limit=10)
+        alice_history = users["alice"].db_manager.get_chat_history(
+            users["alice"].user_id, limit=10
+        )
+        bob_history = users["bob"].db_manager.get_chat_history(
+            users["bob"].user_id, limit=10
+        )
 
         assert len(alice_history) == 1
         assert len(bob_history) == 1
@@ -195,12 +207,12 @@ class TestUserIDIsolation:
             memory = create_simple_memory(
                 content=same_content,
                 summary=f"{user_id}'s preference",
-                classification="preference"
+                classification="preference",
             )
             users[user_id].db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"{user_id}_test_chat_1",
-                user_id=users[user_id].user_id
+                user_id=users[user_id].user_id,
             )
 
         # ASPECT 2: Persistence - Each user has their own copy
@@ -210,7 +222,9 @@ class TestUserIDIsolation:
 
         # ASPECT 3: Integration - Each user sees only one result (theirs)
         for user_id in ["alice", "bob", "charlie"]:
-            results = users[user_id].db_manager.search_memories("Python", user_id=users[user_id].user_id)
+            results = users[user_id].db_manager.search_memories(
+                "Python", user_id=users[user_id].user_id
+            )
             assert len(results) == 1  # Only their own memory, not others
             assert results[0]["processed_data"]["content"] == same_content
 
@@ -235,25 +249,27 @@ class TestCrossUserDataLeakagePrevention:
         secrets = {
             "alice": "alice_secret_password_12345",
             "bob": "bob_secret_password_67890",
-            "charlie": "charlie_secret_password_abcde"
+            "charlie": "charlie_secret_password_abcde",
         }
 
         for user_id, secret in secrets.items():
             memory = create_simple_memory(
                 content=f"{user_id}'s secret is {secret}",
                 summary=f"{user_id}'s secret",
-                classification="knowledge"
+                classification="knowledge",
             )
             users[user_id].db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"{user_id}_secret_test_chat_1",
-                user_id=users[user_id].user_id
+                user_id=users[user_id].user_id,
             )
 
         # ASPECT 1 & 2: Each user can search
         # ASPECT 3: No user sees another user's secret
         for user_id, expected_secret in secrets.items():
-            results = users[user_id].db_manager.search_memories("secret password", user_id=users[user_id].user_id)
+            results = users[user_id].db_manager.search_memories(
+                "secret password", user_id=users[user_id].user_id
+            )
 
             assert len(results) == 1  # Only one result (their own)
             assert expected_secret in results[0]["processed_data"]["content"]
@@ -282,12 +298,12 @@ class TestCrossUserDataLeakagePrevention:
                 memory = create_simple_memory(
                     content=f"{user_id}_memory_{i}_with_unique_keyword_{user_id}",
                     summary=f"{user_id} memory {i}",
-                    classification="knowledge"
+                    classification="knowledge",
                 )
                 users[user_id].db_manager.store_long_term_memory_enhanced(
                     memory=memory,
                     chat_id=f"{user_id}_bulk_test_chat_{i}",
-                    user_id=users[user_id].user_id
+                    user_id=users[user_id].user_id,
                 )
 
         # ASPECT 1 & 2: All data stored
@@ -297,19 +313,26 @@ class TestCrossUserDataLeakagePrevention:
 
         # ASPECT 3: Each user only sees their data
         for user_id in ["alice", "bob", "charlie"]:
-            results = users[user_id].db_manager.search_memories("memory", user_id=users[user_id].user_id)
+            results = users[user_id].db_manager.search_memories(
+                "memory", user_id=users[user_id].user_id
+            )
 
             # Should find their memories (up to search limit)
             assert len(results) > 0
 
             # All results should belong to this user
             for result in results:
-                assert f"unique_keyword_{user_id}" in result["processed_data"]["content"]
+                assert (
+                    f"unique_keyword_{user_id}" in result["processed_data"]["content"]
+                )
 
                 # Verify no other user's keywords
                 other_users = [u for u in ["alice", "bob", "charlie"] if u != user_id]
                 for other_user in other_users:
-                    assert f"unique_keyword_{other_user}" not in result["processed_data"]["content"]
+                    assert (
+                        f"unique_keyword_{other_user}"
+                        not in result["processed_data"]["content"]
+                    )
 
     def test_sql_injection_safety(self, multi_user_memori_sqlite, test_namespace):
         """
@@ -327,14 +350,12 @@ class TestCrossUserDataLeakagePrevention:
 
         # Store normal data for alice
         memory = create_simple_memory(
-            content="Alice's safe data",
-            summary="Safe data",
-            classification="knowledge"
+            content="Alice's safe data", summary="Safe data", classification="knowledge"
         )
         users["alice"].db_manager.store_long_term_memory_enhanced(
             memory=memory,
             chat_id="sql_safety_test_chat_1",
-            user_id=users["alice"].user_id
+            user_id=users["alice"].user_id,
         )
 
         # Try malicious search query
@@ -342,7 +363,9 @@ class TestCrossUserDataLeakagePrevention:
 
         try:
             # This should not cause SQL injection
-            results = users["alice"].db_manager.search_memories(malicious_query, user_id=users["alice"].user_id)
+            results = users["alice"].db_manager.search_memories(
+                malicious_query, user_id=users["alice"].user_id
+            )
 
             # Should return empty results, not crash or execute SQL
             assert isinstance(results, list)
@@ -377,12 +400,12 @@ class TestAssistantIDTracking:
             content="Memory created by assistant A",
             summary="Assistant A memory",
             classification="knowledge",
-            metadata={"assistant_id": "assistant_a"}
+            metadata={"assistant_id": "assistant_a"},
         )
         memory_id = memori_sqlite.db_manager.store_long_term_memory_enhanced(
             memory=memory,
             chat_id="assistant_test_chat_1",
-            user_id=memori_sqlite.user_id
+            user_id=memori_sqlite.user_id,
         )
 
         assert memory_id is not None
@@ -392,7 +415,9 @@ class TestAssistantIDTracking:
         assert stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - Can retrieve
-        results = memori_sqlite.db_manager.search_memories("assistant", user_id=memori_sqlite.user_id)
+        results = memori_sqlite.db_manager.search_memories(
+            "assistant", user_id=memori_sqlite.user_id
+        )
         assert len(results) > 0
 
     def test_multiple_assistants_same_user(self, memori_sqlite, test_namespace):
@@ -412,12 +437,12 @@ class TestAssistantIDTracking:
                 content=f"Memory from {assistant_id} for the user",
                 summary=f"{assistant_id} memory",
                 classification="knowledge",
-                metadata={"assistant_id": assistant_id}
+                metadata={"assistant_id": assistant_id},
             )
             memori_sqlite.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"multi_assistant_test_chat_{i}",
-                user_id=memori_sqlite.user_id
+                user_id=memori_sqlite.user_id,
             )
 
         # ASPECT 1 & 2: All stored
@@ -426,7 +451,9 @@ class TestAssistantIDTracking:
 
         # ASPECT 3: Can identify assistant memories
         for assistant_id in assistants:
-            results = memori_sqlite.db_manager.search_memories(assistant_id, user_id=memori_sqlite.user_id)
+            results = memori_sqlite.db_manager.search_memories(
+                assistant_id, user_id=memori_sqlite.user_id
+            )
             assert len(results) >= 1
 
 
@@ -452,36 +479,36 @@ class TestNamespaceAndUserIDCombination:
         memory_alice_ns1 = create_simple_memory(
             content="Alice data in namespace 1",
             summary="Alice NS1",
-            classification="knowledge"
+            classification="knowledge",
         )
         users["alice"].db_manager.store_long_term_memory_enhanced(
             memory=memory_alice_ns1,
             chat_id="alice_ns1_test_chat_1",
-            user_id=users["alice"].user_id
+            user_id=users["alice"].user_id,
         )
 
         # Alice in namespace 2
         memory_alice_ns2 = create_simple_memory(
             content="Alice data in namespace 2",
             summary="Alice NS2",
-            classification="knowledge"
+            classification="knowledge",
         )
         users["alice"].db_manager.store_long_term_memory_enhanced(
             memory=memory_alice_ns2,
             chat_id="alice_ns2_test_chat_1",
-            user_id=users["alice"].user_id
+            user_id=users["alice"].user_id,
         )
 
         # Bob in namespace 1
         memory_bob_ns1 = create_simple_memory(
             content="Bob data in namespace 1",
             summary="Bob NS1",
-            classification="knowledge"
+            classification="knowledge",
         )
         users["bob"].db_manager.store_long_term_memory_enhanced(
             memory=memory_bob_ns1,
             chat_id="bob_ns1_test_chat_1",
-            user_id=users["bob"].user_id
+            user_id=users["bob"].user_id,
         )
 
         # ASPECT 1 & 2: All stored correctly
@@ -494,7 +521,9 @@ class TestNamespaceAndUserIDCombination:
         assert bob_stats["long_term_count"] >= 1
 
         # ASPECT 3: Complete isolation
-        alice_results = users["alice"].db_manager.search_memories("data", user_id=users["alice"].user_id)
+        alice_results = users["alice"].db_manager.search_memories(
+            "data", user_id=users["alice"].user_id
+        )
         assert len(alice_results) >= 2
         assert "Alice" in str(alice_results)
 
@@ -505,7 +534,9 @@ class TestNamespaceAndUserIDCombination:
 class TestMultiTenancyPerformance:
     """Test multi-tenancy performance characteristics."""
 
-    def test_multi_user_search_performance(self, multi_user_memori, test_namespace, performance_tracker):
+    def test_multi_user_search_performance(
+        self, multi_user_memori, test_namespace, performance_tracker
+    ):
         """
         Test 11: Multi-user search doesn't degrade performance.
 
@@ -522,12 +553,12 @@ class TestMultiTenancyPerformance:
                 memory = create_simple_memory(
                     content=f"{user_id} memory {i} with search keywords",
                     summary=f"{user_id} {i}",
-                    classification="knowledge"
+                    classification="knowledge",
                 )
                 users[user_id].db_manager.store_long_term_memory_enhanced(
                     memory=memory,
                     chat_id=f"{user_id}_perf_test_chat_{i}",
-                    user_id=users[user_id].user_id
+                    user_id=users[user_id].user_id,
                 )
 
         # Test search performance for each user
@@ -536,8 +567,7 @@ class TestMultiTenancyPerformance:
         for user_id in ["alice", "bob", "charlie"]:
             with performance_tracker.track(f"search_{user_id}"):
                 results = users[user_id].db_manager.search_memories(
-                    "memory keywords",
-                    user_id=users[user_id].user_id
+                    "memory keywords", user_id=users[user_id].user_id
                 )
                 assert len(results) > 0
 

@@ -54,7 +54,9 @@ class MemoryAgent:
         else:
             # Backward compatibility: use api_key directly with proper timeout and retries
             self.client = openai.OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
-            self.async_client = openai.AsyncOpenAI(api_key=api_key, timeout=60.0, max_retries=2)
+            self.async_client = openai.AsyncOpenAI(
+                api_key=api_key, timeout=60.0, max_retries=2
+            )
             self.model = model or "gpt-4o"
             self.provider_config = None
 
@@ -162,7 +164,7 @@ Focus on extracting information that would genuinely help provide better context
                 # Retry only on connection/timeout errors
                 if "connection" in error_msg or "timeout" in error_msg:
                     if attempt < max_retries - 1:
-                        wait_time = (2 ** attempt) * 0.5  # 0.5s, 1s, 2s
+                        wait_time = (2**attempt) * 0.5  # 0.5s, 1s, 2s
                         logger.debug(
                             f"Connection error (attempt {attempt + 1}/{max_retries}), "
                             f"retrying in {wait_time}s: {e}"

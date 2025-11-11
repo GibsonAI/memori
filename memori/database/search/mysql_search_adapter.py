@@ -158,7 +158,9 @@ class MySQLSearchAdapter(BaseSearchAdapter):
             days_old = (datetime.now() - created_at).days
             return max(0, 1 - (days_old / 30))
         except (ValueError, TypeError, AttributeError) as e:
-            logger.warning(f"Invalid date format for recency calculation: {created_at}, error: {e}")
+            logger.warning(
+                f"Invalid date format for recency calculation: {created_at}, error: {e}"
+            )
             return 0.0
 
     def create_search_indexes(self) -> list[str]:

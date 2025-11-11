@@ -1041,7 +1041,8 @@ class SQLAlchemyDatabaseManager:
             "driver": self.engine.dialect.driver,
             "server_version": getattr(self.engine.dialect, "server_version_info", None),
             "supports_fulltext": True,  # Assume true for SQLAlchemy managed connections
-            "auto_creation_enabled": hasattr(self, "auto_creator") and self.auto_creator is not None,
+            "auto_creation_enabled": hasattr(self, "auto_creator")
+            and self.auto_creator is not None,
         }
 
         # Add auto-creation specific information

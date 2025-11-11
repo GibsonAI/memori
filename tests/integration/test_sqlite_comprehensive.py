@@ -9,12 +9,10 @@ Tests SQLite database functionality with Memori covering three aspects:
 Following the testing pattern established in existing Memori tests.
 """
 
-import sqlite3
 import time
 from datetime import datetime
 
 import pytest
-
 from conftest import create_simple_memory
 
 
@@ -45,7 +43,9 @@ class TestSQLiteBasicOperations:
         assert isinstance(stats, dict)
         assert "database_type" in stats
 
-    def test_chat_history_storage_and_retrieval(self, memori_sqlite, test_namespace, sample_chat_messages):
+    def test_chat_history_storage_and_retrieval(
+        self, memori_sqlite, test_namespace, sample_chat_messages
+    ):
         """
         Test 2: Chat history storage and retrieval.
 
@@ -65,7 +65,7 @@ class TestSQLiteBasicOperations:
                 session_id="test_session",
                 user_id=memori_sqlite.user_id,
                 tokens_used=30 + i * 5,
-                metadata={"test": "chat_storage", "index": i}
+                metadata={"test": "chat_storage", "index": i},
             )
             assert chat_id is not None
 
@@ -74,14 +74,18 @@ class TestSQLiteBasicOperations:
         assert stats["chat_history_count"] == len(sample_chat_messages)
 
         # ASPECT 3: Integration - Retrieve and verify content
-        history = memori_sqlite.db_manager.get_chat_history(user_id=memori_sqlite.user_id, limit=10)
+        history = memori_sqlite.db_manager.get_chat_history(
+            user_id=memori_sqlite.user_id, limit=10
+        )
         assert len(history) == len(sample_chat_messages)
 
         # Verify specific message content
         user_inputs = [h["user_input"] for h in history]
         assert "What is artificial intelligence?" in user_inputs
 
-    @pytest.mark.skip(reason="store_short_term_memory() API not available - short-term memory is managed internally")
+    @pytest.mark.skip(
+        reason="store_short_term_memory() API not available - short-term memory is managed internally"
+    )
     def test_short_term_memory_operations(self, memori_sqlite, test_namespace):
         """
         Test 3: Short-term memory storage and retrieval.
@@ -99,7 +103,7 @@ class TestSQLiteBasicOperations:
             category_secondary="technology",
             session_id="test_session",
             user_id=memori_sqlite.user_id,
-            metadata={"test": "short_term", "importance": "high"}
+            metadata={"test": "short_term", "importance": "high"},
         )
         assert memory_id is not None
 
@@ -108,9 +112,14 @@ class TestSQLiteBasicOperations:
         assert stats["short_term_count"] >= 1
 
         # ASPECT 3: Integration - Search and retrieve
-        results = memori_sqlite.db_manager.search_memories("Python FastAPI", user_id=memori_sqlite.user_id)
+        results = memori_sqlite.db_manager.search_memories(
+            "Python FastAPI", user_id=memori_sqlite.user_id
+        )
         assert len(results) > 0
-        assert "Python" in results[0]["processed_data"]["content"] or "FastAPI" in results[0]["processed_data"]["content"]
+        assert (
+            "Python" in results[0]["processed_data"]["content"]
+            or "FastAPI" in results[0]["processed_data"]["content"]
+        )
 
     def test_long_term_memory_operations(self, memori_sqlite, test_namespace):
         """
@@ -127,12 +136,10 @@ class TestSQLiteBasicOperations:
             summary="User's current project: AI agent with SQLite",
             classification="context",
             importance="high",
-            metadata={"test": "long_term", "project": "ai_agent"}
+            metadata={"test": "long_term", "project": "ai_agent"},
         )
         memory_id = memori_sqlite.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="test_sqlite_chat_1",
-            user_id=memori_sqlite.user_id
+            memory=memory, chat_id="test_sqlite_chat_1", user_id=memori_sqlite.user_id
         )
         assert memory_id is not None
 
@@ -141,9 +148,13 @@ class TestSQLiteBasicOperations:
         assert stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - Retrieve and validate
-        results = memori_sqlite.db_manager.search_memories("AI agent SQLite", user_id=memori_sqlite.user_id)
+        results = memori_sqlite.db_manager.search_memories(
+            "AI agent SQLite", user_id=memori_sqlite.user_id
+        )
         assert len(results) > 0
-        found_memory = any("AI agent" in r["processed_data"]["content"] for r in results)
+        found_memory = any(
+            "AI agent" in r["processed_data"]["content"] for r in results
+        )
         assert found_memory
 
 
@@ -152,7 +163,9 @@ class TestSQLiteBasicOperations:
 class TestSQLiteFullTextSearch:
     """Test SQLite FTS5 full-text search functionality."""
 
-    def test_fts_search_basic(self, memori_sqlite, test_namespace, sample_chat_messages):
+    def test_fts_search_basic(
+        self, memori_sqlite, test_namespace, sample_chat_messages
+    ):
         """
         Test 5: Basic full-text search.
 
@@ -167,19 +180,16 @@ class TestSQLiteFullTextSearch:
         for i, msg in enumerate(sample_chat_messages):
             memory = create_simple_memory(
                 content=f"{msg['user_input']} {msg['ai_output']}",
-                summary=msg['user_input'][:50],
-                classification="conversational"
+                summary=msg["user_input"][:50],
+                classification="conversational",
             )
             memori_sqlite.db_manager.store_long_term_memory_enhanced(
-                memory=memory,
-                chat_id=f"fts_test_{i}",
-                user_id=memori_sqlite.user_id
+                memory=memory, chat_id=f"fts_test_{i}", user_id=memori_sqlite.user_id
             )
 
         # ASPECT 1: Functional - Search works
         results = memori_sqlite.db_manager.search_memories(
-            "artificial intelligence",
-            user_id=memori_sqlite.user_id
+            "artificial intelligence", user_id=memori_sqlite.user_id
         )
         assert len(results) > 0
 
@@ -188,7 +198,10 @@ class TestSQLiteFullTextSearch:
 
         # ASPECT 3: Integration - Relevant results returned
         top_result = results[0]
-        assert "artificial" in top_result["processed_data"]["content"].lower() or "intelligence" in top_result["processed_data"]["content"].lower()
+        assert (
+            "artificial" in top_result["processed_data"]["content"].lower()
+            or "intelligence" in top_result["processed_data"]["content"].lower()
+        )
 
     def test_fts_search_boolean_operators(self, memori_sqlite, test_namespace):
         """
@@ -209,20 +222,17 @@ class TestSQLiteFullTextSearch:
 
         for i, content in enumerate(test_data):
             memory = create_simple_memory(
-                content=content,
-                summary=f"Test content {i}",
-                classification="knowledge"
+                content=content, summary=f"Test content {i}", classification="knowledge"
             )
             memori_sqlite.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"boolean_test_chat_{i}",
-                user_id=memori_sqlite.user_id
+                user_id=memori_sqlite.user_id,
             )
 
         # ASPECT 1: Functional - AND operator
         results = memori_sqlite.db_manager.search_memories(
-            "Python machine",
-            user_id=memori_sqlite.user_id
+            "Python machine", user_id=memori_sqlite.user_id
         )
         assert len(results) >= 2  # Should match "Python...machine learning" entries
 
@@ -231,7 +241,9 @@ class TestSQLiteFullTextSearch:
         assert stats["long_term_count"] >= 4
 
         # ASPECT 3: Integration - Correct filtering
-        python_results = [r for r in results if "Python" in r["processed_data"]["content"]]
+        python_results = [
+            r for r in results if "Python" in r["processed_data"]["content"]
+        ]
         assert len(python_results) > 0
 
 
@@ -257,12 +269,12 @@ class TestSQLiteMemoryLifecycle:
             content=original_content,
             summary="User's project context",
             classification="context",
-            importance="high"
+            importance="high",
         )
         memory_id = memori_sqlite.db_manager.store_long_term_memory_enhanced(
             memory=memory,
             chat_id="lifecycle_test_chat_1",
-            user_id=memori_sqlite.user_id
+            user_id=memori_sqlite.user_id,
         )
 
         # ASPECT 1: Functional - Memory created
@@ -276,17 +288,20 @@ class TestSQLiteMemoryLifecycle:
 
         # Step 3: Retrieve memory
         results = memori_sqlite.db_manager.search_memories(
-            "FastAPI SQLite",
-            user_id=memori_sqlite.user_id
+            "FastAPI SQLite", user_id=memori_sqlite.user_id
         )
 
         # ASPECT 3: Integration - Retrieved with correct content
         assert len(results) > 0
         retrieved = results[0]
         assert "FastAPI" in retrieved["processed_data"]["content"]
-        assert retrieved["category_primary"] == "contextual"  # Maps from "context" classification
+        assert (
+            retrieved["category_primary"] == "contextual"
+        )  # Maps from "context" classification
 
-    @pytest.mark.skip(reason="store_short_term_memory() API not available - short-term memory is managed internally")
+    @pytest.mark.skip(
+        reason="store_short_term_memory() API not available - short-term memory is managed internally"
+    )
     def test_multiple_memory_types_interaction(self, memori_sqlite, test_namespace):
         """
         Test 8: Interaction between different memory types.
@@ -306,7 +321,7 @@ class TestSQLiteMemoryLifecycle:
             timestamp=datetime.now(),
             session_id="multi_test",
             user_id=memori_sqlite.user_id,
-            tokens_used=25
+            tokens_used=25,
         )
 
         # 2. Short-term memory
@@ -315,19 +330,17 @@ class TestSQLiteMemoryLifecycle:
             summary="Python inquiry",
             category_primary="context",
             session_id="multi_test",
-            user_id=memori_sqlite.user_id
+            user_id=memori_sqlite.user_id,
         )
 
         # 3. Long-term memory
         memory = create_simple_memory(
             content="User is interested in Python development",
             summary="User's Python interest",
-            classification="preference"
+            classification="preference",
         )
         memori_sqlite.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="multi_test_chat_2",
-            user_id=memori_sqlite.user_id
+            memory=memory, chat_id="multi_test_chat_2", user_id=memori_sqlite.user_id
         )
 
         # ASPECT 1: Functional - All types stored
@@ -340,7 +353,9 @@ class TestSQLiteMemoryLifecycle:
         assert stats["database_type"] == "sqlite"
 
         # ASPECT 3: Integration - Search finds across types
-        results = memori_sqlite.db_manager.search_memories("Python", user_id=memori_sqlite.user_id)
+        results = memori_sqlite.db_manager.search_memories(
+            "Python", user_id=memori_sqlite.user_id
+        )
         assert len(results) >= 2  # Should find multiple entries
 
 
@@ -350,7 +365,9 @@ class TestSQLiteMemoryLifecycle:
 class TestSQLitePerformance:
     """Test SQLite performance characteristics."""
 
-    def test_bulk_insertion_performance(self, memori_sqlite, test_namespace, performance_tracker):
+    def test_bulk_insertion_performance(
+        self, memori_sqlite, test_namespace, performance_tracker
+    ):
         """
         Test 9: Bulk insertion performance.
 
@@ -372,7 +389,7 @@ class TestSQLitePerformance:
                     timestamp=datetime.now(),
                     session_id="perf_test",
                     user_id=memori_sqlite.user_id,
-                    tokens_used=30
+                    tokens_used=30,
                 )
 
         # ASPECT 2: Persistence - All records stored
@@ -384,10 +401,14 @@ class TestSQLitePerformance:
         insert_time = metrics["bulk_insert"]
         time_per_record = insert_time / num_records
 
-        print(f"\nBulk insert: {insert_time:.3f}s total, {time_per_record:.4f}s per record")
+        print(
+            f"\nBulk insert: {insert_time:.3f}s total, {time_per_record:.4f}s per record"
+        )
         assert insert_time < 10.0  # Should complete within 10 seconds
 
-    def test_search_performance(self, memori_sqlite, test_namespace, performance_tracker):
+    def test_search_performance(
+        self, memori_sqlite, test_namespace, performance_tracker
+    ):
         """
         Test 10: Search performance.
 
@@ -401,19 +422,18 @@ class TestSQLitePerformance:
             memory = create_simple_memory(
                 content=f"Python development tip {i}: Use type hints for better code",
                 summary=f"Python tip {i}",
-                classification="knowledge"
+                classification="knowledge",
             )
             memori_sqlite.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"search_perf_chat_{i}",
-                user_id=memori_sqlite.user_id
+                user_id=memori_sqlite.user_id,
             )
 
         # ASPECT 1: Functional - Search works
         with performance_tracker.track("search"):
             results = memori_sqlite.db_manager.search_memories(
-                "Python type hints",
-                user_id=memori_sqlite.user_id
+                "Python type hints", user_id=memori_sqlite.user_id
             )
 
         # ASPECT 2: Persistence - Results from database
@@ -447,12 +467,12 @@ class TestSQLiteConcurrency:
             memory = create_simple_memory(
                 content=f"Sequential test {i}",
                 summary=f"Test {i}",
-                classification="knowledge"
+                classification="knowledge",
             )
             memori_sqlite.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"sequential_test_chat_{i}",
-                user_id=memori_sqlite.user_id
+                user_id=memori_sqlite.user_id,
             )
 
             # Retrieve
@@ -467,7 +487,9 @@ class TestSQLiteConcurrency:
         assert final_stats["long_term_count"] == 10
 
         # ASPECT 3: Integration - Data retrievable
-        results = memori_sqlite.db_manager.search_memories("Sequential", user_id=memori_sqlite.user_id)
+        results = memori_sqlite.db_manager.search_memories(
+            "Sequential", user_id=memori_sqlite.user_id
+        )
         assert len(results) == 10
 
 
@@ -480,7 +502,9 @@ class TestSQLiteEdgeCases:
         """
         Test 12: Handle empty search queries gracefully.
         """
-        results = memori_sqlite.db_manager.search_memories("", user_id=memori_sqlite.user_id)
+        results = memori_sqlite.db_manager.search_memories(
+            "", user_id=memori_sqlite.user_id
+        )
         # Should return empty results or handle gracefully, not crash
         assert isinstance(results, list)
 
@@ -502,18 +526,20 @@ class TestSQLiteEdgeCases:
         memory = create_simple_memory(
             content=long_content,
             summary="Very long content test",
-            classification="knowledge"
+            classification="knowledge",
         )
         memory_id = memori_sqlite.db_manager.store_long_term_memory_enhanced(
             memory=memory,
             chat_id="long_content_test_chat_1",
-            user_id=memori_sqlite.user_id
+            user_id=memori_sqlite.user_id,
         )
 
         assert memory_id is not None
 
         # Verify it was stored and can be retrieved
-        results = memori_sqlite.db_manager.search_memories("xxx", user_id=memori_sqlite.user_id)
+        results = memori_sqlite.db_manager.search_memories(
+            "xxx", user_id=memori_sqlite.user_id
+        )
         assert len(results) > 0
 
     def test_special_characters_in_content(self, memori_sqlite, test_namespace):
@@ -525,12 +551,12 @@ class TestSQLiteEdgeCases:
         memory = create_simple_memory(
             content=special_content,
             summary="Special characters test",
-            classification="knowledge"
+            classification="knowledge",
         )
         memory_id = memori_sqlite.db_manager.store_long_term_memory_enhanced(
             memory=memory,
             chat_id="special_chars_test_chat_1",
-            user_id=memori_sqlite.user_id
+            user_id=memori_sqlite.user_id,
         )
 
         assert memory_id is not None

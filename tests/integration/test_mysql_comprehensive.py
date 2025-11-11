@@ -13,7 +13,6 @@ import time
 from datetime import datetime
 
 import pytest
-
 from conftest import create_simple_memory
 
 
@@ -45,7 +44,9 @@ class TestMySQLBasicOperations:
         assert isinstance(stats, dict)
         assert stats["database_type"] == "mysql"
 
-    def test_chat_history_storage_and_retrieval(self, memori_mysql, test_namespace, sample_chat_messages):
+    def test_chat_history_storage_and_retrieval(
+        self, memori_mysql, test_namespace, sample_chat_messages
+    ):
         """
         Test 2: Chat history storage and retrieval.
 
@@ -65,7 +66,7 @@ class TestMySQLBasicOperations:
                 session_id="mysql_test_session",
                 user_id=memori_mysql.user_id,
                 tokens_used=30 + i * 5,
-                metadata={"test": "chat_storage", "db": "mysql"}
+                metadata={"test": "chat_storage", "db": "mysql"},
             )
             assert chat_id is not None
 
@@ -74,14 +75,18 @@ class TestMySQLBasicOperations:
         assert stats["chat_history_count"] == len(sample_chat_messages)
 
         # ASPECT 3: Integration - Retrieve and verify content
-        history = memori_mysql.db_manager.get_chat_history(memori_mysql.user_id, limit=10)
+        history = memori_mysql.db_manager.get_chat_history(
+            memori_mysql.user_id, limit=10
+        )
         assert len(history) == len(sample_chat_messages)
 
         # Verify specific message content
         user_inputs = [h["user_input"] for h in history]
         assert "What is artificial intelligence?" in user_inputs
 
-    @pytest.mark.skip(reason="store_short_term_memory() API not available - short-term memory is managed internally")
+    @pytest.mark.skip(
+        reason="store_short_term_memory() API not available - short-term memory is managed internally"
+    )
     def test_short_term_memory_operations(self, memori_mysql, test_namespace):
         """
         Test 3: Short-term memory storage and retrieval.
@@ -99,7 +104,7 @@ class TestMySQLBasicOperations:
             category_secondary="database",
             session_id="mysql_test_session",
             user_id=memori_mysql.user_id,
-            metadata={"test": "short_term", "db": "mysql"}
+            metadata={"test": "short_term", "db": "mysql"},
         )
         assert memory_id is not None
 
@@ -108,9 +113,14 @@ class TestMySQLBasicOperations:
         assert stats["short_term_count"] >= 1
 
         # ASPECT 3: Integration - Search with FULLTEXT
-        results = memori_mysql.db_manager.search_memories("MySQL reliable", user_id=memori_mysql.user_id)
+        results = memori_mysql.db_manager.search_memories(
+            "MySQL reliable", user_id=memori_mysql.user_id
+        )
         assert len(results) > 0
-        assert "MySQL" in results[0]["processed_data"]["content"] or "reliable" in results[0]["processed_data"]["content"]
+        assert (
+            "MySQL" in results[0]["processed_data"]["content"]
+            or "reliable" in results[0]["processed_data"]["content"]
+        )
 
     def test_long_term_memory_operations(self, memori_mysql, test_namespace):
         """
@@ -127,12 +137,10 @@ class TestMySQLBasicOperations:
             summary="User's project: web app with MySQL and Redis",
             classification="context",
             importance="high",
-            metadata={"test": "long_term", "stack": "mysql_redis"}
+            metadata={"test": "long_term", "stack": "mysql_redis"},
         )
         memory_id = memori_mysql.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="mysql_test_chat_1",
-            user_id=memori_mysql.user_id
+            memory=memory, chat_id="mysql_test_chat_1", user_id=memori_mysql.user_id
         )
         assert memory_id is not None
 
@@ -141,9 +149,15 @@ class TestMySQLBasicOperations:
         assert stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - FULLTEXT search
-        results = memori_mysql.db_manager.search_memories("high-traffic MySQL", user_id=memori_mysql.user_id)
+        results = memori_mysql.db_manager.search_memories(
+            "high-traffic MySQL", user_id=memori_mysql.user_id
+        )
         assert len(results) > 0
-        found_memory = any("high-traffic" in r["processed_data"]["content"] or "MySQL" in r["processed_data"]["content"] for r in results)
+        found_memory = any(
+            "high-traffic" in r["processed_data"]["content"]
+            or "MySQL" in r["processed_data"]["content"]
+            for r in results
+        )
         assert found_memory
 
 
@@ -152,7 +166,9 @@ class TestMySQLBasicOperations:
 class TestMySQLFullTextSearch:
     """Test MySQL FULLTEXT search functionality."""
 
-    def test_fulltext_search_basic(self, memori_mysql, test_namespace, sample_chat_messages):
+    def test_fulltext_search_basic(
+        self, memori_mysql, test_namespace, sample_chat_messages
+    ):
         """
         Test 5: Basic MySQL FULLTEXT search.
 
@@ -171,13 +187,12 @@ class TestMySQLFullTextSearch:
                 timestamp=datetime.now(),
                 session_id="fts_mysql_session",
                 user_id=memori_mysql.user_id,
-                tokens_used=50
+                tokens_used=50,
             )
 
         # ASPECT 1: Functional - Search works
         results = memori_mysql.db_manager.search_memories(
-            "artificial intelligence",
-            user_id=memori_mysql.user_id
+            "artificial intelligence", user_id=memori_mysql.user_id
         )
         assert len(results) > 0
 
@@ -203,25 +218,22 @@ class TestMySQLFullTextSearch:
             "MySQL provides excellent full-text search capabilities",
             "Full-text search is a powerful feature in MySQL",
             "MySQL is a relational database system",
-            "Search functionality in databases"
+            "Search functionality in databases",
         ]
 
         for i, content in enumerate(test_data):
             memory = create_simple_memory(
-                content=content,
-                summary=f"Test {i}",
-                classification="knowledge"
+                content=content, summary=f"Test {i}", classification="knowledge"
             )
             memori_mysql.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"boolean_test_chat_{i}",
-                user_id=memori_mysql.user_id
+                user_id=memori_mysql.user_id,
             )
 
         # ASPECT 1: Functional - Boolean search
         results = memori_mysql.db_manager.search_memories(
-            "MySQL full-text",
-            user_id=memori_mysql.user_id
+            "MySQL full-text", user_id=memori_mysql.user_id
         )
         assert len(results) > 0
 
@@ -230,7 +242,9 @@ class TestMySQLFullTextSearch:
         assert stats["long_term_count"] >= 4
 
         # ASPECT 3: Integration - Relevant filtering
-        mysql_results = [r for r in results if "MySQL" in r["processed_data"]["content"]]
+        mysql_results = [
+            r for r in results if "MySQL" in r["processed_data"]["content"]
+        ]
         assert len(mysql_results) > 0
 
 
@@ -256,12 +270,12 @@ class TestMySQLSpecificFeatures:
             memory = create_simple_memory(
                 content=f"Transaction test {i}",
                 summary=f"Test {i}",
-                classification="knowledge"
+                classification="knowledge",
             )
             memori_mysql.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"transaction_chat_{i}",
-                user_id=memori_mysql.user_id
+                user_id=memori_mysql.user_id,
             )
 
         # ASPECT 1 & 2: All stored
@@ -269,7 +283,9 @@ class TestMySQLSpecificFeatures:
         assert final_stats["long_term_count"] == initial_count + 3
 
         # ASPECT 3: Data consistent
-        results = memori_mysql.db_manager.search_memories("Transaction", user_id=memori_mysql.user_id)
+        results = memori_mysql.db_manager.search_memories(
+            "Transaction", user_id=memori_mysql.user_id
+        )
         assert len(results) == 3
 
     def test_json_column_support(self, memori_mysql, test_namespace):
@@ -284,10 +300,7 @@ class TestMySQLSpecificFeatures:
         complex_metadata = {
             "tags": ["python", "database", "mysql"],
             "priority": "high",
-            "nested": {
-                "key1": "value1",
-                "key2": 42
-            }
+            "nested": {"key1": "value1", "key2": 42},
         }
 
         # ASPECT 1: Functional - Store with complex metadata
@@ -295,12 +308,10 @@ class TestMySQLSpecificFeatures:
             content="Test with complex JSON metadata",
             summary="JSON metadata test",
             classification="knowledge",
-            metadata=complex_metadata
+            metadata=complex_metadata,
         )
         memory_id = memori_mysql.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="json_test_chat",
-            user_id=memori_mysql.user_id
+            memory=memory, chat_id="json_test_chat", user_id=memori_mysql.user_id
         )
         assert memory_id is not None
 
@@ -309,7 +320,9 @@ class TestMySQLSpecificFeatures:
         assert stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - Metadata retrievable
-        results = memori_mysql.db_manager.search_memories("JSON metadata", user_id=memori_mysql.user_id)
+        results = memori_mysql.db_manager.search_memories(
+            "JSON metadata", user_id=memori_mysql.user_id
+        )
         assert len(results) > 0
 
     def test_connection_pooling(self, memori_mysql):
@@ -329,12 +342,12 @@ class TestMySQLSpecificFeatures:
             memory = create_simple_memory(
                 content=f"Pool test {i}",
                 summary=f"Test {i}",
-                classification="knowledge"
+                classification="knowledge",
             )
             memori_mysql.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"pool_test_chat_{i}",
-                user_id=memori_mysql.user_id
+                user_id=memori_mysql.user_id,
             )
 
         stats = memori_mysql.db_manager.get_memory_stats(memori_mysql.user_id)
@@ -347,7 +360,9 @@ class TestMySQLSpecificFeatures:
 class TestMySQLPerformance:
     """Test MySQL performance characteristics."""
 
-    def test_bulk_insertion_performance(self, memori_mysql, test_namespace, performance_tracker):
+    def test_bulk_insertion_performance(
+        self, memori_mysql, test_namespace, performance_tracker
+    ):
         """
         Test 10: Bulk insertion performance with MySQL.
 
@@ -369,7 +384,7 @@ class TestMySQLPerformance:
                     timestamp=datetime.now(),
                     session_id="mysql_perf_test",
                     user_id=memori_mysql.user_id,
-                    tokens_used=30
+                    tokens_used=30,
                 )
 
         # ASPECT 2: Persistence - All records stored
@@ -381,10 +396,14 @@ class TestMySQLPerformance:
         insert_time = metrics["mysql_bulk_insert"]
         time_per_record = insert_time / num_records
 
-        print(f"\nMySQL bulk insert: {insert_time:.3f}s total, {time_per_record:.4f}s per record")
+        print(
+            f"\nMySQL bulk insert: {insert_time:.3f}s total, {time_per_record:.4f}s per record"
+        )
         assert insert_time < 15.0  # Should complete within 15 seconds
 
-    def test_fulltext_search_performance(self, memori_mysql, test_namespace, performance_tracker):
+    def test_fulltext_search_performance(
+        self, memori_mysql, test_namespace, performance_tracker
+    ):
         """
         Test 11: MySQL FULLTEXT search performance.
 
@@ -398,19 +417,18 @@ class TestMySQLPerformance:
             memory = create_simple_memory(
                 content=f"MySQL development tip {i}: Use FULLTEXT indexes for search performance",
                 summary=f"MySQL tip {i}",
-                classification="knowledge"
+                classification="knowledge",
             )
             memori_mysql.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"search_perf_chat_{i}",
-                user_id=memori_mysql.user_id
+                user_id=memori_mysql.user_id,
             )
 
         # ASPECT 1: Functional - Search works
         with performance_tracker.track("mysql_search"):
             results = memori_mysql.db_manager.search_memories(
-                "MySQL FULLTEXT performance",
-                user_id=memori_mysql.user_id
+                "MySQL FULLTEXT performance", user_id=memori_mysql.user_id
             )
 
         # ASPECT 2: Persistence - Results from database with FULLTEXT index
@@ -431,7 +449,9 @@ class TestMySQLEdgeCases:
 
     def test_empty_search_query(self, memori_mysql, test_namespace):
         """Test 12: Handle empty search queries gracefully."""
-        results = memori_mysql.db_manager.search_memories("", user_id=memori_mysql.user_id)
+        results = memori_mysql.db_manager.search_memories(
+            "", user_id=memori_mysql.user_id
+        )
         assert isinstance(results, list)
 
     def test_unicode_content(self, memori_mysql, test_namespace):
@@ -439,14 +459,10 @@ class TestMySQLEdgeCases:
         unicode_content = "MySQL supports Unicode: 你好世界 مرحبا بالعالم Привет мир"
 
         memory = create_simple_memory(
-            content=unicode_content,
-            summary="Unicode test",
-            classification="knowledge"
+            content=unicode_content, summary="Unicode test", classification="knowledge"
         )
         memory_id = memori_mysql.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="unicode_test_chat",
-            user_id=memori_mysql.user_id
+            memory=memory, chat_id="unicode_test_chat", user_id=memori_mysql.user_id
         )
 
         assert memory_id is not None
@@ -462,12 +478,10 @@ class TestMySQLEdgeCases:
         memory = create_simple_memory(
             content=long_content,
             summary="Very long content test",
-            classification="knowledge"
+            classification="knowledge",
         )
         memory_id = memori_mysql.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="long_content_chat",
-            user_id=memori_mysql.user_id
+            memory=memory, chat_id="long_content_chat", user_id=memori_mysql.user_id
         )
 
         assert memory_id is not None
@@ -483,18 +497,18 @@ class TestMySQLEdgeCases:
         memory = create_simple_memory(
             content=special_content,
             summary="Special characters test",
-            classification="knowledge"
+            classification="knowledge",
         )
         memory_id = memori_mysql.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="special_chars_chat",
-            user_id=memori_mysql.user_id
+            memory=memory, chat_id="special_chars_chat", user_id=memori_mysql.user_id
         )
 
         assert memory_id is not None
 
         # Verify retrieval works
-        results = memori_mysql.db_manager.search_memories("MySQL handles", user_id=memori_mysql.user_id)
+        results = memori_mysql.db_manager.search_memories(
+            "MySQL handles", user_id=memori_mysql.user_id
+        )
         assert len(results) > 0
 
 
@@ -515,21 +529,19 @@ class TestMySQLReplication:
         # Write data
         content = "Test data for replication test"
         memory = create_simple_memory(
-            content=content,
-            summary="Replication test",
-            classification="knowledge"
+            content=content, summary="Replication test", classification="knowledge"
         )
         memory_id = memori_mysql.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="replication_test_chat",
-            user_id=memori_mysql.user_id
+            memory=memory, chat_id="replication_test_chat", user_id=memori_mysql.user_id
         )
 
         # Give time for any replication lag (if applicable)
         time.sleep(0.1)
 
         # Read data
-        results = memori_mysql.db_manager.search_memories("replication test", user_id=memori_mysql.user_id)
+        results = memori_mysql.db_manager.search_memories(
+            "replication test", user_id=memori_mysql.user_id
+        )
 
         assert len(results) > 0
         assert content in results[0]["processed_data"]["content"]

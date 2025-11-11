@@ -1911,6 +1911,7 @@ class Memori:
         try:
             # Run async processing in new event loop
             import threading
+
             from ..integrations.openai_integration import set_active_memori_context
 
             def run_memory_processing():
@@ -2060,17 +2061,22 @@ class Memori:
         # Fallback
         return str(response), "unknown"
 
-    def _generate_conversation_fingerprint(self, user_input: str, ai_output: str) -> str:
+    def _generate_conversation_fingerprint(
+        self, user_input: str, ai_output: str
+    ) -> str:
         """
         Generate a fingerprint for conversation deduplication.
 
         Uses first 200 chars to handle minor variations but catch obvious duplicates.
         """
         import hashlib
+
         content = f"{user_input[:200]}|{ai_output[:200]}|{self.session_id}"
         return hashlib.sha256(content.encode()).hexdigest()[:16]
 
-    def _is_duplicate_conversation(self, user_input: str, ai_output: str, window_seconds: int = 5) -> bool:
+    def _is_duplicate_conversation(
+        self, user_input: str, ai_output: str, window_seconds: int = 5
+    ) -> bool:
         """
         Check if this conversation was recently recorded (within time window).
 
@@ -2145,7 +2151,9 @@ class Memori:
         # DEDUPLICATION SAFETY NET: Check for duplicate conversations
         fingerprint = self._generate_conversation_fingerprint(user_input, response_text)
         if self._is_duplicate_conversation(user_input, response_text):
-            integration = metadata.get('integration', 'unknown') if metadata else 'unknown'
+            integration = (
+                metadata.get("integration", "unknown") if metadata else "unknown"
+            )
             logger.warning(
                 f"Duplicate conversation detected from '{integration}' integration - skipping recording | "
                 f"fingerprint: {fingerprint}"
@@ -2153,7 +2161,9 @@ class Memori:
             # Return a dummy chat_id - conversation was already recorded by another integration
             return str(uuid.uuid4())
 
-        logger.debug(f"New conversation fingerprint: {fingerprint} | integration: {metadata.get('integration', 'unknown') if metadata else 'unknown'}")
+        logger.debug(
+            f"New conversation fingerprint: {fingerprint} | integration: {metadata.get('integration', 'unknown') if metadata else 'unknown'}"
+        )
 
         # Generate ID and timestamp
         chat_id = str(uuid.uuid4())
@@ -2214,11 +2224,13 @@ class Memori:
                 self._memory_tasks = set()
             self._memory_tasks.add(task)
             task.add_done_callback(self._memory_tasks.discard)
-            logger.debug(f"[MEMORY] Processing scheduled in current loop - ID: {chat_id[:8]}...")
+            logger.debug(
+                f"[MEMORY] Processing scheduled in current loop - ID: {chat_id[:8]}..."
+            )
         except RuntimeError:
             # No event loop - use persistent background loop instead of creating new thread
-            from ..utils.async_bridge import BackgroundEventLoop
             from ..integrations.openai_integration import set_active_memori_context
+            from ..utils.async_bridge import BackgroundEventLoop
 
             # Set context before submitting to background loop
             # Context needs to be explicitly set since we're crossing thread boundary
@@ -2341,6 +2353,7 @@ class Memori:
         """
         try:
             from datetime import datetime, timedelta
+
             from sqlalchemy import text
 
             from ..database.queries.memory_queries import MemoryQueries
@@ -2388,7 +2401,9 @@ class Memori:
 
         except Exception as e:
             # This is expected on first use or fresh databases
-            logger.debug(f"Could not retrieve memories for deduplication (expected on fresh database): {e}")
+            logger.debug(
+                f"Could not retrieve memories for deduplication (expected on fresh database): {e}"
+            )
             return []
 
     def retrieve_context(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
@@ -2639,6 +2654,7 @@ class Memori:
             except RuntimeError:
                 # No event loop running, create a new thread for async tasks
                 import threading
+
                 from ..integrations.openai_integration import set_active_memori_context
 
                 def run_background_loop():

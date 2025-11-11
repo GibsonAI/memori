@@ -33,6 +33,7 @@ class LoggingManager:
             # We'll show LiteLLM logs through our interceptor only
             try:
                 import litellm
+
                 litellm.suppress_debug_info = True
                 litellm.set_verbose = False
                 # Set litellm's logger to ERROR level to prevent duplicate logs
@@ -146,7 +147,13 @@ class LoggingManager:
             def emit(self, record: logging.LogRecord) -> None:
                 # Filter DEBUG/INFO logs from OpenAI, httpcore, LiteLLM, httpx, asyncio
                 # Only show their ERROR logs, but keep all Memori DEBUG logs
-                suppressed_loggers = ("openai", "httpcore", "LiteLLM", "httpx", "asyncio")
+                suppressed_loggers = (
+                    "openai",
+                    "httpcore",
+                    "LiteLLM",
+                    "httpx",
+                    "asyncio",
+                )
                 if record.name.startswith(suppressed_loggers):
                     # Only emit ERROR and above for these loggers
                     if record.levelno < logging.ERROR:

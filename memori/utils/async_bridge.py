@@ -23,8 +23,9 @@ import asyncio
 import atexit
 import threading
 import time
+from collections.abc import Coroutine
 from concurrent.futures import Future
-from typing import Any, Coroutine
+from typing import Any
 
 from loguru import logger
 
@@ -127,9 +128,7 @@ class BackgroundEventLoop:
                 # Cancel all pending tasks
                 pending = asyncio.all_tasks(self.loop)
                 if pending:
-                    logger.debug(
-                        f"Cancelling {len(pending)} pending tasks on shutdown"
-                    )
+                    logger.debug(f"Cancelling {len(pending)} pending tasks on shutdown")
                     for task in pending:
                         task.cancel()
                     # Wait for cancellation

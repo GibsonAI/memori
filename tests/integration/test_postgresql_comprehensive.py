@@ -13,7 +13,6 @@ import time
 from datetime import datetime
 
 import pytest
-
 from conftest import create_simple_memory
 
 
@@ -45,7 +44,9 @@ class TestPostgreSQLBasicOperations:
         assert isinstance(stats, dict)
         assert stats["database_type"] == "postgresql"
 
-    def test_chat_history_storage_and_retrieval(self, memori_postgresql, test_namespace, sample_chat_messages):
+    def test_chat_history_storage_and_retrieval(
+        self, memori_postgresql, test_namespace, sample_chat_messages
+    ):
         """
         Test 2: Chat history storage and retrieval.
 
@@ -65,7 +66,7 @@ class TestPostgreSQLBasicOperations:
                 session_id="pg_test_session",
                 user_id=memori_postgresql.user_id,
                 tokens_used=30 + i * 5,
-                metadata={"test": "chat_storage", "db": "postgresql"}
+                metadata={"test": "chat_storage", "db": "postgresql"},
             )
             assert chat_id is not None
 
@@ -74,14 +75,18 @@ class TestPostgreSQLBasicOperations:
         assert stats["chat_history_count"] == len(sample_chat_messages)
 
         # ASPECT 3: Integration - Retrieve and verify content
-        history = memori_postgresql.db_manager.get_chat_history(test_namespace, limit=10)
+        history = memori_postgresql.db_manager.get_chat_history(
+            test_namespace, limit=10
+        )
         assert len(history) == len(sample_chat_messages)
 
         # Verify specific message content
         user_inputs = [h["user_input"] for h in history]
         assert "What is artificial intelligence?" in user_inputs
 
-    @pytest.mark.skip(reason="store_short_term_memory() API not available - short-term memory is managed internally")
+    @pytest.mark.skip(
+        reason="store_short_term_memory() API not available - short-term memory is managed internally"
+    )
     def test_short_term_memory_operations(self, memori_postgresql, test_namespace):
         """
         Test 3: Short-term memory storage and retrieval.
@@ -99,7 +104,7 @@ class TestPostgreSQLBasicOperations:
             category_secondary="database",
             session_id="pg_test_session",
             user_id=memori_postgresql.user_id,
-            metadata={"test": "short_term", "db": "postgresql"}
+            metadata={"test": "short_term", "db": "postgresql"},
         )
         assert memory_id is not None
 
@@ -108,9 +113,14 @@ class TestPostgreSQLBasicOperations:
         assert stats["short_term_count"] >= 1
 
         # ASPECT 3: Integration - Search with tsvector
-        results = memori_postgresql.db_manager.search_memories("PostgreSQL production", user_id=memori_postgresql.user_id)
+        results = memori_postgresql.db_manager.search_memories(
+            "PostgreSQL production", user_id=memori_postgresql.user_id
+        )
         assert len(results) > 0
-        assert "PostgreSQL" in results[0]["processed_data"]["content"] or "production" in results[0]["processed_data"]["content"]
+        assert (
+            "PostgreSQL" in results[0]["processed_data"]["content"]
+            or "production" in results[0]["processed_data"]["content"]
+        )
 
     def test_long_term_memory_operations(self, memori_postgresql, test_namespace):
         """
@@ -127,12 +137,10 @@ class TestPostgreSQLBasicOperations:
             summary="User's project: distributed system with PostgreSQL",
             classification="context",
             importance="high",
-            metadata={"test": "long_term", "stack": "postgresql_redis"}
+            metadata={"test": "long_term", "stack": "postgresql_redis"},
         )
         memory_id = memori_postgresql.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="pg_test_chat_1",
-            user_id=memori_postgresql.user_id
+            memory=memory, chat_id="pg_test_chat_1", user_id=memori_postgresql.user_id
         )
         assert memory_id is not None
 
@@ -141,9 +149,15 @@ class TestPostgreSQLBasicOperations:
         assert stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - tsvector search
-        results = memori_postgresql.db_manager.search_memories("distributed PostgreSQL", user_id=memori_postgresql.user_id)
+        results = memori_postgresql.db_manager.search_memories(
+            "distributed PostgreSQL", user_id=memori_postgresql.user_id
+        )
         assert len(results) > 0
-        found_memory = any("distributed" in r["processed_data"]["content"] or "PostgreSQL" in r["processed_data"]["content"] for r in results)
+        found_memory = any(
+            "distributed" in r["processed_data"]["content"]
+            or "PostgreSQL" in r["processed_data"]["content"]
+            for r in results
+        )
         assert found_memory
 
 
@@ -152,7 +166,9 @@ class TestPostgreSQLBasicOperations:
 class TestPostgreSQLFullTextSearch:
     """Test PostgreSQL tsvector full-text search functionality."""
 
-    def test_tsvector_search_basic(self, memori_postgresql, test_namespace, sample_chat_messages):
+    def test_tsvector_search_basic(
+        self, memori_postgresql, test_namespace, sample_chat_messages
+    ):
         """
         Test 5: Basic tsvector full-text search.
 
@@ -171,13 +187,12 @@ class TestPostgreSQLFullTextSearch:
                 timestamp=datetime.now(),
                 session_id="fts_pg_session",
                 user_id=memori_postgresql.user_id,
-                tokens_used=50
+                tokens_used=50,
             )
 
         # ASPECT 1: Functional - Search works
         results = memori_postgresql.db_manager.search_memories(
-            "artificial intelligence",
-            user_id=memori_postgresql.user_id
+            "artificial intelligence", user_id=memori_postgresql.user_id
         )
         assert len(results) > 0
 
@@ -203,25 +218,22 @@ class TestPostgreSQLFullTextSearch:
             "PostgreSQL provides excellent full-text search capabilities",
             "Full-text search is a powerful feature",
             "PostgreSQL is a database system",
-            "Search functionality in databases"
+            "Search functionality in databases",
         ]
 
         for i, content in enumerate(test_data):
             memory = create_simple_memory(
-                content=content,
-                summary=f"Test {i}",
-                classification="knowledge"
+                content=content, summary=f"Test {i}", classification="knowledge"
             )
             memori_postgresql.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"ranking_test_chat_{i}",
-                user_id=memori_postgresql.user_id
+                user_id=memori_postgresql.user_id,
             )
 
         # ASPECT 1: Functional - Ranked search works
         results = memori_postgresql.db_manager.search_memories(
-            "PostgreSQL full-text search",
-            user_id=memori_postgresql.user_id
+            "PostgreSQL full-text search", user_id=memori_postgresql.user_id
         )
         assert len(results) > 0
 
@@ -234,7 +246,9 @@ class TestPostgreSQLFullTextSearch:
         if len(results) >= 2 and "search_score" in results[0]:
             # First result should be highly relevant
             first_content = results[0]["processed_data"]["content"].lower()
-            assert "postgresql" in first_content and ("full-text" in first_content or "search" in first_content)
+            assert "postgresql" in first_content and (
+                "full-text" in first_content or "search" in first_content
+            )
 
 
 @pytest.mark.postgresql
@@ -260,12 +274,12 @@ class TestPostgreSQLSpecificFeatures:
             memory = create_simple_memory(
                 content=f"Pool test {i}",
                 summary=f"Test {i}",
-                classification="knowledge"
+                classification="knowledge",
             )
             memori_postgresql.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"pool_test_chat_{i}",
-                user_id=memori_postgresql.user_id
+                user_id=memori_postgresql.user_id,
             )
 
         stats = memori_postgresql.db_manager.get_memory_stats(memori_postgresql.user_id)
@@ -283,10 +297,7 @@ class TestPostgreSQLSpecificFeatures:
         complex_metadata = {
             "tags": ["python", "database", "postgresql"],
             "priority": "high",
-            "nested": {
-                "key1": "value1",
-                "key2": 42
-            }
+            "nested": {"key1": "value1", "key2": 42},
         }
 
         # ASPECT 1: Functional - Store with complex metadata
@@ -294,12 +305,10 @@ class TestPostgreSQLSpecificFeatures:
             content="Test with complex JSON metadata",
             summary="JSON metadata test",
             classification="knowledge",
-            metadata=complex_metadata
+            metadata=complex_metadata,
         )
         memory_id = memori_postgresql.db_manager.store_long_term_memory_enhanced(
-            memory=memory,
-            chat_id="json_test_chat_1",
-            user_id=memori_postgresql.user_id
+            memory=memory, chat_id="json_test_chat_1", user_id=memori_postgresql.user_id
         )
         assert memory_id is not None
 
@@ -308,7 +317,9 @@ class TestPostgreSQLSpecificFeatures:
         assert stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - Metadata retrievable
-        results = memori_postgresql.db_manager.search_memories("JSON metadata", user_id=memori_postgresql.user_id)
+        results = memori_postgresql.db_manager.search_memories(
+            "JSON metadata", user_id=memori_postgresql.user_id
+        )
         assert len(results) > 0
 
 
@@ -317,7 +328,9 @@ class TestPostgreSQLSpecificFeatures:
 class TestPostgreSQLPerformance:
     """Test PostgreSQL performance characteristics."""
 
-    def test_bulk_insertion_performance(self, memori_postgresql, test_namespace, performance_tracker):
+    def test_bulk_insertion_performance(
+        self, memori_postgresql, test_namespace, performance_tracker
+    ):
         """
         Test 9: Bulk insertion performance with PostgreSQL.
 
@@ -339,7 +352,7 @@ class TestPostgreSQLPerformance:
                     timestamp=datetime.now(),
                     session_id="pg_perf_test",
                     user_id=memori_postgresql.user_id,
-                    tokens_used=30
+                    tokens_used=30,
                 )
 
         # ASPECT 2: Persistence - All records stored
@@ -351,10 +364,16 @@ class TestPostgreSQLPerformance:
         insert_time = metrics["pg_bulk_insert"]
         time_per_record = insert_time / num_records
 
-        print(f"\nPostgreSQL bulk insert: {insert_time:.3f}s total, {time_per_record:.4f}s per record")
-        assert insert_time < 15.0  # PostgreSQL may be slightly slower than SQLite for small datasets
+        print(
+            f"\nPostgreSQL bulk insert: {insert_time:.3f}s total, {time_per_record:.4f}s per record"
+        )
+        assert (
+            insert_time < 15.0
+        )  # PostgreSQL may be slightly slower than SQLite for small datasets
 
-    def test_tsvector_search_performance(self, memori_postgresql, test_namespace, performance_tracker):
+    def test_tsvector_search_performance(
+        self, memori_postgresql, test_namespace, performance_tracker
+    ):
         """
         Test 10: PostgreSQL tsvector search performance.
 
@@ -368,19 +387,18 @@ class TestPostgreSQLPerformance:
             memory = create_simple_memory(
                 content=f"PostgreSQL development tip {i}: Use tsvector for full-text search performance",
                 summary=f"PostgreSQL tip {i}",
-                classification="knowledge"
+                classification="knowledge",
             )
             memori_postgresql.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"search_perf_pg_chat_{i}",
-                user_id=memori_postgresql.user_id
+                user_id=memori_postgresql.user_id,
             )
 
         # ASPECT 1: Functional - Search works
         with performance_tracker.track("pg_search"):
             results = memori_postgresql.db_manager.search_memories(
-                "PostgreSQL tsvector performance",
-                user_id=memori_postgresql.user_id
+                "PostgreSQL tsvector performance", user_id=memori_postgresql.user_id
             )
 
         # ASPECT 2: Persistence - Results from database with GIN index
@@ -390,7 +408,9 @@ class TestPostgreSQLPerformance:
         metrics = performance_tracker.get_metrics()
         search_time = metrics["pg_search"]
 
-        print(f"\nPostgreSQL tsvector search: {search_time:.3f}s for {len(results)} results")
+        print(
+            f"\nPostgreSQL tsvector search: {search_time:.3f}s for {len(results)} results"
+        )
         assert search_time < 1.0  # Search should be under 1 second
 
 
@@ -411,7 +431,9 @@ class TestPostgreSQLTransactions:
         # This test validates that PostgreSQL handles transactions correctly
         # In practice, operations should be atomic
 
-        initial_stats = memori_postgresql.db_manager.get_memory_stats(memori_postgresql.user_id)
+        initial_stats = memori_postgresql.db_manager.get_memory_stats(
+            memori_postgresql.user_id
+        )
         initial_count = initial_stats.get("long_term_count", 0)
 
         # Store multiple memories (should be atomic operations)
@@ -419,20 +441,24 @@ class TestPostgreSQLTransactions:
             memory = create_simple_memory(
                 content=f"Transaction test {i}",
                 summary=f"Test {i}",
-                classification="knowledge"
+                classification="knowledge",
             )
             memori_postgresql.db_manager.store_long_term_memory_enhanced(
                 memory=memory,
                 chat_id=f"transaction_test_chat_{i}",
-                user_id=memori_postgresql.user_id
+                user_id=memori_postgresql.user_id,
             )
 
         # ASPECT 1 & 2: All stored
-        final_stats = memori_postgresql.db_manager.get_memory_stats(memori_postgresql.user_id)
+        final_stats = memori_postgresql.db_manager.get_memory_stats(
+            memori_postgresql.user_id
+        )
         assert final_stats["long_term_count"] == initial_count + 3
 
         # ASPECT 3: Data consistent
-        results = memori_postgresql.db_manager.search_memories("Transaction", user_id=memori_postgresql.user_id)
+        results = memori_postgresql.db_manager.search_memories(
+            "Transaction", user_id=memori_postgresql.user_id
+        )
         assert len(results) == 3
 
 
@@ -443,22 +469,24 @@ class TestPostgreSQLEdgeCases:
 
     def test_empty_search_query(self, memori_postgresql, test_namespace):
         """Test 12: Handle empty search queries gracefully."""
-        results = memori_postgresql.db_manager.search_memories("", user_id=memori_postgresql.user_id)
+        results = memori_postgresql.db_manager.search_memories(
+            "", user_id=memori_postgresql.user_id
+        )
         assert isinstance(results, list)
 
     def test_unicode_content(self, memori_postgresql, test_namespace):
         """Test 13: Handle Unicode characters properly."""
-        unicode_content = "PostgreSQL supports Unicode: 你好世界 مرحبا بالعالم Привет мир"
+        unicode_content = (
+            "PostgreSQL supports Unicode: 你好世界 مرحبا بالعالم Привет мир"
+        )
 
         memory = create_simple_memory(
-            content=unicode_content,
-            summary="Unicode test",
-            classification="knowledge"
+            content=unicode_content, summary="Unicode test", classification="knowledge"
         )
         memory_id = memori_postgresql.db_manager.store_long_term_memory_enhanced(
             memory=memory,
             chat_id="unicode_test_chat_1",
-            user_id=memori_postgresql.user_id
+            user_id=memori_postgresql.user_id,
         )
 
         assert memory_id is not None
@@ -474,12 +502,12 @@ class TestPostgreSQLEdgeCases:
         memory = create_simple_memory(
             content=long_content,
             summary="Very long content test",
-            classification="knowledge"
+            classification="knowledge",
         )
         memory_id = memori_postgresql.db_manager.store_long_term_memory_enhanced(
             memory=memory,
             chat_id="long_content_pg_chat_1",
-            user_id=memori_postgresql.user_id
+            user_id=memori_postgresql.user_id,
         )
 
         assert memory_id is not None

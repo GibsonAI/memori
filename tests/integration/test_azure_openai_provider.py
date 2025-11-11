@@ -20,7 +20,9 @@ import pytest
 class TestAzureOpenAIBasicIntegration:
     """Test basic Azure OpenAI integration with Memori."""
 
-    def test_azure_openai_with_mock(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_azure_openai_with_mock(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 1: Azure OpenAI integration with mocked API.
 
@@ -31,6 +33,7 @@ class TestAzureOpenAIBasicIntegration:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import AzureOpenAI
 
         # ASPECT 1: Functional - Create Azure OpenAI client
@@ -40,18 +43,24 @@ class TestAzureOpenAIBasicIntegration:
         client = AzureOpenAI(
             api_key="test-azure-key",
             api_version="2024-02-15-preview",
-            azure_endpoint="https://test.openai.azure.com"
+            azure_endpoint="https://test.openai.azure.com",
         )
 
         # Mock the Azure API call
-        with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            return_value=mock_openai_response,
+        ):
             response = client.chat.completions.create(
                 model="gpt-4o",  # Azure deployment name
-                messages=[{"role": "user", "content": "Test Azure OpenAI"}]
+                messages=[{"role": "user", "content": "Test Azure OpenAI"}],
             )
 
             assert response is not None
-            assert response.choices[0].message.content == "Python is a programming language."
+            assert (
+                response.choices[0].message.content
+                == "Python is a programming language."
+            )
 
         time.sleep(0.5)
 
@@ -62,7 +71,9 @@ class TestAzureOpenAIBasicIntegration:
         # ASPECT 3: Integration - Memori enabled with Azure
         assert memori_sqlite._enabled == True
 
-    def test_azure_openai_multiple_deployments(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_azure_openai_multiple_deployments(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 2: Multiple Azure deployment models.
 
@@ -73,6 +84,7 @@ class TestAzureOpenAIBasicIntegration:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import AzureOpenAI
 
         memori_sqlite.enable()
@@ -80,18 +92,21 @@ class TestAzureOpenAIBasicIntegration:
         client = AzureOpenAI(
             api_key="test-azure-key",
             api_version="2024-02-15-preview",
-            azure_endpoint="https://test.openai.azure.com"
+            azure_endpoint="https://test.openai.azure.com",
         )
 
         # Test different deployment names
         deployments = ["gpt-4o", "gpt-35-turbo", "gpt-4o-mini"]
 
         # ASPECT 1: Functional - Multiple deployments
-        with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            return_value=mock_openai_response,
+        ):
             for deployment in deployments:
                 response = client.chat.completions.create(
                     model=deployment,
-                    messages=[{"role": "user", "content": f"Test with {deployment}"}]
+                    messages=[{"role": "user", "content": f"Test with {deployment}"}],
                 )
                 assert response is not None
 
@@ -106,7 +121,9 @@ class TestAzureOpenAIBasicIntegration:
 class TestAzureOpenAIConfiguration:
     """Test Azure-specific configuration scenarios."""
 
-    def test_azure_api_version_handling(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_azure_api_version_handling(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 3: Different Azure API versions.
 
@@ -116,23 +133,19 @@ class TestAzureOpenAIConfiguration:
         - Integration: Configuration flexibility
         """
         pytest.importorskip("openai")
-        from unittest.mock import patch
+
         from openai import AzureOpenAI
 
         memori_sqlite.enable()
 
         # Test with different API versions
-        api_versions = [
-            "2024-02-15-preview",
-            "2023-12-01-preview",
-            "2023-05-15"
-        ]
+        api_versions = ["2024-02-15-preview", "2023-12-01-preview", "2023-05-15"]
 
         for api_version in api_versions:
             client = AzureOpenAI(
                 api_key="test-azure-key",
                 api_version=api_version,
-                azure_endpoint="https://test.openai.azure.com"
+                azure_endpoint="https://test.openai.azure.com",
             )
 
             # ASPECT 1: Functional - API version accepted
@@ -159,14 +172,14 @@ class TestAzureOpenAIConfiguration:
         endpoints = [
             "https://eastus.api.cognitive.microsoft.com",
             "https://westus.api.cognitive.microsoft.com",
-            "https://northeurope.api.cognitive.microsoft.com"
+            "https://northeurope.api.cognitive.microsoft.com",
         ]
 
         for endpoint in endpoints:
             client = AzureOpenAI(
                 api_key="test-azure-key",
                 api_version="2024-02-15-preview",
-                azure_endpoint=endpoint
+                azure_endpoint=endpoint,
             )
 
             # ASPECT 1: Functional - Endpoint configured
@@ -181,8 +194,12 @@ class TestAzureOpenAIConfiguration:
 class TestAzureOpenAIContextInjection:
     """Test context injection with Azure OpenAI."""
 
-    @pytest.mark.skip(reason="store_short_term_memory() API not available - short-term memory is managed internally")
-    def test_azure_with_conscious_mode(self, memori_sqlite_conscious, test_namespace, mock_openai_response):
+    @pytest.mark.skip(
+        reason="store_short_term_memory() API not available - short-term memory is managed internally"
+    )
+    def test_azure_with_conscious_mode(
+        self, memori_sqlite_conscious, test_namespace, mock_openai_response
+    ):
         """
         Test 5: Azure OpenAI with conscious mode.
 
@@ -193,6 +210,7 @@ class TestAzureOpenAIContextInjection:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import AzureOpenAI
 
         # Setup: Store permanent context
@@ -202,7 +220,7 @@ class TestAzureOpenAIContextInjection:
             category_primary="context",
             session_id="azure_test",
             user_id=memori_sqlite_conscious.user_id,
-            is_permanent_context=True
+            is_permanent_context=True,
         )
 
         # ASPECT 1: Functional - Azure + conscious mode
@@ -211,13 +229,16 @@ class TestAzureOpenAIContextInjection:
         client = AzureOpenAI(
             api_key="test-azure-key",
             api_version="2024-02-15-preview",
-            azure_endpoint="https://test.openai.azure.com"
+            azure_endpoint="https://test.openai.azure.com",
         )
 
-        with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            return_value=mock_openai_response,
+        ):
             response = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role": "user", "content": "Help with deployment"}]
+                messages=[{"role": "user", "content": "Help with deployment"}],
             )
             assert response is not None
 
@@ -252,7 +273,7 @@ class TestAzureOpenAIErrorHandling:
         client = AzureOpenAI(
             api_key="invalid-azure-key",
             api_version="2024-02-15-preview",
-            azure_endpoint="https://test.openai.azure.com"
+            azure_endpoint="https://test.openai.azure.com",
         )
 
         # Note: This documents behavior - actual API call would fail
@@ -272,6 +293,7 @@ class TestAzureOpenAIErrorHandling:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import AzureOpenAI
 
         memori_sqlite.enable()
@@ -279,15 +301,17 @@ class TestAzureOpenAIErrorHandling:
         client = AzureOpenAI(
             api_key="test-azure-key",
             api_version="2024-02-15-preview",
-            azure_endpoint="https://test.openai.azure.com"
+            azure_endpoint="https://test.openai.azure.com",
         )
 
         # ASPECT 1: Functional - Simulate API error
-        with patch('openai.resources.chat.completions.Completions.create', side_effect=Exception("Azure API Error")):
+        with patch(
+            "openai.resources.chat.completions.Completions.create",
+            side_effect=Exception("Azure API Error"),
+        ):
             with pytest.raises(Exception) as exc_info:
                 client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[{"role": "user", "content": "Test"}]
+                    model="gpt-4o", messages=[{"role": "user", "content": "Test"}]
                 )
 
             assert "Azure API Error" in str(exc_info.value)
@@ -328,13 +352,13 @@ class TestAzureOpenAIRealAPI:
         client = AzureOpenAI(
             api_key=azure_api_key,
             api_version="2024-02-15-preview",
-            azure_endpoint=azure_endpoint
+            azure_endpoint=azure_endpoint,
         )
 
         response = client.chat.completions.create(
             model=azure_deployment,
             messages=[{"role": "user", "content": "Say 'Azure test successful'"}],
-            max_tokens=10
+            max_tokens=10,
         )
 
         # ASPECT 2: Persistence - Validate response
@@ -354,7 +378,9 @@ class TestAzureOpenAIRealAPI:
 class TestAzureOpenAIPerformance:
     """Test Azure OpenAI integration performance."""
 
-    def test_azure_overhead(self, memori_sqlite, test_namespace, mock_openai_response, performance_tracker):
+    def test_azure_overhead(
+        self, memori_sqlite, test_namespace, mock_openai_response, performance_tracker
+    ):
         """
         Test 9: Measure Memori overhead with Azure OpenAI.
 
@@ -365,32 +391,39 @@ class TestAzureOpenAIPerformance:
         """
         pytest.importorskip("openai")
         from unittest.mock import patch
+
         from openai import AzureOpenAI
 
         client = AzureOpenAI(
             api_key="test-azure-key",
             api_version="2024-02-15-preview",
-            azure_endpoint="https://test.openai.azure.com"
+            azure_endpoint="https://test.openai.azure.com",
         )
 
         # Baseline: Without Memori
         with performance_tracker.track("azure_without"):
-            with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+            with patch(
+                "openai.resources.chat.completions.Completions.create",
+                return_value=mock_openai_response,
+            ):
                 for i in range(10):
                     client.chat.completions.create(
                         model="gpt-4o",
-                        messages=[{"role": "user", "content": f"Test {i}"}]
+                        messages=[{"role": "user", "content": f"Test {i}"}],
                     )
 
         # With Memori
         memori_sqlite.enable()
 
         with performance_tracker.track("azure_with"):
-            with patch('openai.resources.chat.completions.Completions.create', return_value=mock_openai_response):
+            with patch(
+                "openai.resources.chat.completions.Completions.create",
+                return_value=mock_openai_response,
+            ):
                 for i in range(10):
                     client.chat.completions.create(
                         model="gpt-4o",
-                        messages=[{"role": "user", "content": f"Test {i}"}]
+                        messages=[{"role": "user", "content": f"Test {i}"}],
                     )
 
         # ASPECT 3: Performance analysis
@@ -401,7 +434,7 @@ class TestAzureOpenAIPerformance:
         overhead = with_memori - without
         overhead_pct = (overhead / without) * 100 if without > 0 else 0
 
-        print(f"\nAzure OpenAI Performance:")
+        print("\nAzure OpenAI Performance:")
         print(f"  Without Memori: {without:.3f}s")
         print(f"  With Memori:    {with_memori:.3f}s")
         print(f"  Overhead:       {overhead:.3f}s ({overhead_pct:.1f}%)")

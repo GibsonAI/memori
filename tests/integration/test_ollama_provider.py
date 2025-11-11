@@ -19,7 +19,9 @@ import pytest
 class TestOllamaBasicIntegration:
     """Test basic Ollama integration with Memori."""
 
-    def test_ollama_via_litellm_with_mock(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_ollama_via_litellm_with_mock(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 1: Ollama integration via LiteLLM with mock.
 
@@ -30,20 +32,24 @@ class TestOllamaBasicIntegration:
         """
         pytest.importorskip("litellm")
         from unittest.mock import patch
+
         from litellm import completion
 
         # ASPECT 1: Functional - Ollama via LiteLLM
         memori_sqlite.enable()
 
-        with patch('litellm.completion', return_value=mock_openai_response):
+        with patch("litellm.completion", return_value=mock_openai_response):
             response = completion(
                 model="ollama/llama2",  # Ollama model format
                 messages=[{"role": "user", "content": "Test with Ollama"}],
-                api_base="http://localhost:11434"  # Ollama default port
+                api_base="http://localhost:11434",  # Ollama default port
             )
 
             assert response is not None
-            assert response.choices[0].message.content == "Python is a programming language."
+            assert (
+                response.choices[0].message.content
+                == "Python is a programming language."
+            )
 
         time.sleep(0.5)
 
@@ -54,7 +60,9 @@ class TestOllamaBasicIntegration:
         # ASPECT 3: Integration - Local provider works
         assert memori_sqlite._enabled == True
 
-    def test_ollama_multiple_models(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_ollama_multiple_models(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 2: Multiple Ollama models.
 
@@ -65,25 +73,21 @@ class TestOllamaBasicIntegration:
         """
         pytest.importorskip("litellm")
         from unittest.mock import patch
+
         from litellm import completion
 
         memori_sqlite.enable()
 
         # Test different Ollama models
-        models = [
-            "ollama/llama2",
-            "ollama/mistral",
-            "ollama/codellama",
-            "ollama/phi"
-        ]
+        models = ["ollama/llama2", "ollama/mistral", "ollama/codellama", "ollama/phi"]
 
         # ASPECT 1: Functional - Multiple models
-        with patch('litellm.completion', return_value=mock_openai_response):
+        with patch("litellm.completion", return_value=mock_openai_response):
             for model in models:
                 response = completion(
                     model=model,
                     messages=[{"role": "user", "content": f"Test with {model}"}],
-                    api_base="http://localhost:11434"
+                    api_base="http://localhost:11434",
                 )
                 assert response is not None
 
@@ -98,7 +102,9 @@ class TestOllamaBasicIntegration:
 class TestOllamaConfiguration:
     """Test Ollama-specific configuration."""
 
-    def test_ollama_custom_port(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_ollama_custom_port(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 3: Ollama with custom port.
 
@@ -109,6 +115,7 @@ class TestOllamaConfiguration:
         """
         pytest.importorskip("litellm")
         from unittest.mock import patch
+
         from litellm import completion
 
         memori_sqlite.enable()
@@ -118,18 +125,20 @@ class TestOllamaConfiguration:
 
         for port in ports:
             # ASPECT 1: Functional - Custom port
-            with patch('litellm.completion', return_value=mock_openai_response):
+            with patch("litellm.completion", return_value=mock_openai_response):
                 response = completion(
                     model="ollama/llama2",
                     messages=[{"role": "user", "content": "Test"}],
-                    api_base=f"http://localhost:{port}"
+                    api_base=f"http://localhost:{port}",
                 )
                 assert response is not None
 
         # ASPECT 2 & 3: Configuration handled
         assert memori_sqlite._enabled == True
 
-    def test_ollama_custom_host(self, memori_sqlite, test_namespace, mock_openai_response):
+    def test_ollama_custom_host(
+        self, memori_sqlite, test_namespace, mock_openai_response
+    ):
         """
         Test 4: Ollama with custom host.
 
@@ -140,6 +149,7 @@ class TestOllamaConfiguration:
         """
         pytest.importorskip("litellm")
         from unittest.mock import patch
+
         from litellm import completion
 
         memori_sqlite.enable()
@@ -148,16 +158,16 @@ class TestOllamaConfiguration:
         hosts = [
             "http://localhost:11434",
             "http://192.168.1.100:11434",
-            "http://ollama-server:11434"
+            "http://ollama-server:11434",
         ]
 
         for host in hosts:
             # ASPECT 1: Functional - Custom host
-            with patch('litellm.completion', return_value=mock_openai_response):
+            with patch("litellm.completion", return_value=mock_openai_response):
                 response = completion(
                     model="ollama/llama2",
                     messages=[{"role": "user", "content": "Test"}],
-                    api_base=host
+                    api_base=host,
                 )
                 assert response is not None
 
@@ -170,7 +180,9 @@ class TestOllamaConfiguration:
 class TestOllamaContextInjection:
     """Test context injection with Ollama."""
 
-    def test_ollama_with_auto_mode(self, memori_conscious_false_auto_true, test_namespace, mock_openai_response):
+    def test_ollama_with_auto_mode(
+        self, memori_conscious_false_auto_true, test_namespace, mock_openai_response
+    ):
         """
         Test 5: Ollama with auto-ingest mode.
 
@@ -181,6 +193,7 @@ class TestOllamaContextInjection:
         """
         pytest.importorskip("litellm")
         from unittest.mock import patch
+
         from litellm import completion
 
         memori = memori_conscious_false_auto_true
@@ -191,17 +204,17 @@ class TestOllamaContextInjection:
             summary="Ollama usage context",
             category_primary="context",
             session_id="ollama_test",
-            user_id=memori.user_id
+            user_id=memori.user_id,
         )
 
         # ASPECT 1: Functional - Ollama + auto mode
         memori.enable()
 
-        with patch('litellm.completion', return_value=mock_openai_response):
+        with patch("litellm.completion", return_value=mock_openai_response):
             response = completion(
                 model="ollama/llama2",
                 messages=[{"role": "user", "content": "Help with local LLM setup"}],
-                api_base="http://localhost:11434"
+                api_base="http://localhost:11434",
             )
             assert response is not None
 
@@ -229,17 +242,20 @@ class TestOllamaErrorHandling:
         """
         pytest.importorskip("litellm")
         from unittest.mock import patch
+
         from litellm import completion
 
         memori_sqlite.enable()
 
         # ASPECT 1: Functional - Simulate connection error
-        with patch('litellm.completion', side_effect=Exception("Ollama connection refused")):
+        with patch(
+            "litellm.completion", side_effect=Exception("Ollama connection refused")
+        ):
             with pytest.raises(Exception) as exc_info:
                 completion(
                     model="ollama/llama2",
                     messages=[{"role": "user", "content": "Test"}],
-                    api_base="http://localhost:11434"
+                    api_base="http://localhost:11434",
                 )
 
             assert "Ollama connection" in str(exc_info.value)
@@ -259,17 +275,18 @@ class TestOllamaErrorHandling:
         """
         pytest.importorskip("litellm")
         from unittest.mock import patch
+
         from litellm import completion
 
         memori_sqlite.enable()
 
         # ASPECT 1: Functional - Simulate model not found
-        with patch('litellm.completion', side_effect=Exception("Model not found")):
+        with patch("litellm.completion", side_effect=Exception("Model not found")):
             with pytest.raises(Exception) as exc_info:
                 completion(
                     model="ollama/nonexistent-model",
                     messages=[{"role": "user", "content": "Test"}],
-                    api_base="http://localhost:11434"
+                    api_base="http://localhost:11434",
                 )
 
             assert "Model not found" in str(exc_info.value)
@@ -297,6 +314,7 @@ class TestOllamaRealAPI:
 
         # Check if Ollama is available
         import requests
+
         try:
             response = requests.get("http://localhost:11434/api/tags", timeout=2)
             if response.status_code != 200:
@@ -313,7 +331,7 @@ class TestOllamaRealAPI:
             response = completion(
                 model="ollama/llama2",  # Assumes llama2 is pulled
                 messages=[{"role": "user", "content": "Say 'test successful' only"}],
-                api_base="http://localhost:11434"
+                api_base="http://localhost:11434",
             )
 
             # ASPECT 2: Persistence - Validate response
@@ -337,7 +355,9 @@ class TestOllamaRealAPI:
 class TestOllamaPerformance:
     """Test Ollama integration performance."""
 
-    def test_ollama_overhead(self, memori_sqlite, test_namespace, mock_openai_response, performance_tracker):
+    def test_ollama_overhead(
+        self, memori_sqlite, test_namespace, mock_openai_response, performance_tracker
+    ):
         """
         Test 9: Measure Memori overhead with Ollama.
 
@@ -348,28 +368,29 @@ class TestOllamaPerformance:
         """
         pytest.importorskip("litellm")
         from unittest.mock import patch
+
         from litellm import completion
 
         # Baseline: Without Memori
         with performance_tracker.track("ollama_without"):
-            with patch('litellm.completion', return_value=mock_openai_response):
+            with patch("litellm.completion", return_value=mock_openai_response):
                 for i in range(10):
                     completion(
                         model="ollama/llama2",
                         messages=[{"role": "user", "content": f"Test {i}"}],
-                        api_base="http://localhost:11434"
+                        api_base="http://localhost:11434",
                     )
 
         # With Memori
         memori_sqlite.enable()
 
         with performance_tracker.track("ollama_with"):
-            with patch('litellm.completion', return_value=mock_openai_response):
+            with patch("litellm.completion", return_value=mock_openai_response):
                 for i in range(10):
                     completion(
                         model="ollama/llama2",
                         messages=[{"role": "user", "content": f"Test {i}"}],
-                        api_base="http://localhost:11434"
+                        api_base="http://localhost:11434",
                     )
 
         # ASPECT 3: Performance analysis
@@ -380,7 +401,7 @@ class TestOllamaPerformance:
         overhead = with_memori - without
         overhead_pct = (overhead / without) * 100 if without > 0 else 0
 
-        print(f"\nOllama Performance:")
+        print("\nOllama Performance:")
         print(f"  Without Memori: {without:.3f}s")
         print(f"  With Memori:    {with_memori:.3f}s")
         print(f"  Overhead:       {overhead:.3f}s ({overhead_pct:.1f}%)")

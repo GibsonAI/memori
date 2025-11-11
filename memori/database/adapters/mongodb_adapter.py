@@ -152,7 +152,9 @@ class MongoDBAdapter:
                 try:
                     document[field] = json.loads(document[field])
                 except json.JSONDecodeError as e:
-                    logger.debug(f"Field '{field}' is not valid JSON, keeping as string: {e}")
+                    logger.debug(
+                        f"Field '{field}' is not valid JSON, keeping as string: {e}"
+                    )
                     pass  # Keep as string if not valid JSON
 
         # Ensure required fields have defaults
