@@ -593,6 +593,8 @@ class SQLAlchemyDatabaseManager:
                 session.merge(chat_history)  # Use merge for INSERT OR REPLACE behavior
                 session.commit()
 
+                return chat_id
+
             except SQLAlchemyError as e:
                 session.rollback()
                 raise DatabaseError(f"Failed to store chat history: {e}")
@@ -614,7 +616,7 @@ class SQLAlchemyDatabaseManager:
                     query = query.filter(ChatHistory.session_id == session_id)
 
                 results = (
-                    query.order_by(ChatHistory.timestamp.desc()).limit(limit).all()
+                    query.order_by(ChatHistory.created_at.desc()).limit(limit).all()
                 )
 
                 # Convert to dictionaries
@@ -1039,7 +1041,7 @@ class SQLAlchemyDatabaseManager:
             "driver": self.engine.dialect.driver,
             "server_version": getattr(self.engine.dialect, "server_version_info", None),
             "supports_fulltext": True,  # Assume true for SQLAlchemy managed connections
-            "auto_creation_enabled": self.enable_auto_creation,
+            "auto_creation_enabled": hasattr(self, "auto_creator") and self.auto_creator is not None,
         }
 
         # Add auto-creation specific information

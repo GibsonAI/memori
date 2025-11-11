@@ -2387,7 +2387,8 @@ class Memori:
                 return memories
 
         except Exception as e:
-            logger.error(f"Failed to get recent memories for dedup: {e}")
+            # This is expected on first use or fresh databases
+            logger.debug(f"Could not retrieve memories for deduplication (expected on fresh database): {e}")
             return []
 
     def retrieve_context(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
