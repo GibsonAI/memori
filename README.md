@@ -10,6 +10,8 @@
   <i>One line of code to give any LLM persistent, queryable memory using standard SQL databases</i>
 </p>
 
+<a href="https://trendshift.io/repositories/15418" target="_blank"><img src="https://trendshift.io/repositories/15418" alt="GibsonAI%2FMemori | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
 <p align="center">
   <a href="https://badge.fury.io/py/memorisdk">
     <img src="https://badge.fury.io/py/memori.svg" alt="PyPI version">
