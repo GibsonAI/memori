@@ -148,6 +148,9 @@ class Memori:
         self.database_prefix = database_prefix
         self.database_suffix = database_suffix
 
+        # Setup logging immediately after verbose is set, so all subsequent logs respect verbose mode
+        self._setup_logging()
+
         # Validate conscious_memory_limit parameter
         if not isinstance(conscious_memory_limit, int) or isinstance(
             conscious_memory_limit, bool
@@ -238,9 +241,6 @@ class Memori:
         if self.provider_config and hasattr(self.provider_config, "api_key"):
             self.openai_api_key = self.provider_config.api_key or self.openai_api_key
 
-        # Setup logging based on verbose mode
-        self._setup_logging()
-
         # Store connection pool settings
         self.pool_size = pool_size
         self.max_overflow = max_overflow
@@ -320,7 +320,7 @@ class Memori:
 
         # State tracking
         self._enabled = False
-        self._session_id = str(uuid.uuid4())
+        # Note: self._session_id already set on line 140-142, don't overwrite it!
         self._conscious_context_injected = (
             False  # Track if conscious context was already injected
         )

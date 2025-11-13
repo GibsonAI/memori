@@ -510,10 +510,14 @@ Be strategic and comprehensive in your search planning."""
                         )
                         continue
 
-                # Fallback: check direct category field
-                if not memory_category and "category" in result and result["category"]:
-                    memory_category = result["category"]
-                    logger.debug(f"Found category via direct field: {memory_category}")
+                # Fallback: check direct category field (try both category_primary and category)
+                if not memory_category:
+                    if "category_primary" in result and result["category_primary"]:
+                        memory_category = result["category_primary"]
+                        logger.debug(f"Found category via category_primary field: {memory_category}")
+                    elif "category" in result and result["category"]:
+                        memory_category = result["category"]
+                        logger.debug(f"Found category via direct field: {memory_category}")
 
                 # Check if the found category matches any of our target categories
                 if memory_category:
