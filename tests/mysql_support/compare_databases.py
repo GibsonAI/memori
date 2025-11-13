@@ -16,10 +16,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 def test_database_performance(db_type, connection_string, test_name):
     """Test database performance with various operations"""
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"🧪 Testing {test_name}")
     print(f"Connection: {connection_string}")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
 
     try:
         from memori import Memori
@@ -60,7 +60,7 @@ def test_database_performance(db_type, connection_string, test_name):
 
         insert_time = time.time() - start_time
         print(
-            f"   ⏱️  Insert time: {insert_time:.3f}s ({insert_time/10:.3f}s per record)"
+            f"   ⏱️  Insert time: {insert_time:.3f}s ({insert_time / 10:.3f}s per record)"
         )
 
         # Test 2: Data retrieval
@@ -163,16 +163,16 @@ def main():
 
     # Results comparison
     if len(results) >= 2:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("📊 PERFORMANCE COMPARISON RESULTS")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         sqlite_result = next((r for r in results if r["db_type"] == "SQLite"), None)
         mysql_result = next((r for r in results if r["db_type"] == "MySQL"), None)
 
         if sqlite_result and mysql_result:
             print(f"{'Metric':<20} {'SQLite':<15} {'MySQL':<15} {'Winner':<10}")
-            print(f"{'-'*60}")
+            print(f"{'-' * 60}")
 
             # Insert performance
             sqlite_insert = sqlite_result["insert_time"]
