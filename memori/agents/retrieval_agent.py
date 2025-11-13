@@ -514,10 +514,14 @@ Be strategic and comprehensive in your search planning."""
                 if not memory_category:
                     if "category_primary" in result and result["category_primary"]:
                         memory_category = result["category_primary"]
-                        logger.debug(f"Found category via category_primary field: {memory_category}")
+                        logger.debug(
+                            f"Found category via category_primary field: {memory_category}"
+                        )
                     elif "category" in result and result["category"]:
                         memory_category = result["category"]
-                        logger.debug(f"Found category via direct field: {memory_category}")
+                        logger.debug(
+                            f"Found category via direct field: {memory_category}"
+                        )
 
                 # Check if the found category matches any of our target categories
                 if memory_category:

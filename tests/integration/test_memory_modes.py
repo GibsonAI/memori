@@ -622,7 +622,9 @@ class TestModeTransitions:
         )
 
         # ASPECT 2: Persistence - Data persists across mode change
-        _initial_stats = memori_sqlite.db_manager.get_memory_stats(memori_sqlite.user_id)
+        _initial_stats = memori_sqlite.db_manager.get_memory_stats(
+            memori_sqlite.user_id
+        )
 
         # Note: Changing modes at runtime may not be supported
         # May require creating new Memori instance
