@@ -57,8 +57,6 @@ class TestConsciousModeOff:
         time.sleep(0.5)
 
         # ASPECT 2: Persistence - Chat history stored, but no memory ingestion
-        _stats = memori.db_manager.get_memory_stats(memori.user_id)
-
         # Chat history should be stored
         # But short-term/long-term memory should be minimal or zero
         # (Depends on implementation - may have some automatic processing)
@@ -379,7 +377,7 @@ class TestMemoryPromotion:
             classification="context",
             importance="high",
         )
-        _memory_id = memori.db_manager.store_long_term_memory_enhanced(
+        memori.db_manager.store_long_term_memory_enhanced(
             memory=memory, chat_id="test_chat_1", user_id=memori.user_id
         )
 
@@ -447,7 +445,7 @@ class TestContextRelevance:
         with patch.object(
             client.chat.completions, "create", return_value=mock_openai_response
         ):
-            _response = client.chat.completions.create(
+            client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "user", "content": "Tell me about Python web frameworks"}

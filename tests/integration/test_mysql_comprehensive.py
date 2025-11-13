@@ -531,7 +531,7 @@ class TestMySQLReplication:
         memory = create_simple_memory(
             content=content, summary="Replication test", classification="knowledge"
         )
-        _memory_id = memori_mysql.db_manager.store_long_term_memory_enhanced(
+        memori_mysql.db_manager.store_long_term_memory_enhanced(
             memory=memory, chat_id="replication_test_chat", user_id=memori_mysql.user_id
         )
 

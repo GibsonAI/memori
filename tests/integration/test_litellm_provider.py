@@ -30,7 +30,7 @@ class TestLiteLLMBasicIntegration:
         - Persistence: Conversation attempt recorded
         - Integration: Provider-agnostic interception
         """
-        litellm = pytest.importorskip("litellm")
+        pytest.importorskip("litellm")
         from unittest.mock import patch
 
         from litellm import completion
@@ -70,7 +70,7 @@ class TestLiteLLMBasicIntegration:
         - Persistence: All conversations tracked
         - Integration: No call interference
         """
-        litellm = pytest.importorskip("litellm")
+        pytest.importorskip("litellm")
         from unittest.mock import patch
 
         from litellm import completion
@@ -222,17 +222,6 @@ class TestLiteLLMContextInjection:
         from litellm import completion
 
         memori = memori_conscious_false_auto_true
-
-        # Setup: Store relevant memories
-        from tests.conftest import create_simple_memory
-
-        memory = create_simple_memory(
-            content="User prefers using LiteLLM for multi-provider support",
-            summary="User's LiteLLM preference",
-            category_primary="preference",
-            session_id="test",
-            user_id=memori.user_id,
-        )
 
         # ASPECT 1: Functional - Enable auto mode
         memori.enable()
