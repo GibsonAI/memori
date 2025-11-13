@@ -40,6 +40,7 @@ class LoggingManager:
                 litellm_logger = logging.getLogger("LiteLLM")
                 litellm_logger.setLevel(logging.ERROR)
             except ImportError:
+                # LiteLLM is an optional dependency, skip if not installed
                 pass
 
             if verbose:

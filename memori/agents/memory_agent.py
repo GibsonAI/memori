@@ -155,11 +155,16 @@ Focus on extracting information that would genuinely help provide better context
 
         Returns:
             Result from func
+
+        Raises:
+            Exception: Re-raises the last exception if all retries are exhausted
         """
+        last_exception = None
         for attempt in range(max_retries):
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
+                last_exception = e
                 error_msg = str(e).lower()
                 # Retry only on connection/timeout errors
                 if "connection" in error_msg or "timeout" in error_msg:
@@ -173,6 +178,10 @@ Focus on extracting information that would genuinely help provide better context
                         continue
                 # Re-raise if not a retryable error or max retries reached
                 raise
+        # If all retries exhausted with connection errors, raise the last exception
+        if last_exception:
+            raise last_exception
+        return None
 
     async def process_conversation_async(
         self,

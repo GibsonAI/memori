@@ -57,7 +57,7 @@ class TestConsciousModeOff:
         time.sleep(0.5)
 
         # ASPECT 2: Persistence - Chat history stored, but no memory ingestion
-        stats = memori.db_manager.get_memory_stats(memori.user_id)
+        _stats = memori.db_manager.get_memory_stats(memori.user_id)
 
         # Chat history should be stored
         # But short-term/long-term memory should be minimal or zero
@@ -379,7 +379,7 @@ class TestMemoryPromotion:
             classification="context",
             importance="high",
         )
-        memory_id = memori.db_manager.store_long_term_memory_enhanced(
+        _memory_id = memori.db_manager.store_long_term_memory_enhanced(
             memory=memory, chat_id="test_chat_1", user_id=memori.user_id
         )
 
@@ -447,7 +447,7 @@ class TestContextRelevance:
         with patch.object(
             client.chat.completions, "create", return_value=mock_openai_response
         ):
-            response = client.chat.completions.create(
+            _response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "user", "content": "Tell me about Python web frameworks"}
@@ -622,7 +622,7 @@ class TestModeTransitions:
         )
 
         # ASPECT 2: Persistence - Data persists across mode change
-        initial_stats = memori_sqlite.db_manager.get_memory_stats(memori_sqlite.user_id)
+        _initial_stats = memori_sqlite.db_manager.get_memory_stats(memori_sqlite.user_id)
 
         # Note: Changing modes at runtime may not be supported
         # May require creating new Memori instance

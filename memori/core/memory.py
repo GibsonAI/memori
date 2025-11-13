@@ -2798,7 +2798,7 @@ class Memori:
             # Destructors shouldn't raise, but log for debugging
             try:
                 logger.debug(f"Cleanup error in destructor: {e}")
-            except:
+            except Exception:
                 pass  # Can't do anything if logging fails in destructor
 
     async def _background_analysis_loop(self):

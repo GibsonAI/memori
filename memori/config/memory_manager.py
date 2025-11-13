@@ -323,5 +323,5 @@ class MemoryManager:
             # Destructors shouldn't raise, but log for debugging
             try:
                 logger.debug(f"Cleanup error in destructor: {e}")
-            except:
+            except Exception:
                 pass  # Can't do anything if logging fails in destructor

@@ -472,8 +472,8 @@ class TestNamespaceAndUserIDCombination:
         - Integration: Users isolated per namespace
         """
         users = multi_user_memori
-        namespace1 = f"{test_namespace}_ns1"
-        namespace2 = f"{test_namespace}_ns2"
+        _namespace1 = f"{test_namespace}_ns1"
+        _namespace2 = f"{test_namespace}_ns2"
 
         # Alice in namespace 1
         memory_alice_ns1 = create_simple_memory(
@@ -562,7 +562,7 @@ class TestMultiTenancyPerformance:
                 )
 
         # Test search performance for each user
-        search_times = {}
+        _search_times = {}
 
         for user_id in ["alice", "bob", "charlie"]:
             with performance_tracker.track(f"search_{user_id}"):
