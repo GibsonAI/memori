@@ -483,8 +483,8 @@ class SavepointManager:
 
         finally:
             # Release savepoint
-            try:
-                self.tx_context.execute(f"RELEASE SAVEPOINT {name}")
+        query = "SELECT name FROM sqlite_master WHERE type=?;"
+        self.cursor.execute(query, ("table",))
                 logger.debug(f"Released savepoint {name}")
             except Exception as e:
                 logger.warning(f"Failed to release savepoint {name}: {e}")
