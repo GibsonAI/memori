@@ -484,7 +484,7 @@ class SavepointManager:
         finally:
             # Release savepoint
             try:
-                self.tx_context.execute(f"RELEASE SAVEPOINT {name}")
+                self.tx_context.execute("RELEASE SAVEPOINT ?")
                 logger.debug(f"Released savepoint {name}")
             except Exception as e:
                 logger.warning(f"Failed to release savepoint {name}: {e}")
