@@ -81,6 +81,12 @@ demos = [
     "crewai-tools>=0.59.0",
 ]
 
+# MCP (Model Context Protocol) dependencies
+mcp = [
+    "mcp>=1.0.0",
+    "fastmcp>=2.0.0",
+]
+
 # All optional dependencies
 all = [
     # Dev tools
@@ -109,6 +115,9 @@ all = [
     "streamlit>=1.28.0",
     "pandas>=2.0.0",
     "plotly>=5.17.0",
+    # MCP dependencies
+    "mcp>=1.0.0",
+    "fastmcp>=2.0.0",
 ]
 
 [project.urls]

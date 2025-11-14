@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "memori": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/memori",
+        "run",
+        "--with",
+        "mcp",
+        "--with",
+        "fastmcp",
+        "--with-editable",
+        ".",
+        "python",
+        "mcp/memori_mcp_server.py"
+      ],
+      "env": {
+        "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+        "OPENAI_API_KEY": "your-openai-api-key-here"
+      }
+    }
+  }
+}
