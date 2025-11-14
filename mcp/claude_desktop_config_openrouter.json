@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "memori-openrouter": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/memori",
+        "run",
+        "--with",
+        "mcp",
+        "--with",
+        "fastmcp",
+        "--with-editable",
+        ".",
+        "python",
+        "mcp/memori_mcp_server.py"
+      ],
+      "env": {
+        "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+        "OPENROUTER_API_KEY": "your-openrouter-api-key-here",
+        "OPENROUTER_MODEL": "anthropic/claude-3.5-sonnet",
+        "OPENROUTER_APP_NAME": "Memori MCP Server",
+        "OPENROUTER_SITE_URL": "https://github.com/GibsonAI/memori"
+      }
+    }
+  }
+}

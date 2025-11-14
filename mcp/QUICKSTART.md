@@ -132,6 +132,56 @@ export PATH="$HOME/.cargo/bin:$PATH"
 - Explore the 6 available tools in Claude
 - Check memory statistics with "How many memories do you have about me?"
 
+## LLM Provider Options
+
+By default, the quickstart uses OpenAI. But you can use other providers:
+
+### OpenRouter (100+ Models - Recommended)
+
+Use Claude, GPT-4, Llama, Mistral, and 100+ other models through a single API:
+
+```json
+"env": {
+  "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+  "OPENROUTER_API_KEY": "sk-or-v1-your-key-here",
+  "OPENROUTER_MODEL": "anthropic/claude-3.5-sonnet"
+}
+```
+
+**Get API key:** https://openrouter.ai/keys
+
+**Popular models:**
+- `anthropic/claude-3.5-sonnet` - Best for structured tasks
+- `openai/gpt-4o` - OpenAI's fastest GPT-4
+- `meta-llama/llama-3.1-70b-instruct` - Free, open-source
+
+### Local Models (Free)
+
+Run models locally with Ollama:
+
+```json
+"env": {
+  "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+  "LLM_BASE_URL": "http://localhost:11434/v1",
+  "LLM_MODEL": "llama3.1:8b"
+}
+```
+
+First install Ollama: https://ollama.ai
+
+### Azure OpenAI
+
+```json
+"env": {
+  "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+  "AZURE_OPENAI_API_KEY": "your-key",
+  "AZURE_OPENAI_ENDPOINT": "https://your-resource.openai.azure.com",
+  "AZURE_OPENAI_DEPLOYMENT": "your-deployment"
+}
+```
+
+See [full configuration guide](README.md#llm-provider-configuration) for more options.
+
 ## Database Options
 
 ### Local SQLite (Default - Good for personal use)

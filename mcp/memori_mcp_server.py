@@ -49,6 +49,12 @@ def get_memori_instance(
     """
     Get or create a Memori instance for the given user.
 
+    Supports multiple LLM providers:
+    - OpenAI (default)
+    - OpenRouter (set OPENROUTER_API_KEY)
+    - Azure OpenAI (set AZURE_OPENAI_API_KEY)
+    - Custom OpenAI-compatible endpoints (set LLM_BASE_URL)
+
     Args:
         user_id: User identifier for multi-tenant isolation
         assistant_id: Assistant identifier
@@ -67,6 +73,9 @@ def get_memori_instance(
             "MEMORI_DATABASE_URL", "sqlite:///memori_mcp.db"
         )
 
+        # Detect LLM provider configuration from environment
+        llm_config = _detect_llm_provider()
+
         # Create new Memori instance
         _memori_instances[key] = Memori(
             database_connect=db_connect,
@@ -75,10 +84,62 @@ def get_memori_instance(
             session_id=session_id,
             conscious_ingest=True,  # Enable conscious memory injection
             auto_ingest=False,  # Disable auto-injection (manual via MCP)
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            **llm_config,  # Unpack provider configuration
         )
 
     return _memori_instances[key]
+
+
+def _detect_llm_provider() -> Dict[str, Any]:
+    """
+    Detect LLM provider from environment variables and return configuration.
+
+    Priority order:
+    1. OpenRouter (OPENROUTER_API_KEY)
+    2. Azure OpenAI (AZURE_OPENAI_API_KEY)
+    3. Custom endpoint (LLM_BASE_URL)
+    4. OpenAI (OPENAI_API_KEY) - default
+
+    Returns:
+        Dictionary of configuration parameters for Memori.__init__
+    """
+    config = {}
+
+    # Priority 1: OpenRouter
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    if openrouter_key:
+        config["api_key"] = openrouter_key
+        config["base_url"] = os.getenv(
+            "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+        )
+        config["model"] = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o")
+        return config
+
+    # Priority 2: Azure OpenAI
+    azure_key = os.getenv("AZURE_OPENAI_API_KEY")
+    if azure_key:
+        config["api_key"] = azure_key
+        config["api_type"] = "azure"
+        config["azure_endpoint"] = os.getenv("AZURE_OPENAI_ENDPOINT")
+        config["azure_deployment"] = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        config["api_version"] = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+        config["model"] = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
+        return config
+
+    # Priority 3: Custom OpenAI-compatible endpoint
+    custom_base_url = os.getenv("LLM_BASE_URL")
+    if custom_base_url:
+        config["api_key"] = os.getenv("LLM_API_KEY")
+        config["base_url"] = custom_base_url
+        config["model"] = os.getenv("LLM_MODEL", "gpt-4o")
+        return config
+
+    # Priority 4: Default OpenAI
+    config["openai_api_key"] = os.getenv("OPENAI_API_KEY")
+    if os.getenv("OPENAI_MODEL"):
+        config["model"] = os.getenv("OPENAI_MODEL")
+
+    return config
 
 
 # ============================================================================

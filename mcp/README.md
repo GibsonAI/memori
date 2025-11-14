@@ -122,14 +122,94 @@ Look for the 🔨 hammer icon in Claude Desktop. Click it to see available MCP s
 
 ## Configuration
 
-### Environment Variables
+### LLM Provider Configuration
 
-Set these in the `env` section of your Claude Desktop config:
+The MCP server supports multiple LLM providers for memory processing. Choose one:
+
+#### Option 1: OpenAI (Default)
+
+```json
+"env": {
+  "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+  "OPENAI_API_KEY": "sk-your-api-key-here"
+}
+```
+
+#### Option 2: OpenRouter (Recommended - Access 100+ Models)
+
+OpenRouter provides access to 100+ LLMs including Claude, GPT-4, Llama, Mistral, and more through a single API.
+
+```json
+"env": {
+  "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+  "OPENROUTER_API_KEY": "sk-or-v1-your-api-key-here",
+  "OPENROUTER_MODEL": "anthropic/claude-3.5-sonnet",
+  "OPENROUTER_APP_NAME": "Memori MCP Server",
+  "OPENROUTER_SITE_URL": "https://github.com/GibsonAI/memori"
+}
+```
+
+**Popular OpenRouter Models:**
+- `anthropic/claude-3.5-sonnet` - Best for structured tasks
+- `anthropic/claude-3-opus` - Most capable Claude model
+- `openai/gpt-4o` - OpenAI's fastest GPT-4
+- `openai/gpt-4-turbo` - GPT-4 with 128k context
+- `meta-llama/llama-3.1-70b-instruct` - Free, open-source
+- `google/gemini-pro-1.5` - Google's Gemini Pro
+- `mistralai/mixtral-8x7b-instruct` - Fast, cost-effective
+
+**Get your OpenRouter API key:** https://openrouter.ai/keys
+
+#### Option 3: Azure OpenAI
+
+```json
+"env": {
+  "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+  "AZURE_OPENAI_API_KEY": "your-azure-key",
+  "AZURE_OPENAI_ENDPOINT": "https://your-resource.openai.azure.com",
+  "AZURE_OPENAI_DEPLOYMENT": "your-deployment-name",
+  "AZURE_OPENAI_API_VERSION": "2024-02-15-preview",
+  "AZURE_OPENAI_MODEL": "gpt-4o"
+}
+```
+
+#### Option 4: Custom OpenAI-Compatible Endpoint
+
+For Ollama, LM Studio, LocalAI, or any OpenAI-compatible API:
+
+```json
+"env": {
+  "MEMORI_DATABASE_URL": "sqlite:///memori_mcp.db",
+  "LLM_BASE_URL": "http://localhost:11434/v1",
+  "LLM_API_KEY": "not-needed-for-local",
+  "LLM_MODEL": "llama3.1:8b"
+}
+```
+
+### Environment Variables Reference
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `MEMORI_DATABASE_URL` | Database connection string | `sqlite:///memori_mcp.db` | No |
-| `OPENAI_API_KEY` | OpenAI API key for memory processing | None | Yes |
+| **OpenAI** |||
+| `OPENAI_API_KEY` | OpenAI API key | None | Yes (if using OpenAI) |
+| `OPENAI_MODEL` | Model to use | `gpt-4o` | No |
+| **OpenRouter** |||
+| `OPENROUTER_API_KEY` | OpenRouter API key | None | Yes (if using OpenRouter) |
+| `OPENROUTER_MODEL` | Model to use | `openai/gpt-4o` | No |
+| `OPENROUTER_BASE_URL` | API base URL | `https://openrouter.ai/api/v1` | No |
+| `OPENROUTER_APP_NAME` | Your app name (for rankings) | None | No |
+| `OPENROUTER_SITE_URL` | Your site URL (for rankings) | None | No |
+| **Azure OpenAI** |||
+| `AZURE_OPENAI_API_KEY` | Azure API key | None | Yes (if using Azure) |
+| `AZURE_OPENAI_ENDPOINT` | Azure endpoint URL | None | Yes (if using Azure) |
+| `AZURE_OPENAI_DEPLOYMENT` | Deployment name | None | Yes (if using Azure) |
+| `AZURE_OPENAI_API_VERSION` | API version | `2024-02-15-preview` | No |
+| `AZURE_OPENAI_MODEL` | Model name | `gpt-4o` | No |
+| **Custom/Local** |||
+| `LLM_BASE_URL` | Custom API base URL | None | Yes (if using custom) |
+| `LLM_API_KEY` | Custom API key | None | No (for local) |
+| `LLM_MODEL` | Model to use | `gpt-4o` | No |
 
 ### Database Options
 
