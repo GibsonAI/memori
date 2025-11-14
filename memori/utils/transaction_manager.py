@@ -484,7 +484,10 @@ class SavepointManager:
         finally:
             # Release savepoint
             try:
-                self.tx_context.execute(f"RELEASE SAVEPOINT {name}")
+            result = await connection.execute(
+                text("SELECT table_name FROM information_schema.tables WHERE table_schema = :schema_name"),
+                {"schema_name": self.schema},
+            )
                 logger.debug(f"Released savepoint {name}")
             except Exception as e:
                 logger.warning(f"Failed to release savepoint {name}: {e}")
