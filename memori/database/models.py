@@ -302,14 +302,14 @@ def configure_sqlite_fts(engine):
                 conn.execute(
                     """
                     CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
-                        memory_id,
-                        memory_type,
-                        user_id,
+                        memory_id UNINDEXED,
+                        memory_type UNINDEXED,
+                        user_id UNINDEXED,
+                        assistant_id UNINDEXED,
+                        session_id UNINDEXED,
                         searchable_content,
                         summary,
-                        category_primary,
-                        content='',
-                        contentless_delete=1
+                        category_primary
                     )
                 """
                 )
@@ -319,8 +319,8 @@ def configure_sqlite_fts(engine):
                     """
                     CREATE TRIGGER IF NOT EXISTS short_term_memory_fts_insert AFTER INSERT ON short_term_memory
                     BEGIN
-                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, searchable_content, summary, category_primary)
-                        VALUES (NEW.memory_id, 'short_term', NEW.user_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
+                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, assistant_id, session_id, searchable_content, summary, category_primary)
+                        VALUES (NEW.memory_id, 'short_term', NEW.user_id, NEW.assistant_id, NEW.session_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
                     END
                 """
                 )
@@ -329,8 +329,8 @@ def configure_sqlite_fts(engine):
                     """
                     CREATE TRIGGER IF NOT EXISTS long_term_memory_fts_insert AFTER INSERT ON long_term_memory
                     BEGIN
-                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, searchable_content, summary, category_primary)
-                        VALUES (NEW.memory_id, 'long_term', NEW.user_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
+                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, assistant_id, session_id, searchable_content, summary, category_primary)
+                        VALUES (NEW.memory_id, 'long_term', NEW.user_id, NEW.assistant_id, NEW.session_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
                     END
                 """
                 )

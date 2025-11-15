@@ -1373,6 +1373,8 @@ class Memori:
                         query=user_input,
                         db_manager=self.db_manager,
                         user_id=self.user_id,
+                        assistant_id=self.assistant_id,
+                        session_id=self.session_id,
                         limit=5,
                     )
 
@@ -2323,7 +2325,7 @@ class Memori:
 
             # Store processed memory with new schema
             memory_id = self.db_manager.store_long_term_memory_enhanced(
-                processed_memory, chat_id, self.user_id
+                processed_memory, chat_id, self.user_id, self.assistant_id, self._session_id
             )
 
             if memory_id:
@@ -2437,6 +2439,8 @@ class Memori:
                         query=query,
                         db_manager=self.db_manager,
                         user_id=self.user_id,
+                        assistant_id=self.assistant_id,
+                        session_id=self.session_id,
                         limit=remaining_limit,
                     )
                 else:
