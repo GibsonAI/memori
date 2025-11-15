@@ -223,11 +223,17 @@ class SearchService:
             if assistant_id:
                 assistant_clause = "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL OR fts.assistant_id = :assistant_id)"
                 params["assistant_id"] = assistant_id
-                logger.debug(f"Assistant filter: long-term allows NULL or {assistant_id}")
+                logger.debug(
+                    f"Assistant filter: long-term allows NULL or {assistant_id}"
+                )
             else:
                 # assistant_id=None: Can only see shared memories (not other assistants' private data)
-                assistant_clause = "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL)"
-                logger.debug("Assistant filter: long-term allows only NULL (shared memories)")
+                assistant_clause = (
+                    "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL)"
+                )
+                logger.debug(
+                    "Assistant filter: long-term allows only NULL (shared memories)"
+                )
 
             if session_id:
                 # Apply session filter only to short-term memories
@@ -468,7 +474,9 @@ class SearchService:
                     # BEHAVIOR: Multi-assistant isolation for long-term memory
                     if assistant_id:
                         # Specific assistant: see shared (NULL) OR own memories
-                        assistant_clause = "AND (assistant_id IS NULL OR assistant_id = :assistant_id)"
+                        assistant_clause = (
+                            "AND (assistant_id IS NULL OR assistant_id = :assistant_id)"
+                        )
                         params["assistant_id"] = assistant_id
                     else:
                         # No assistant: see ONLY shared memories (NULL)
@@ -655,7 +663,9 @@ class SearchService:
                 # BEHAVIOR: Multi-assistant isolation for long-term memory
                 if assistant_id:
                     # Specific assistant: see shared (NULL) OR own memories
-                    assistant_clause = "AND (assistant_id IS NULL OR assistant_id = :assistant_id)"
+                    assistant_clause = (
+                        "AND (assistant_id IS NULL OR assistant_id = :assistant_id)"
+                    )
                 else:
                     # No assistant: see ONLY shared memories (NULL)
                     assistant_clause = "AND assistant_id IS NULL"
@@ -835,7 +845,7 @@ class SearchService:
                 filter_conditions.append(
                     or_(
                         LongTermMemory.assistant_id.is_(None),
-                        LongTermMemory.assistant_id == assistant_id
+                        LongTermMemory.assistant_id == assistant_id,
                     )
                 )
             else:
@@ -950,7 +960,7 @@ class SearchService:
                 long_query = long_query.filter(
                     or_(
                         LongTermMemory.assistant_id.is_(None),
-                        LongTermMemory.assistant_id == assistant_id
+                        LongTermMemory.assistant_id == assistant_id,
                     )
                 )
             else:
