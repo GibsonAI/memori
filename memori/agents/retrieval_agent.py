@@ -191,7 +191,13 @@ Be strategic and comprehensive in your search planning."""
             return self._create_fallback_query(query)
 
     def execute_search(
-        self, query: str, db_manager, user_id: str = "default", assistant_id: str = None, session_id: str = None, limit: int = 10
+        self,
+        query: str,
+        db_manager,
+        user_id: str = "default",
+        assistant_id: str = None,
+        session_id: str = None,
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
         Execute intelligent search using planned strategies (SESSION-OPTIMIZED)
@@ -233,7 +239,9 @@ Be strategic and comprehensive in your search planning."""
 
             session = db_manager.SessionLocal()
             search_service = SearchService(session, db_type)
-            logger.debug("Created single SearchService instance for request (session-optimized)")
+            logger.debug(
+                "Created single SearchService instance for request (session-optimized)"
+            )
 
             # PRIMARY SEARCH: Use the session we just created
             try:
@@ -244,9 +252,7 @@ Be strategic and comprehensive in your search planning."""
                     session_id=session_id,
                     limit=limit,
                 )
-                logger.debug(
-                    f"Primary search returned {len(primary_results)} results"
-                )
+                logger.debug(f"Primary search returned {len(primary_results)} results")
             except Exception as e:
                 logger.error(f"Primary search failed: {e}")
                 primary_results = []
@@ -268,8 +274,12 @@ Be strategic and comprehensive in your search planning."""
                     f"Adding targeted keyword search for: {search_plan.entity_filters}"
                 )
                 keyword_results = self._execute_keyword_search_with_session(
-                    search_plan, search_service, user_id, assistant_id, session_id,
-                    limit - len(all_results)
+                    search_plan,
+                    search_service,
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit - len(all_results),
                 )
 
                 for result in keyword_results:
@@ -293,8 +303,12 @@ Be strategic and comprehensive in your search planning."""
                     f"Adding category search for: {[c.value for c in search_plan.category_filters]}"
                 )
                 category_results = self._execute_category_search_with_session(
-                    search_plan, search_service, user_id, assistant_id, session_id,
-                    limit - len(all_results)
+                    search_plan,
+                    search_service,
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit - len(all_results),
                 )
 
                 for result in category_results:
@@ -318,8 +332,12 @@ Be strategic and comprehensive in your search planning."""
                     f"Adding importance search with min_importance: {search_plan.min_importance}"
                 )
                 importance_results = self._execute_importance_search_with_session(
-                    search_plan, search_service, user_id, assistant_id, session_id,
-                    limit - len(all_results)
+                    search_plan,
+                    search_service,
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit - len(all_results),
                 )
 
                 for result in importance_results:
@@ -404,7 +422,13 @@ Be strategic and comprehensive in your search planning."""
                     logger.warning(f"Error closing search session: {cleanup_error}")
 
     def _execute_keyword_search(
-        self, search_plan: MemorySearchQuery, db_manager, user_id: str, assistant_id: str = None, session_id: str = None, limit: int = 10
+        self,
+        search_plan: MemorySearchQuery,
+        db_manager,
+        user_id: str,
+        assistant_id: str = None,
+        session_id: str = None,
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
         DEPRECATED: Execute keyword-based search (creates new session)
@@ -415,11 +439,12 @@ Be strategic and comprehensive in your search planning."""
         Use execute_search() instead for better performance (35-45% faster).
         """
         import warnings
+
         warnings.warn(
             "_execute_keyword_search() creates a new session and is less efficient. "
             "Use execute_search() instead for session reuse optimization.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         db_type = self._detect_database_type(db_manager)
@@ -430,7 +455,12 @@ Be strategic and comprehensive in your search planning."""
             with db_manager.SessionLocal() as session:
                 search_service = SearchService(session, db_type)
                 return self._execute_keyword_search_with_session(
-                    search_plan, search_service, user_id, assistant_id, session_id, limit
+                    search_plan,
+                    search_service,
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit,
                 )
         except Exception as e:
             logger.error(f"Keyword search failed: {e}")
@@ -443,7 +473,7 @@ Be strategic and comprehensive in your search planning."""
         user_id: str,
         assistant_id: str = None,
         session_id: str = None,
-        limit: int = 10
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
         Execute keyword-based search using existing search service (session-reuse optimized)
@@ -476,7 +506,7 @@ Be strategic and comprehensive in your search planning."""
                 user_id=user_id,
                 assistant_id=assistant_id,
                 session_id=session_id,
-                limit=limit
+                limit=limit,
             )
 
             # Validate results
@@ -498,7 +528,13 @@ Be strategic and comprehensive in your search planning."""
             return []
 
     def _execute_category_search(
-        self, search_plan: MemorySearchQuery, db_manager, user_id: str, assistant_id: str = None, session_id: str = None, limit: int = 10
+        self,
+        search_plan: MemorySearchQuery,
+        db_manager,
+        user_id: str,
+        assistant_id: str = None,
+        session_id: str = None,
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
         DEPRECATED: Execute category-based search (creates new session)
@@ -509,11 +545,12 @@ Be strategic and comprehensive in your search planning."""
         Use execute_search() instead for better performance (35-45% faster).
         """
         import warnings
+
         warnings.warn(
             "_execute_category_search() creates a new session and is less efficient. "
             "Use execute_search() instead for session reuse optimization.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         db_type = self._detect_database_type(db_manager)
@@ -524,7 +561,12 @@ Be strategic and comprehensive in your search planning."""
             with db_manager.SessionLocal() as session:
                 search_service = SearchService(session, db_type)
                 return self._execute_category_search_with_session(
-                    search_plan, search_service, user_id, assistant_id, session_id, limit
+                    search_plan,
+                    search_service,
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit,
                 )
         except Exception as e:
             logger.error(f"Category search failed: {e}")
@@ -537,7 +579,7 @@ Be strategic and comprehensive in your search planning."""
         user_id: str,
         assistant_id: str = None,
         session_id: str = None,
-        limit: int = 10
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
         Execute category-based search using existing search service (session-reuse optimized)
@@ -572,7 +614,7 @@ Be strategic and comprehensive in your search planning."""
                 user_id=user_id,
                 assistant_id=assistant_id,
                 session_id=session_id,
-                limit=limit * 3
+                limit=limit * 3,
             )
         except Exception as e:
             logger.error(f"Category search failed: {e}")
@@ -854,7 +896,13 @@ Be strategic and comprehensive in your search planning."""
             return self._create_fallback_query(original_query)
 
     def _execute_importance_search(
-        self, search_plan: MemorySearchQuery, db_manager, user_id: str, assistant_id: str = None, session_id: str = None, limit: int = 10
+        self,
+        search_plan: MemorySearchQuery,
+        db_manager,
+        user_id: str,
+        assistant_id: str = None,
+        session_id: str = None,
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
         DEPRECATED: Execute importance-based search (creates new session)
@@ -865,11 +913,12 @@ Be strategic and comprehensive in your search planning."""
         Use execute_search() instead for better performance (35-45% faster).
         """
         import warnings
+
         warnings.warn(
             "_execute_importance_search() creates a new session and is less efficient. "
             "Use execute_search() instead for session reuse optimization.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         db_type = self._detect_database_type(db_manager)
@@ -880,7 +929,12 @@ Be strategic and comprehensive in your search planning."""
             with db_manager.SessionLocal() as session:
                 search_service = SearchService(session, db_type)
                 return self._execute_importance_search_with_session(
-                    search_plan, search_service, user_id, assistant_id, session_id, limit
+                    search_plan,
+                    search_service,
+                    user_id,
+                    assistant_id,
+                    session_id,
+                    limit,
                 )
         except Exception as e:
             logger.error(f"Importance search failed: {e}")
@@ -893,7 +947,7 @@ Be strategic and comprehensive in your search planning."""
         user_id: str,
         assistant_id: str = None,
         session_id: str = None,
-        limit: int = 10
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
         Execute importance-based search using existing search service (session-reuse optimized)
@@ -909,7 +963,9 @@ Be strategic and comprehensive in your search planning."""
         Returns:
             List of memory dictionaries
         """
-        min_importance = max(search_plan.min_importance, 0.7)  # Default to high importance
+        min_importance = max(
+            search_plan.min_importance, 0.7
+        )  # Default to high importance
 
         try:
             # Use provided search service (no new session creation)
@@ -918,13 +974,14 @@ Be strategic and comprehensive in your search planning."""
                 user_id=user_id,
                 assistant_id=assistant_id,
                 session_id=session_id,
-                limit=limit * 2
+                limit=limit * 2,
             )
 
             high_importance_results = [
                 result
                 for result in all_results
-                if isinstance(result, dict) and result.get("importance_score", 0) >= min_importance
+                if isinstance(result, dict)
+                and result.get("importance_score", 0) >= min_importance
             ]
 
             return high_importance_results[:limit]

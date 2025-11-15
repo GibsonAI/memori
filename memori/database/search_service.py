@@ -1364,9 +1364,7 @@ class SearchService:
             base_short_query = base_short_query.filter(
                 ShortTermMemory.user_id == user_id
             )
-            base_long_query = base_long_query.filter(
-                LongTermMemory.user_id == user_id
-            )
+            base_long_query = base_long_query.filter(LongTermMemory.user_id == user_id)
 
             # Apply assistant_id filter if provided
             if assistant_id is not None:

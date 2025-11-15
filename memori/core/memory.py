@@ -2325,7 +2325,11 @@ class Memori:
 
             # Store processed memory with new schema
             memory_id = self.db_manager.store_long_term_memory_enhanced(
-                processed_memory, chat_id, self.user_id, self.assistant_id, self._session_id
+                processed_memory,
+                chat_id,
+                self.user_id,
+                self.assistant_id,
+                self._session_id,
             )
 
             if memory_id:
