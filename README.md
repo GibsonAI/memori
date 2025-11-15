@@ -209,7 +209,7 @@ graph LR
 
 - **Conscious Agent** analyzes patterns and promotes essential memories from long-term to short-term storage
 
-For detailed architecture documentation, see [docs/architecture.md](https://www.gibsonai.com/docs/memori/architecture).
+For detailed architecture documentation, see [docs/architecture.md](https://www.gibsonai.com/docs/open-source/architecture).
 
 ---
 
