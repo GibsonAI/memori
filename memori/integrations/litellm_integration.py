@@ -268,6 +268,17 @@ class LiteLLMCallbackManager:
 
             # Create wrapper function that injects context
             def completion_with_context(*args, **kwargs):
+                # DEDUPLICATION FIX: Mark this as a LiteLLM call
+                # This prevents OpenAI interception from recording the same conversation
+                if "metadata" not in kwargs:
+                    kwargs["metadata"] = {}
+                elif kwargs["metadata"] is None:
+                    kwargs["metadata"] = {}
+
+                # Ensure metadata is a dict (LiteLLM accepts dict metadata)
+                if isinstance(kwargs["metadata"], dict):
+                    kwargs["metadata"]["_memori_source"] = "litellm"
+
                 # Inject context if needed
                 kwargs = self._inject_context(kwargs)
                 # Call original completion function

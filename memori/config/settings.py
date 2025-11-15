@@ -47,7 +47,20 @@ class DatabaseSettings(BaseModel):
         default=DatabaseType.SQLITE, description="Type of database backend"
     )
     template: str = Field(default="basic", description="Database template to use")
-    pool_size: int = Field(default=10, ge=1, le=100, description="Connection pool size")
+
+    # Connection pool configuration
+    pool_size: int = Field(default=5, ge=1, le=100, description="Connection pool size")
+    max_overflow: int = Field(
+        default=10, ge=0, le=100, description="Max overflow connections"
+    )
+    pool_timeout: int = Field(
+        default=30, ge=1, le=300, description="Pool timeout in seconds"
+    )
+    pool_recycle: int = Field(
+        default=3600, ge=300, le=7200, description="Recycle connections after seconds"
+    )
+    pool_pre_ping: bool = Field(default=True, description="Test connections before use")
+
     echo_sql: bool = Field(default=False, description="Echo SQL statements to logs")
     migration_auto: bool = Field(
         default=True, description="Automatically run migrations"

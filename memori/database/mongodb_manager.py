@@ -314,7 +314,11 @@ class MongoDBDatabaseManager:
                         document[field] = datetime.fromisoformat(
                             document[field].replace("Z", "+00:00")
                         )
-                    except:
+                    except (ValueError, AttributeError) as e:
+                        logger.warning(
+                            f"Invalid datetime in field '{field}': {document.get(field)}, "
+                            f"substituting current time. Error: {e}"
+                        )
                         document[field] = datetime.now(timezone.utc)
                 elif not isinstance(document[field], datetime):
                     document[field] = datetime.now(timezone.utc)
@@ -361,7 +365,10 @@ class MongoDBDatabaseManager:
             if field in result and isinstance(result[field], str):
                 try:
                     result[field] = json.loads(result[field])
-                except:
+                except json.JSONDecodeError as e:
+                    logger.debug(
+                        f"Field '{field}' is not valid JSON, keeping as string: {e}"
+                    )
                     pass  # Keep as string if not valid JSON
 
         return result

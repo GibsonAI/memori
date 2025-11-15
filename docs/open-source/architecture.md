@@ -55,6 +55,184 @@ class MemoryManager:
 - Automatic conversation extraction without monkey-patching
 - Provider configuration support for Azure and custom endpoints
 
+## The Interceptor Pattern: How It Works
+
+Memori's architecture is built around **transparent interception** of LLM API calls - enabling memory with zero code changes.
+
+### The Flow
+
+When you call `memori.enable()`, Memori activates the OpenAI interceptor. Every LLM call flows through this pipeline:
+
+```
+Your App → [Memori Interceptor] → OpenAI/Anthropic/etc
+                    ↓
+             SQL Database
+```
+
+### Three-Phase Process
+
+#### Phase 1: Pre-Call (Context Injection)
+
+**Before your LLM call reaches the provider:**
+
+1. **Interception**: Memori captures the messages array
+2. **User Identification**: Extracts `user_id` from metadata (defaults to "default")
+3. **Memory Retrieval**:
+   - **Conscious Mode**: Get promoted short-term memories (5-10 essential facts)
+     ```sql
+     SELECT content FROM short_term_memory
+     WHERE user_id = ?
+       AND is_permanent_context = true
+     ORDER BY importance_score DESC
+     LIMIT 10;
+     ```
+   - **Auto Mode**: Search long-term memory for query-relevant context
+     ```sql
+     SELECT content FROM long_term_memory
+     WHERE user_id = ?
+       AND searchable_content MATCH ?
+     ORDER BY importance_score DESC
+     LIMIT 5;
+     ```
+4. **Context Injection**: Prepend retrieved memories as system message:
+   ```python
+   # Original messages
+   [{"role": "user", "content": "Help me add authentication"}]
+
+   # After injection
+   [
+     {"role": "system", "content": "CONTEXT: User is building FastAPI project..."},
+     {"role": "user", "content": "Help me add authentication"}
+   ]
+   ```
+5. **Provider Call**: Forward enriched request to LLM
+
+**Performance**: 2-15ms added latency depending on mode
+
+#### Phase 2: Post-Call (Memory Recording)
+
+**After the LLM responds:**
+
+6. **Response Capture**: Intercept LLM's response
+7. **Entity Extraction**: Memory Agent analyzes conversation:
+   ```python
+   # Memory Agent uses LLM to extract structured information
+   ProcessedMemory(
+       content="User is building FastAPI project",
+       category="context",
+       entities=["FastAPI"],
+       importance=0.8,
+       is_current_project=True,
+       promotion_eligible=True
+   )
+   ```
+8. **Storage**: Write to SQL database with full-text indexes:
+   ```sql
+   INSERT INTO long_term_memory (
+       memory_id, user_id, content, category_primary,
+       entities_json, is_current_project, ...
+   ) VALUES (?, ?, ?, ?, ?, ?, ...);
+
+   -- Trigger automatically updates FTS5 search index
+   ```
+9. **Return Response**: Original response passed back to your app (zero latency impact on response delivery)
+
+**Performance**: Happens asynchronously, no blocking
+
+#### Phase 3: Background Analysis (Every 6 Hours)
+
+**Continuous improvement:**
+
+10. **Conscious Analysis**: Conscious Agent analyzes memory patterns
+    ```python
+    # Find memories worth promoting to short-term
+    essential_memories = analyze_for_promotion(
+        importance_threshold=0.7,
+        promotion_eligible=True,
+        is_user_context=True
+    )
+    ```
+11. **Promotion**: Elevate essential memories to short-term storage:
+    ```sql
+    INSERT INTO short_term_memory
+    SELECT * FROM long_term_memory
+    WHERE promotion_eligible = true
+      AND importance_score > 0.7;
+    ```
+12. **Duplicate Detection**: Identify and merge redundant memories
+13. **Relationship Mapping**: Update connections between related memories
+
+### Flow Diagram
+
+```
+┌─────────────┐
+│  Your App   │
+└──────┬──────┘
+       │ client.chat.completions.create(...)
+       v
+┌─────────────────────┐
+│  Memori Interceptor │
+│ (OpenAI Intercept)  │
+└─────┬────────┬──────┘
+      │        │
+      │        └───────────────┐
+      │                        │
+      v                        v
+┌──────────────┐        ┌──────────────┐
+│ Get Context  │        │   OpenAI/    │
+│ from SQL DB  │        │  Anthropic   │
+└──────┬───────┘        └──────┬───────┘
+       │                       │
+       │ inject context        │ response
+       v                       v
+┌─────────────────────────────────┐
+│  Enriched LLM Call with Context │
+└───────────────┬─────────────────┘
+                │
+                v
+┌─────────────────────────────┐
+│  Store New Memories to DB   │
+│  (Memory Agent extraction)  │
+└─────────────────────────────┘
+                │
+                v
+┌─────────────────────────┐
+│  Return to Your App     │
+└─────────────────────────┘
+```
+
+### Why This Architecture Works
+
+**Zero Refactoring**:
+```python
+# Your existing code stays EXACTLY the same
+from openai import OpenAI
+client = OpenAI()
+
+# Just add these 2 lines once
+memori = Memori()
+memori.enable()
+
+# Your code continues unchanged
+response = client.chat.completions.create(...)
+# ↑ Automatically recorded and contextualized!
+```
+
+**Framework Agnostic**:
+- Works with OpenAI SDK, Anthropic SDK, LiteLLM, LangChain
+- No provider-specific code in your application
+- Switch LLM providers without changing Memori code
+
+**Transparent**:
+- Memory operations happen outside critical response path
+- SQL queries are inspectable and debuggable
+- Full visibility into what's stored and why
+
+**Efficient**:
+- Async memory storage (no blocking)
+- Intelligent caching reduces database hits
+- SQL indexes optimize retrieval speed
+
 ### 3. Dual Memory System
 Two complementary memory modes for different use cases:
 

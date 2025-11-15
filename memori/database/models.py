@@ -84,6 +84,8 @@ class ShortTermMemory(Base):
     searchable_content = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
     is_permanent_context = Column(Boolean, default=False)
+    access_count = Column(Integer, default=0)
+    last_accessed = Column(DateTime)
 
     # Relationships
     chat = relationship("ChatHistory", back_populates="short_term_memories")
@@ -155,6 +157,10 @@ class LongTermMemory(Base):
     # Processing Status
     processed_for_duplicates = Column(Boolean, default=False)
     conscious_processed = Column(Boolean, default=False)
+
+    # Access tracking
+    access_count = Column(Integer, default=0)
+    last_accessed = Column(DateTime)
 
     # Concurrency Control (for optimistic locking)
     # TODO: Implement optimistic locking logic using this column
@@ -296,14 +302,14 @@ def configure_sqlite_fts(engine):
                 conn.execute(
                     """
                     CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
-                        memory_id,
-                        memory_type,
-                        user_id,
+                        memory_id UNINDEXED,
+                        memory_type UNINDEXED,
+                        user_id UNINDEXED,
+                        assistant_id UNINDEXED,
+                        session_id UNINDEXED,
                         searchable_content,
                         summary,
-                        category_primary,
-                        content='',
-                        contentless_delete=1
+                        category_primary
                     )
                 """
                 )
@@ -313,8 +319,8 @@ def configure_sqlite_fts(engine):
                     """
                     CREATE TRIGGER IF NOT EXISTS short_term_memory_fts_insert AFTER INSERT ON short_term_memory
                     BEGIN
-                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, searchable_content, summary, category_primary)
-                        VALUES (NEW.memory_id, 'short_term', NEW.user_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
+                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, assistant_id, session_id, searchable_content, summary, category_primary)
+                        VALUES (NEW.memory_id, 'short_term', NEW.user_id, NEW.assistant_id, NEW.session_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
                     END
                 """
                 )
@@ -323,8 +329,8 @@ def configure_sqlite_fts(engine):
                     """
                     CREATE TRIGGER IF NOT EXISTS long_term_memory_fts_insert AFTER INSERT ON long_term_memory
                     BEGIN
-                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, searchable_content, summary, category_primary)
-                        VALUES (NEW.memory_id, 'long_term', NEW.user_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
+                        INSERT INTO memory_search_fts(memory_id, memory_type, user_id, assistant_id, session_id, searchable_content, summary, category_primary)
+                        VALUES (NEW.memory_id, 'long_term', NEW.user_id, NEW.assistant_id, NEW.session_id, NEW.searchable_content, NEW.summary, NEW.category_primary);
                     END
                 """
                 )
@@ -356,13 +362,54 @@ def configure_sqlite_fts(engine):
 class DatabaseManager:
     """SQLAlchemy-based database manager for cross-database compatibility"""
 
-    def __init__(self, database_url: str):
+    def __init__(
+        self,
+        database_url: str,
+        pool_size: int = None,
+        max_overflow: int = None,
+        pool_timeout: int = None,
+        pool_recycle: int = None,
+        pool_pre_ping: bool = None,
+    ):
+        # Import pool_config for default values
+        from ..config.pool_config import pool_config
+
+        # Use provided values or defaults from pool_config
+        self.pool_size = (
+            pool_size if pool_size is not None else pool_config.DEFAULT_POOL_SIZE
+        )
+        self.max_overflow = (
+            max_overflow
+            if max_overflow is not None
+            else pool_config.DEFAULT_MAX_OVERFLOW
+        )
+        self.pool_timeout = (
+            pool_timeout
+            if pool_timeout is not None
+            else pool_config.DEFAULT_POOL_TIMEOUT
+        )
+        self.pool_recycle = (
+            pool_recycle
+            if pool_recycle is not None
+            else pool_config.DEFAULT_POOL_RECYCLE
+        )
+        self.pool_pre_ping = (
+            pool_pre_ping
+            if pool_pre_ping is not None
+            else pool_config.DEFAULT_POOL_PRE_PING
+        )
+
         self.database_url = database_url
         self.engine = create_engine(
             database_url,
             json_serializer=self._json_serializer,
             json_deserializer=self._json_deserializer,
             echo=False,  # Set to True for SQL debugging
+            pool_size=self.pool_size,
+            max_overflow=self.max_overflow,
+            pool_timeout=self.pool_timeout,
+            pool_recycle=self.pool_recycle,
+            pool_pre_ping=self.pool_pre_ping,
         )
 
         # Configure database-specific features

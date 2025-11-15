@@ -133,6 +133,87 @@ memori.enable()  # Start both agents
 
 **Combined Mode**: Best for sophisticated AI agents that need both persistent personality/preferences AND dynamic knowledge retrieval.
 
+## Choosing the Right Memory Mode
+
+### Decision Matrix
+
+Use this table to quickly select the optimal mode for your use case:
+
+| Use Case | Recommended Mode | Why |
+|----------|------------------|-----|
+| **Personal AI Assistant** | Conscious | Stable user context, low latency, consistent personality |
+| **Customer Support Bot** | Auto | Diverse customer queries need dynamic history retrieval |
+| **Code Completion Copilot** | Conscious | Fast responses, stable user preferences, minimal overhead |
+| **Research Assistant** | Combined | Needs both user context AND query-specific knowledge |
+| **Multi-User SaaS** | Auto or Combined | Diverse users with varied, changing contexts |
+| **RAG Knowledge Base** | Auto | Each query requires different document context |
+| **Personal Journaling AI** | Conscious | Core identity/preferences stable, conversations build on them |
+| **Tech Support Chatbot** | Combined | Needs user profile + technical documentation |
+
+### Quick Selection Guide
+
+**Choose Conscious Mode (`conscious_ingest=True`) if:**
+
+- Your users have stable preferences/context that rarely change
+- You want minimal latency overhead (instant context access)
+- Core facts persist across sessions (name, role, preferences)
+- Token efficiency is a priority (lower cost)
+- Building personal assistants or role-based agents
+- Context is small and essential (5-10 key facts)
+
+**Choose Auto Mode (`auto_ingest=True`) if:**
+
+- Each query needs different context from memory
+- Your memory database is large and diverse (100+ memories)
+- Query topics vary significantly conversation to conversation
+- Real-time relevance is more important than speed
+- Building Q&A systems or knowledge retrievers
+- Users ask about many different topics
+
+**Choose Combined Mode (both enabled) if:**
+
+- You need both persistent identity AND dynamic knowledge
+- Token cost is acceptable for better intelligence
+- Building sophisticated conversational AI
+- User context + query specificity both matter
+- Maximum accuracy is priority over performance
+- Building enterprise-grade assistants
+
+### Performance Trade-offs
+
+| Metric | Conscious Only | Auto Only | Combined |
+|--------|----------------|-----------|----------|
+| **Startup Time** | ~50ms (one-time) | Instant | ~50ms (one-time) |
+| **Per-Query Overhead** | Instant (~0ms) | ~10-15ms | ~12-18ms |
+| **Token Usage per Call** | 150-300 tokens | 200-500 tokens | 300-800 tokens |
+| **API Calls Required** | Startup only | Every query + memory agent | Both startup + every query |
+| **Memory Accuracy** | Fixed essential context | Dynamic relevant context | Optimal (both) |
+| **Best For** | Stable workflows | Dynamic queries | Maximum intelligence |
+| **Typical Cost/1000 calls** | $0.05 (minimal) | $0.15-$0.25 | $0.30-$0.40 |
+
+### When to Upgrade from One Mode to Another
+
+**Start with Conscious → Upgrade to Combined when:**
+
+- User's knowledge base grows large (>1,000 memories)
+- Queries span multiple domains/projects
+- Need both "who the user is" AND "specific query context"
+- Users request information from varied past conversations
+
+**Start with Auto → Upgrade to Combined when:**
+
+- Need consistent user personality across sessions
+- Want to reduce per-query token usage for common facts
+- Users have stable preferences that should persist
+- Building assistant with both identity and knowledge
+
+**Start with Combined → Downgrade when:**
+
+- Token costs are too high for your use case
+- Latency becomes an issue
+- User context is actually stable (go Conscious only)
+- Queries are always diverse (go Auto only)
+
 ## Memory Categories
 
 Every piece of information gets categorized for intelligent retrieval across both modes:

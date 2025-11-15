@@ -129,7 +129,11 @@ class MongoDBAdapter:
                         document[field] = datetime.fromisoformat(
                             document[field].replace("Z", "+00:00")
                         )
-                    except:
+                    except (ValueError, AttributeError) as e:
+                        logger.warning(
+                            f"Invalid datetime in field '{field}': {document.get(field)}, "
+                            f"substituting current time. Error: {e}"
+                        )
                         document[field] = datetime.now(timezone.utc)
                 elif not isinstance(document[field], datetime):
                     document[field] = datetime.now(timezone.utc)
@@ -147,7 +151,10 @@ class MongoDBAdapter:
             if field in document and isinstance(document[field], str):
                 try:
                     document[field] = json.loads(document[field])
-                except:
+                except json.JSONDecodeError as e:
+                    logger.debug(
+                        f"Field '{field}' is not valid JSON, keeping as string: {e}"
+                    )
                     pass  # Keep as string if not valid JSON
 
         # Ensure required fields have defaults

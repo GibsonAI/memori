@@ -319,5 +319,9 @@ class MemoryManager:
         """Destructor - ensure cleanup."""
         try:
             self.cleanup()
-        except:
-            pass
+        except Exception as e:
+            # Destructors shouldn't raise, but log for debugging
+            try:
+                logger.debug(f"Cleanup error in destructor: {e}")
+            except Exception:
+                pass  # Can't do anything if logging fails in destructor

@@ -29,17 +29,12 @@ if "your-" in AZURE_API_KEY or "your-" in AZURE_ENDPOINT:
     print("\nProceeding with demo configuration...")
 
 # Create explicit provider configuration for Azure OpenAI
-azure_provider = ProviderConfig(
+azure_provider = ProviderConfig.from_azure(
     api_key=AZURE_API_KEY,
-    api_type="azure",
-    base_url=AZURE_ENDPOINT,
-    model=AZURE_DEPLOYMENT,
+    azure_endpoint=AZURE_ENDPOINT,
+    azure_deployment=AZURE_DEPLOYMENT,
     api_version=AZURE_API_VERSION,
-    # Additional Azure-specific parameters
-    extra_params={
-        "azure_endpoint": AZURE_ENDPOINT,
-        "azure_deployment": AZURE_DEPLOYMENT,
-    },
+    model=AZURE_DEPLOYMENT,
 )
 
 # Initialize Memori with Azure OpenAI provider configuration

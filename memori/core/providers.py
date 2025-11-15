@@ -31,8 +31,8 @@ class ProviderConfig:
     api_key: str | None = None
     api_type: str | None = None  # "openai", "azure", or custom
     base_url: str | None = None  # Custom endpoint URL
-    timeout: float | None = None
-    max_retries: int | None = None
+    timeout: float | None = 60.0  # Default 60 second timeout for API calls
+    max_retries: int | None = 2  # Default 2 retries
 
     # Azure-specific parameters
     azure_endpoint: str | None = None
