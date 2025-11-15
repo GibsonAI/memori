@@ -215,10 +215,19 @@ class SearchService:
             session_clause = ""
             params = {"fts_query": fts_query, "user_id": user_id}
 
+            # BEHAVIOR: Multi-assistant isolation
+            # - Short-term memory: Accessible to all assistants for the same user (no filter)
+            # - Long-term memory:
+            #   - If assistant_id=None: ONLY see shared memories (assistant_id IS NULL)
+            #   - If assistant_id='bot': See shared (NULL) OR own (bot) memories
             if assistant_id:
-                assistant_clause = "AND fts.assistant_id = :assistant_id"
+                assistant_clause = "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL OR fts.assistant_id = :assistant_id)"
                 params["assistant_id"] = assistant_id
-                logger.debug(f"Assistant filter applied: {assistant_id}")
+                logger.debug(f"Assistant filter: long-term allows NULL or {assistant_id}")
+            else:
+                # assistant_id=None: Can only see shared memories (not other assistants' private data)
+                assistant_clause = "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL)"
+                logger.debug("Assistant filter: long-term allows only NULL (shared memories)")
 
             if session_id:
                 # Apply session filter only to short-term memories
@@ -372,13 +381,11 @@ class SearchService:
                 try:
                     # Build filter clauses
                     category_clause = ""
-                    assistant_clause = ""
                     session_clause = ""
                     params = {"query": query, "user_id": user_id}
 
-                    if assistant_id:
-                        assistant_clause = "AND assistant_id = :assistant_id"
-                        params["assistant_id"] = assistant_id
+                    # BEHAVIOR: Short-term memory is accessible to all assistants for the same user
+                    # No assistant_id filter applied to short-term memory
 
                     if session_id:
                         session_clause = "AND session_id = :session_id"
@@ -409,7 +416,6 @@ class SearchService:
                             'mysql_fulltext' as search_strategy
                         FROM short_term_memory
                         WHERE user_id = :user_id
-                        {assistant_clause}
                         {session_clause}
                         AND MATCH(searchable_content, summary) AGAINST(:query IN NATURAL LANGUAGE MODE)
                         {category_clause}
@@ -459,9 +465,14 @@ class SearchService:
                     assistant_clause = ""
                     params = {"query": query, "user_id": user_id}
 
+                    # BEHAVIOR: Multi-assistant isolation for long-term memory
                     if assistant_id:
-                        assistant_clause = "AND assistant_id = :assistant_id"
+                        # Specific assistant: see shared (NULL) OR own memories
+                        assistant_clause = "AND (assistant_id IS NULL OR assistant_id = :assistant_id)"
                         params["assistant_id"] = assistant_id
+                    else:
+                        # No assistant: see ONLY shared memories (NULL)
+                        assistant_clause = "AND assistant_id IS NULL"
 
                     # NOTE: No session filter for long-term memories (cross-session access)
 
@@ -580,11 +591,10 @@ class SearchService:
 
                 # Build filter clauses safely
                 category_clause = ""
-                assistant_clause = ""
                 session_clause = ""
 
-                if assistant_id:
-                    assistant_clause = "AND assistant_id = :assistant_id"
+                # BEHAVIOR: Short-term memory is accessible to all assistants for the same user
+                # No assistant_id filter applied to short-term memory
 
                 if session_id:
                     session_clause = "AND session_id = :session_id"
@@ -600,7 +610,6 @@ class SearchService:
                            'short_term' as memory_type, 'postgresql_fts' as search_strategy
                     FROM short_term_memory
                     WHERE user_id = :user_id
-                    {assistant_clause}
                     {session_clause}
                     AND search_vector @@ to_tsquery('english', :query)
                     {category_clause}
@@ -614,8 +623,6 @@ class SearchService:
                     "query": tsquery_text,
                     "limit": short_limit,
                 }
-                if assistant_id:
-                    params["assistant_id"] = assistant_id
                 if session_id:
                     params["session_id"] = session_id
                 if category_filter:
@@ -645,8 +652,13 @@ class SearchService:
                 category_clause = ""
                 assistant_clause = ""
 
+                # BEHAVIOR: Multi-assistant isolation for long-term memory
                 if assistant_id:
-                    assistant_clause = "AND assistant_id = :assistant_id"
+                    # Specific assistant: see shared (NULL) OR own memories
+                    assistant_clause = "AND (assistant_id IS NULL OR assistant_id = :assistant_id)"
+                else:
+                    # No assistant: see ONLY shared memories (NULL)
+                    assistant_clause = "AND assistant_id IS NULL"
 
                 # NOTE: No session filter for long-term memories (cross-session access)
 
@@ -759,8 +771,8 @@ class SearchService:
                 or_(*search_conditions),
             ]
 
-            if assistant_id:
-                filter_conditions.append(ShortTermMemory.assistant_id == assistant_id)
+            # BEHAVIOR: Short-term memory is accessible to all assistants for the same user
+            # No assistant_id filter applied to short-term memory
 
             if session_id:
                 filter_conditions.append(ShortTermMemory.session_id == session_id)
@@ -817,8 +829,18 @@ class SearchService:
                 or_(*search_conditions),
             ]
 
+            # BEHAVIOR: Multi-assistant isolation for long-term memory
             if assistant_id:
-                filter_conditions.append(LongTermMemory.assistant_id == assistant_id)
+                # Specific assistant: see shared (NULL) OR own memories
+                filter_conditions.append(
+                    or_(
+                        LongTermMemory.assistant_id.is_(None),
+                        LongTermMemory.assistant_id == assistant_id
+                    )
+                )
+            else:
+                # No assistant: see ONLY shared memories (NULL)
+                filter_conditions.append(LongTermMemory.assistant_id.is_(None))
 
             # NOTE: No session filter for long-term memories
             # Long-term memories should be accessible across all sessions for the same user
@@ -883,10 +905,8 @@ class SearchService:
                 ShortTermMemory.user_id == user_id
             )
 
-            if assistant_id:
-                short_query = short_query.filter(
-                    ShortTermMemory.assistant_id == assistant_id
-                )
+            # BEHAVIOR: Short-term memory is accessible to all assistants for the same user
+            # No assistant_id filter applied to short-term memory
 
             if session_id:
                 short_query = short_query.filter(
@@ -924,10 +944,18 @@ class SearchService:
                 LongTermMemory.user_id == user_id
             )
 
+            # BEHAVIOR: Multi-assistant isolation for long-term memory
             if assistant_id:
+                # Specific assistant: see shared (NULL) OR own memories
                 long_query = long_query.filter(
-                    LongTermMemory.assistant_id == assistant_id
+                    or_(
+                        LongTermMemory.assistant_id.is_(None),
+                        LongTermMemory.assistant_id == assistant_id
+                    )
                 )
+            else:
+                # No assistant: see ONLY shared memories (NULL)
+                long_query = long_query.filter(LongTermMemory.assistant_id.is_(None))
 
             # NOTE: No session filter for long-term memories (cross-session access)
             # Long-term memories should be accessible across all sessions for the same user
