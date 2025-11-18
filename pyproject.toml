@@ -113,7 +113,7 @@ all = [
 
 [project.urls]
 Homepage = "https://memorilabs.ai"
-Documentation = "https://www.gibsonai.com/docs/memori"
+Documentation = "https://memorilabs.ai/docs"
 Repository = "https://github.com/GibsonAI/memori.git"
 "Bug Tracker" = "https://github.com/GibsonAI/memori/issues"
 "Changelog" = "https://github.com/GibsonAI/memori/blob/main/CHANGELOG.md"

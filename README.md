@@ -52,7 +52,7 @@ Memori enables any LLM to remember conversations, learn from interactions, and m
 - **Zero vendor lock-in** - Export your memory as SQLite and move anywhere
 - **Intelligent memory** - Automatic entity extraction, relationship mapping, and context prioritization
 
-[Documentation](https://www.gibsonai.com/docs/memori) | [Examples](#examples) | [Discord](https://discord.gg/abD4eGym6v)
+[Documentation](https://memorilabs.ai/docs) | [Examples](#examples) | [Discord](https://discord.gg/abD4eGym6v)
 
 ---
 
@@ -209,7 +209,7 @@ graph LR
 
 - **Conscious Agent** analyzes patterns and promotes essential memories from long-term to short-term storage
 
-For detailed architecture documentation, see [docs/architecture.md](https://www.gibsonai.com/docs/open-source/architecture).
+For detailed architecture documentation, see [docs/architecture.md](https://memorilabs.ai/docs/open-source/architecture).
 
 ---
 
@@ -267,7 +267,7 @@ We welcome contributions from the community! Please see our [Contributing Guidel
 
 ## Support
 
-- **Documentation**: [https://www.gibsonai.com/docs/memori](https://www.gibsonai.com/docs/memori)
+- **Documentation**: [https://memorilabs.ai/docs](https://memorilabs.ai/docs)
 - **Discord**: [https://discord.gg/abD4eGym6v](https://discord.gg/abD4eGym6v)
 - **Issues**: [GitHub Issues](https://github.com/GibsonAI/memori/issues)
 
