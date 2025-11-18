@@ -67,7 +67,7 @@ docs: update installation guide
 
 - **Discord**: https://discord.gg/abD4eGym6v
 - **GitHub Issues**: For bugs and features
-- **Documentation**: https://www.gibsonai.com/docs/memori
+- **Documentation**: https://memorilabs.ai/docs
 
 ## License
 
