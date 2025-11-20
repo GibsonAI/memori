@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="https://badge.fury.io/py/memorisdk">
-    <img src="https://badge.fury.io/py/memori.svg" alt="PyPI version">
+    <img src="https://badge.fury.io/py/memorisdk.svg" alt="PyPI version">
   </a>
   <a href="https://pepy.tech/projects/memorisdk">
     <img src="https://static.pepy.tech/badge/memorisdk" alt="Downloads">
