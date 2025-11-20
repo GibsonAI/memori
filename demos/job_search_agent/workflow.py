@@ -143,8 +143,9 @@ def search_jobs_with_exa(config: JobSearchConfig) -> List[dict]:
                     if result.url not in seen_urls:
                         seen_urls.add(result.url)
                         all_results.append(result)
-            except Exception:
-                pass
+            except Exception as e:
+                # Continue with results from other domain groups if this one fails
+                print(f"Warning: Failed to search domain group: {str(e)}")
 
         # Initialize LLM for better extraction if API key is available
         llm = None
@@ -208,8 +209,9 @@ Company name:"""
                 and company.lower() not in ["none", "not specified", "n/a", "unknown"]
             ):
                 return company
-        except Exception:
-            pass
+        except Exception as e:
+            # Fall back to regex extraction if LLM extraction fails
+            print(f"Warning: LLM company extraction failed: {str(e)}")
 
     # Fallback to regex extraction
     # Look for patterns like "at Company Name" or "Company Name is hiring"
