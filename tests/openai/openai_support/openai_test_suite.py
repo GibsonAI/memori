@@ -33,12 +33,12 @@ def run_test_scenario(test_name, conscious_ingest, auto_ingest, test_inputs):
         auto_ingest: Boolean for auto_ingest parameter
         test_inputs: List of test inputs to process
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running OpenAI Test: {test_name}")
     print(
         f"Configuration: conscious_ingest={conscious_ingest}, auto_ingest={auto_ingest}"
     )
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Create database directory for this test
     root_dir = os.getcwd()

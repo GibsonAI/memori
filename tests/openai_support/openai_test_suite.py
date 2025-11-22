@@ -144,7 +144,7 @@ class OpenAITestSuite:
                 successful_providers += 1
 
         print(
-            f"\n🏆 Success Rate: {successful_providers}/{total_providers} providers ({100*successful_providers/total_providers:.1f}%)"
+            f"\n🏆 Success Rate: {successful_providers}/{total_providers} providers ({100 * successful_providers / total_providers:.1f}%)"
         )
 
         # Database Statistics

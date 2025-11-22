@@ -460,7 +460,9 @@ Be strategic and comprehensive in your search planning."""
 
         filtered_results = []
         for i, result in enumerate(all_results):
-            logger.debug(f"Processing result {i+1}/{len(all_results)}: {type(result)}")
+            logger.debug(
+                f"Processing result {i + 1}/{len(all_results)}: {type(result)}"
+            )
 
             # Extract category from processed_data if it's stored as JSON
             try:
@@ -531,7 +533,7 @@ Be strategic and comprehensive in your search planning."""
                     logger.debug("No category found in result")
 
             except Exception as e:
-                logger.debug(f"Error processing result {i+1}: {e}")
+                logger.debug(f"Error processing result {i + 1}: {e}")
                 continue
 
         logger.debug(
@@ -817,7 +819,7 @@ Be strategic and comprehensive in your search planning."""
                         self._execute_keyword_search,
                         search_plan,
                         db_manager,
-                        namespace,
+                        # namespace,
                         limit,
                     )
                 )
@@ -833,7 +835,7 @@ Be strategic and comprehensive in your search planning."""
                         self._execute_category_search,
                         search_plan,
                         db_manager,
-                        namespace,
+                        # namespace,
                         limit,
                     )
                 )

@@ -46,7 +46,7 @@ def run_openai_test_scenario(
         test_inputs: List of test inputs to process
         openai_config: OpenAI configuration dictionary
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running OpenAI Test: {test_name}")
     print(
         f"Configuration: conscious_ingest={conscious_ingest}, auto_ingest={auto_ingest}"
@@ -56,7 +56,7 @@ def run_openai_test_scenario(
         print(f"Base URL: {openai_config['base_url']}")
     if openai_config["organization"]:
         print(f"Organization: {openai_config['organization']}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Create database directory for this test
     db_dir = f"test_databases_openai/{test_name}"
@@ -166,9 +166,9 @@ def run_openai_test_scenario(
 
     print(f"\n✓ OpenAI Test '{test_name}' completed.")
     print(f"  Database saved at: {db_path}")
-    total = max(1, len(test_inputs))  # Prevent divide-by-zero
+    # total = max(1, len(test_inputs))  # Prevent divide-by-zero
     print(
-        f"  Success rate: {success_count}/{len(test_inputs)} ({100*success_count/total:.1f}%)\n"
+        f"  Success rate: {success_count}/{len(test_inputs)} ({100 * success_count / len(test_inputs):.1f}%)\n"
     )
 
     return success_count > 0
