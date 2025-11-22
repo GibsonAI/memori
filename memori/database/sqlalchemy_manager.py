@@ -17,7 +17,7 @@ from sqlalchemy import create_engine, func, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from ..config.pool_config import pool_config
+from ..config import pool_config
 from ..utils.exceptions import DatabaseError
 from ..utils.pydantic_models import (
     ProcessedLongTermMemory,
