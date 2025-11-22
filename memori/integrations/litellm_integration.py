@@ -20,6 +20,7 @@ from loguru import logger
 
 try:
     import litellm
+    from litellm.integrations.custom_logger import CustomLogger
 
     LITELLM_AVAILABLE = True
 
@@ -34,125 +35,36 @@ except ImportError:
     logger.debug("LiteLLM not available - native callback system disabled")
 
 
-class LiteLLMCallbackManager:
+class MemoriLogger(CustomLogger):
     """
-    Manages LiteLLM native callback registration and integration with Memori.
-
-    This class provides a clean interface for registering and managing
-    LiteLLM callbacks that automatically record conversations into Memori.
+    Custom Logger for LiteLLM to handle both Sync and Async/Streaming events.
+    Inherits from CustomLogger to support async_log_success_event.
     """
 
     def __init__(self, memori_instance):
-        """
-        Initialize LiteLLM callback manager.
-
-        Args:
-            memori_instance: The Memori instance to record conversations to
-        """
         self.memori_instance = memori_instance
-        self._callback_registered = False
-        self._original_callbacks = None
-        self._original_completion = None  # For context injection
 
-    def register_callbacks(self) -> bool:
+    def log_success_event(self, kwargs, response_obj, start_time, end_time):
         """
-        Register LiteLLM native callbacks for automatic memory recording.
-
-        Returns:
-            True if registration successful, False otherwise
+        Handle synchronous success events.
+        Called by LiteLLM after successful sync completions.
         """
-        if not LITELLM_AVAILABLE:
-            logger.debug("LiteLLM not available - cannot register callbacks")
-            return False
+        self._record_event(kwargs, response_obj, start_time, end_time)
 
-        if self._callback_registered:
-            logger.warning("LiteLLM callbacks already registered")
-            return True
-
-        try:
-            # Store original callbacks for restoration
-            self._original_callbacks = getattr(litellm, "success_callback", [])
-
-            # Register our success callback
-            if not hasattr(litellm, "success_callback"):
-                litellm.success_callback = []
-            elif not isinstance(litellm.success_callback, list):
-                litellm.success_callback = [litellm.success_callback]
-
-            # Add our callback function
-            litellm.success_callback.append(self._litellm_success_callback)
-
-            # For context injection, we need to monkey-patch the completion function
-            # This is the only reliable way to inject context before requests in LiteLLM
-            if (
-                self.memori_instance.conscious_ingest
-                or self.memori_instance.auto_ingest
-            ):
-                self._setup_context_injection()
-
-            self._callback_registered = True
-            logger.info("LiteLLM native callbacks registered successfully")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to register LiteLLM callbacks: {e}")
-            return False
-
-    def unregister_callbacks(self) -> bool:
+    async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):
         """
-        Unregister LiteLLM callbacks and restore original state.
-
-        Returns:
-            True if unregistration successful, False otherwise
+        Handle asynchronous/streaming success events.
+        Called by LiteLLM after successful async completions or full stream aggregation.
         """
-        if not LITELLM_AVAILABLE:
-            return False
+        self._record_event(kwargs, response_obj, start_time, end_time)
 
-        if not self._callback_registered:
-            logger.warning("LiteLLM callbacks not registered")
-            return True
-
-        try:
-            # Remove our callback
-            if hasattr(litellm, "success_callback") and isinstance(
-                litellm.success_callback, list
-            ):
-                # Remove all instances of our callback
-                litellm.success_callback = [
-                    cb
-                    for cb in litellm.success_callback
-                    if cb != self._litellm_success_callback
-                ]
-
-                # If no callbacks left, restore original state
-                if not litellm.success_callback:
-                    if self._original_callbacks:
-                        litellm.success_callback = self._original_callbacks
-                    else:
-                        delattr(litellm, "success_callback")
-
-            # Restore original completion function if we modified it
-            if self._original_completion is not None:
-                litellm.completion = self._original_completion
-                self._original_completion = None
-
-            self._callback_registered = False
-            logger.info("LiteLLM native callbacks unregistered successfully")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to unregister LiteLLM callbacks: {e}")
-            return False
-
-    def _litellm_success_callback(self, kwargs, response, start_time, end_time):
+    def _record_event(self, kwargs, response, start_time, end_time):
         """
-        LiteLLM success callback that records conversations in Memori.
-
-        This function is automatically called by LiteLLM after successful completions.
-
+        Shared logic to extract data and record conversation in Memori.
+        
         Args:
             kwargs: Original request parameters
-            response: LiteLLM response object
+            response: LiteLLM response object (aggregated if streaming)
             start_time: Request start time
             end_time: Request end time
         """
@@ -183,6 +95,9 @@ class LiteLLMCallbackManager:
                 choice = response.choices[0]
                 if hasattr(choice, "message") and hasattr(choice.message, "content"):
                     ai_output = choice.message.content or ""
+                # Handle streaming chunks aggregation or text fields (legacy/other models)
+                elif hasattr(choice, "text"):
+                    ai_output = choice.text or ""
 
             # Debug logging to help diagnose recording issues
             if user_input:
@@ -222,6 +137,7 @@ class LiteLLMCallbackManager:
                 "tokens_used": tokens_used,
                 "auto_recorded": True,
                 "duration_ms": duration_ms,
+                "stream": kwargs.get("stream", False),
             }
 
             # Add token details if available
@@ -255,6 +171,103 @@ class LiteLLMCallbackManager:
             import traceback
 
             logger.error(f"LiteLLM callback error details: {traceback.format_exc()}")
+
+
+class LiteLLMCallbackManager:
+    """
+    Manages LiteLLM native callback registration and integration with Memori.
+
+    This class provides a clean interface for registering and managing
+    LiteLLM callbacks that automatically record conversations into Memori.
+    """
+
+    def __init__(self, memori_instance):
+        """
+        Initialize LiteLLM callback manager.
+
+        Args:
+            memori_instance: The Memori instance to record conversations to
+        """
+        self.memori_instance = memori_instance
+        self._callback_registered = False
+        self._memori_logger = None
+        self._original_completion = None  # For context injection
+
+    def register_callbacks(self) -> bool:
+        """
+        Register LiteLLM native callbacks for automatic memory recording.
+
+        Returns:
+            True if registration successful, False otherwise
+        """
+        if not LITELLM_AVAILABLE:
+            logger.debug("LiteLLM not available - cannot register callbacks")
+            return False
+
+        if self._callback_registered:
+            logger.warning("LiteLLM callbacks already registered")
+            return True
+
+        try:
+            # Initialize our CustomLogger
+            self._memori_logger = MemoriLogger(self.memori_instance)
+
+            # Ensure litellm.callbacks is a list
+            if not hasattr(litellm, "callbacks") or litellm.callbacks is None:
+                litellm.callbacks = []
+
+            # Add our logger to the callbacks list
+            litellm.callbacks.append(self._memori_logger)
+
+            # For context injection, we need to monkey-patch the completion function
+            # This is the only reliable way to inject context before requests in LiteLLM
+            if (
+                self.memori_instance.conscious_ingest
+                or self.memori_instance.auto_ingest
+            ):
+                self._setup_context_injection()
+
+            self._callback_registered = True
+            logger.info("LiteLLM native callbacks registered successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to register LiteLLM callbacks: {e}")
+            return False
+
+    def unregister_callbacks(self) -> bool:
+        """
+        Unregister LiteLLM callbacks and restore original state.
+
+        Returns:
+            True if unregistration successful, False otherwise
+        """
+        if not LITELLM_AVAILABLE:
+            return False
+
+        if not self._callback_registered:
+            logger.warning("LiteLLM callbacks not registered")
+            return True
+
+        try:
+            # Remove our logger from callbacks
+            if hasattr(litellm, "callbacks") and isinstance(litellm.callbacks, list):
+                if self._memori_logger in litellm.callbacks:
+                    litellm.callbacks.remove(self._memori_logger)
+
+            # Restore original completion function if we modified it
+            if self._original_completion is not None:
+                litellm.completion = self._original_completion
+                self._original_completion = None
+
+            self._memori_logger = None
+            self._callback_registered = False
+            logger.info("LiteLLM native callbacks unregistered successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to unregister LiteLLM callbacks: {e}")
+            return False
 
     def _setup_context_injection(self):
         """Set up context injection by wrapping LiteLLM's completion function."""
