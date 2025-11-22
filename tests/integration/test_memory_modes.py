@@ -608,8 +608,8 @@ class TestModeTransitions:
         - Integration: New mode takes effect
         """
         # ASPECT 1: Functional - Check initial mode
-        assert memori_sqlite.conscious_ingest == False
-        assert memori_sqlite.auto_ingest == False
+        assert not memori_sqlite.conscious_ingest
+        assert not memori_sqlite.auto_ingest
 
         # Store some data
         memory = create_simple_memory(

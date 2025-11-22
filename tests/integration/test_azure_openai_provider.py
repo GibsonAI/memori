@@ -69,7 +69,7 @@ class TestAzureOpenAIBasicIntegration:
         assert isinstance(stats, dict)
 
         # ASPECT 3: Integration - Memori enabled with Azure
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_azure_openai_multiple_deployments(
         self, memori_sqlite, test_namespace, mock_openai_response
@@ -113,7 +113,7 @@ class TestAzureOpenAIBasicIntegration:
         time.sleep(0.5)
 
         # ASPECT 2 & 3: All deployments handled
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
@@ -153,7 +153,7 @@ class TestAzureOpenAIConfiguration:
             # Note: api_version is stored internally but not exposed as a public attribute
 
         # ASPECT 2 & 3: Configuration handled
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_azure_endpoint_configuration(self, memori_sqlite, test_namespace):
         """
@@ -187,7 +187,7 @@ class TestAzureOpenAIConfiguration:
             assert endpoint in str(client.base_url)
 
         # ASPECT 2 & 3: All endpoints handled
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
@@ -248,7 +248,7 @@ class TestAzureOpenAIContextInjection:
         assert stats["short_term_count"] >= 1
 
         # ASPECT 3: Integration - Both features active
-        assert memori_sqlite_conscious.conscious_ingest == True
+        assert memori_sqlite_conscious.conscious_ingest
 
 
 @pytest.mark.llm
@@ -281,7 +281,7 @@ class TestAzureOpenAIErrorHandling:
         assert client.api_key == "invalid-azure-key"
 
         # ASPECT 3: Memori remains stable
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_azure_api_error(self, memori_sqlite, test_namespace):
         """
@@ -370,7 +370,7 @@ class TestAzureOpenAIRealAPI:
         time.sleep(1.0)
 
         # ASPECT 3: Integration - End-to-end success
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm

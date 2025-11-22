@@ -58,7 +58,7 @@ class TestOllamaBasicIntegration:
         assert isinstance(stats, dict)
 
         # ASPECT 3: Integration - Local provider works
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_ollama_multiple_models(
         self, memori_sqlite, test_namespace, mock_openai_response
@@ -94,7 +94,7 @@ class TestOllamaBasicIntegration:
         time.sleep(0.5)
 
         # ASPECT 2 & 3: All models handled
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
@@ -134,7 +134,7 @@ class TestOllamaConfiguration:
                 assert response is not None
 
         # ASPECT 2 & 3: Configuration handled
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_ollama_custom_host(
         self, memori_sqlite, test_namespace, mock_openai_response
@@ -172,7 +172,7 @@ class TestOllamaConfiguration:
                 assert response is not None
 
         # ASPECT 2 & 3: All hosts handled
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
@@ -223,7 +223,7 @@ class TestOllamaContextInjection:
         assert stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - Both active
-        assert memori.auto_ingest == True
+        assert memori.auto_ingest
 
 
 @pytest.mark.llm
@@ -292,7 +292,7 @@ class TestOllamaErrorHandling:
             assert "Model not found" in str(exc_info.value)
 
         # ASPECT 2 & 3: System stable
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
@@ -341,7 +341,7 @@ class TestOllamaRealAPI:
             time.sleep(1.0)
 
             # ASPECT 3: Integration - Success
-            assert memori_sqlite._enabled == True
+            assert memori_sqlite._enabled
 
         except Exception as e:
             if "not found" in str(e).lower():

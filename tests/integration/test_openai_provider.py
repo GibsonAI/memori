@@ -61,7 +61,7 @@ class TestOpenAIBasicIntegration:
         time.sleep(0.5)
 
         # ASPECT 3: Integration - Memori is enabled
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_openai_multiple_messages(
         self, memori_sqlite, test_namespace, mock_openai_response
@@ -102,7 +102,7 @@ class TestOpenAIBasicIntegration:
         time.sleep(0.5)
 
         # ASPECT 2 & 3: Integration - All calls succeeded
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_openai_conversation_recording(
         self, memori_sqlite, test_namespace, mock_openai_response
@@ -196,7 +196,7 @@ class TestOpenAIBasicIntegration:
         assert stats["short_term_count"] >= 1
 
         # ASPECT 3: Integration - Conscious mode is active
-        assert memori_sqlite_conscious.conscious_ingest == True
+        assert memori_sqlite_conscious.conscious_ingest
 
 
 @pytest.mark.llm
@@ -241,7 +241,7 @@ class TestOpenAIRealAPI:
         time.sleep(1.0)  # Give time for recording
 
         # ASPECT 3: Integration - End-to-end successful
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
@@ -304,7 +304,7 @@ class TestOpenAIErrorHandling:
         assert client.api_key == "invalid-key"
 
         # ASPECT 3: Memori remains stable
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
