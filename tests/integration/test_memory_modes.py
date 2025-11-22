@@ -294,9 +294,8 @@ class TestMemoryModeMatrix:
         - Persistence: Correct memory types stored
         - Integration: Expected context injection behavior
         """
-        from openai import OpenAI
-
         from memori import Memori
+        from openai import OpenAI
 
         # ASPECT 1: Functional - Create Memori with specific mode
         memori = Memori(
@@ -483,9 +482,8 @@ class TestMemoryModePerformance:
         - Persistence: No performance bottleneck
         - Performance: Fast context injection
         """
-        from openai import OpenAI
-
         from memori import Memori
+        from openai import OpenAI
 
         memori = Memori(
             database_connect=sqlite_connection_string,
@@ -543,9 +541,8 @@ class TestMemoryModePerformance:
         - Persistence: Search doesn't bottleneck
         - Performance: Acceptable search overhead
         """
-        from openai import OpenAI
-
         from memori import Memori
+        from openai import OpenAI
 
         memori = Memori(
             database_connect=sqlite_connection_string,
@@ -608,8 +605,8 @@ class TestModeTransitions:
         - Integration: New mode takes effect
         """
         # ASPECT 1: Functional - Check initial mode
-        assert memori_sqlite.conscious_ingest == False
-        assert memori_sqlite.auto_ingest == False
+        assert not memori_sqlite.conscious_ingest
+        assert not memori_sqlite.auto_ingest
 
         # Store some data
         memory = create_simple_memory(

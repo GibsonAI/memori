@@ -3,13 +3,15 @@ Conversational Product Intelligence Chat App
 Multi-agent system with Memori for contextual conversations
 """
 
-import os
 import base64
+import os
+
 import streamlit as st
-from openai import OpenAI
-from memori import Memori
 from agent import create_product_intelligence_team
 from dotenv import load_dotenv
+
+from memori import Memori
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
@@ -87,9 +89,9 @@ with st.sidebar:
         """
     This AI assistant helps you analyze competitors using:
     - **Product Launch Analysis**
-    - **Market Sentiment Analysis**  
+    - **Market Sentiment Analysis**
     - **Launch Metrics Analysis**
-    
+
     The conversation is tracked with Memori, so you can ask follow-up questions!
     """
     )
@@ -169,12 +171,12 @@ if (
 I help founders and product teams analyze competitors to inform their product launch strategy. I specialize in three types of analysis:
 
 1. **Product Launch Analysis** - Evaluate competitor positioning, strengths, weaknesses, and strategic insights
-2. **Market Sentiment Analysis** - Analyze social media sentiment, customer feedback, and brand perception  
+2. **Market Sentiment Analysis** - Analyze social media sentiment, customer feedback, and brand perception
 3. **Launch Metrics Analysis** - Track KPIs, adoption rates, press coverage, and performance indicators
 
 All our conversations are tracked with memori, so you can ask follow-up questions anytime!
 
-**Let's get started!** 
+**Let's get started!**
 
 What is the name of your company and what does it do?
 """
@@ -201,13 +203,13 @@ Great! I understand you're working on: **{prompt}**
 
 Now, what type of analysis would you like me to perform?
 
-**1. Product Launch Analysis** 📊  
+**1. Product Launch Analysis** 📊
    Evaluate competitor positioning, launch tactics, strengths, weaknesses, and strategic insights
 
-**2. Market Sentiment Analysis** 💬  
+**2. Market Sentiment Analysis** 💬
    Analyze social media sentiment, customer reviews, and brand perception
 
-**3. Launch Metrics Analysis** 📈  
+**3. Launch Metrics Analysis** 📈
    Track user adoption, press coverage, engagement metrics, and performance KPIs
 
 **Please tell me:**
@@ -248,7 +250,7 @@ Example: "I want a Product Launch Analysis for Monday.com"
                                 user_input=prompt, assistant_output=response_content
                             )
                             st.session_state.memori.ingest(context)
-                        except Exception as e:
+                        except Exception:
                             pass  # Silently fail to avoid UI clutter
 
                     # Add to chat
@@ -321,7 +323,7 @@ Example: "I want a Product Launch Analysis for Monday.com"
                                     memori_context = "\n\nRelevant context from previous conversations:\n"
                                     for result in memori_results:
                                         memori_context += f"- {result}\n"
-                            except Exception as e:
+                            except Exception:
                                 pass  # Silently fail if Memori search doesn't work
 
                         # Build context from recent messages
@@ -355,7 +357,7 @@ Example: "I want a Product Launch Analysis for Monday.com"
                                 user_input=prompt, assistant_output=response_content
                             )
                             st.session_state.memori.ingest(context)
-                        except Exception as e:
+                        except Exception:
                             pass  # Silently fail to avoid UI clutter
 
                     # Add to chat

@@ -17,9 +17,8 @@ if __name__ == "__main__":
     if tests_dir not in sys.path:
         sys.path.insert(0, tests_dir)
 
-from openai import OpenAI
-
 from memori import Memori
+from openai import OpenAI
 from tests.utils.test_utils import load_inputs
 
 

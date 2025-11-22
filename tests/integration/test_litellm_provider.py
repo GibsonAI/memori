@@ -57,7 +57,7 @@ class TestLiteLLMBasicIntegration:
         assert isinstance(stats, dict)
 
         # ASPECT 3: Integration - Memori enabled
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_litellm_multiple_messages(
         self, memori_sqlite, test_namespace, mock_openai_response
@@ -94,7 +94,7 @@ class TestLiteLLMBasicIntegration:
         time.sleep(0.5)
 
         # ASPECT 2 & 3: Integration successful
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
@@ -135,7 +135,7 @@ class TestLiteLLMMultipleProviders:
         assert isinstance(stats, dict)
 
         # ASPECT 3: Integration - Success
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_litellm_anthropic_model(
         self, memori_sqlite, test_namespace, mock_openai_response
@@ -166,7 +166,7 @@ class TestLiteLLMMultipleProviders:
         time.sleep(0.5)
 
         # ASPECT 2 & 3: Integration successful
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
     def test_litellm_ollama_model(
         self, memori_sqlite, test_namespace, mock_openai_response
@@ -197,7 +197,7 @@ class TestLiteLLMMultipleProviders:
         time.sleep(0.5)
 
         # ASPECT 2 & 3: Integration successful
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm
@@ -238,7 +238,7 @@ class TestLiteLLMContextInjection:
         assert stats["long_term_count"] >= 1
 
         # ASPECT 3: Integration - Auto mode active
-        assert memori.auto_ingest == True
+        assert memori.auto_ingest
 
 
 @pytest.mark.llm
@@ -303,7 +303,7 @@ class TestLiteLLMErrorHandling:
             assert response is not None
 
         # ASPECT 3: Memori remains stable
-        assert memori_sqlite._enabled == True
+        assert memori_sqlite._enabled
 
 
 @pytest.mark.llm

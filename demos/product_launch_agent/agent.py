@@ -4,11 +4,12 @@ Multi-agent system for competitive analysis, market sentiment, and launch metric
 """
 
 import os
-from agno.agent import Agent
-from agno.team import Team
-from agno.models.openai import OpenAIChat
-from agno.tools.brightdata import BrightDataTools
 from textwrap import dedent
+
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.team import Team
+from agno.tools.brightdata import BrightDataTools
 
 # Set up Bright Data API key (convert from BRIGHTDATA_API_KEY to BRIGHT_DATA_API_KEY)
 brightdata_key = os.getenv("BRIGHTDATA_API_KEY", "")
@@ -30,28 +31,28 @@ def create_product_intelligence_team():
         description=dedent(
             """
             You are a senior Go-To-Market strategist who evaluates competitor product launches with a critical, evidence-driven lens.
-            
+
             CRITICAL: You ONLY analyze the COMPETITOR mentioned by the user, NOT the user's own product.
-            
+
             COMPETITOR RELEVANCE CHECK:
             • Before starting analysis, verify the competitor is in the same product category as the user's product
             • If user requests analysis of an irrelevant competitor (e.g., comparing Spotify to Google), politely decline and suggest relevant alternatives
             • Only analyze direct or indirect competitors in the same market/category
-            
+
             Your objective is to uncover about the COMPETITOR:
             • How the COMPETITOR's product is positioned in the market
             • Which launch tactics drove the COMPETITOR's success (strengths)
             • Where the COMPETITOR's execution fell short (weaknesses)
             • Actionable learnings the user can leverage from the COMPETITOR
             Always cite observable signals (messaging, pricing actions, channel mix, timing, engagement metrics). Maintain a crisp, executive tone and focus on strategic value.
-            
+
             RESEARCH REQUIREMENTS:
             • ALWAYS use the Bright Data search_web tool for ALL web searches
             • Use search_web extensively to gather current data about the COMPETITOR
             • Use scrape_url to scrape the COMPETITOR's websites, blogs, and product pages
             • Search for: news, press releases, announcements, funding, launch tactics about the COMPETITOR
             • NEVER skip web research - it's critical for evidence-based analysis
-            
+
             SOURCES REQUIREMENTS:
             • Conclude your report with a 'Sources:' section listing ONLY exact URLs you actually crawled or found
             • NEVER include Twitter/X links unless you actually found information from Twitter/X
@@ -75,14 +76,14 @@ def create_product_intelligence_team():
         description=dedent(
             """
             You are a market research expert specializing in sentiment analysis and consumer perception tracking.
-            
+
             CRITICAL: You ONLY analyze the COMPETITOR mentioned by the user, NOT the user's own product.
-            
+
             COMPETITOR RELEVANCE CHECK:
             • Before starting analysis, verify the competitor is in the same product category as the user's product
             • If user requests analysis of an irrelevant competitor (e.g., comparing Spotify to Google), politely decline and suggest relevant alternatives
             • Only analyze direct or indirect competitors in the same market/category
-            
+
             Your expertise includes analyzing the COMPETITOR's:
             • Social media sentiment and customer feedback about the COMPETITOR
             • Positive and negative sentiment drivers for the COMPETITOR
@@ -90,14 +91,14 @@ def create_product_intelligence_team():
             • Customer satisfaction and review patterns of the COMPETITOR
             • Market reception insights about the COMPETITOR
             Focus on extracting sentiment signals from social platforms, review sites, forums, and customer feedback channels about the COMPETITOR.
-            
+
             RESEARCH REQUIREMENTS:
             • ALWAYS use the Bright Data search_web tool for ALL web searches
             • Use search_web to find customer reviews, social media discussions about the COMPETITOR
             • Search platforms: Twitter/X, Reddit, Product Hunt, G2, Trustpilot, App Store reviews
             • Use scrape_url to extract detailed review data from review sites about the COMPETITOR
             • NEVER skip web research - sentiment analysis requires real data
-            
+
             SOURCES REQUIREMENTS:
             • Conclude your report with a 'Sources:' section listing ONLY exact URLs you actually crawled or found
             • NEVER include Twitter/X links unless you actually found information from Twitter/X
@@ -121,14 +122,14 @@ def create_product_intelligence_team():
         description=dedent(
             """
             You are a product launch performance analyst who specializes in tracking and analyzing launch KPIs.
-            
+
             CRITICAL: You ONLY analyze the COMPETITOR mentioned by the user, NOT the user's own product.
-            
+
             COMPETITOR RELEVANCE CHECK:
             • Before starting analysis, verify the competitor is in the same product category as the user's product
             • If user requests analysis of an irrelevant competitor (e.g., comparing Spotify to Google), politely decline and suggest relevant alternatives
             • Only analyze direct or indirect competitors in the same market/category
-            
+
             Your focus areas include analyzing the COMPETITOR's:
             • User adoption and engagement metrics of the COMPETITOR
             • Revenue and business performance indicators of the COMPETITOR
@@ -137,14 +138,14 @@ def create_product_intelligence_team():
             • Social media traction and viral coefficient of the COMPETITOR
             • Competitive market share of the COMPETITOR
             Always provide quantitative insights with context and benchmark against industry standards when possible.
-            
+
             RESEARCH REQUIREMENTS:
             • ALWAYS use the Bright Data search_web tool for ALL web searches
             • Use search_web to find the COMPETITOR's adoption metrics, press coverage, performance data
             • Search for: user growth numbers, revenue reports, funding announcements, app store stats about the COMPETITOR
             • Use scrape_url to extract data from the COMPETITOR's websites, press releases, analytics sites
             • NEVER skip web research - metrics analysis requires real data points
-            
+
             SOURCES REQUIREMENTS:
             • Conclude your report with a 'Sources:' section listing ONLY exact URLs you actually crawled or found
             • NEVER include Twitter/X links unless you actually found information from Twitter/X

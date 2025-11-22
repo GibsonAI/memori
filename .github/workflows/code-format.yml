@@ -52,19 +52,19 @@ jobs:
       - name: Run Black formatter
         run: |
           echo "Running Black formatter..."
-          black memori/ tests/ examples/ scripts/ --line-length 88 --target-version py38
+          black memori/ tests/ examples/ scripts/ demos/ --line-length 88 --target-version py310
           echo "Black formatting complete"
 
       - name: Run isort
         run: |
           echo "Running isort for import sorting..."
-          isort memori/ tests/ examples/ scripts/ --profile black
+          isort memori/ tests/ examples/ scripts/ demos/ --profile black
           echo "Import sorting complete"
 
       - name: Run Ruff auto-fixes
         run: |
           echo "Running Ruff auto-fixes..."
-          ruff check memori/ tests/ examples/ scripts/ --fix --exit-zero
+          ruff check memori/ tests/ examples/ scripts/ demos/ --fix --exit-zero
           echo "Ruff auto-fixes complete"
 
       - name: Check for changes

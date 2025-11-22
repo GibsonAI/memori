@@ -10,8 +10,9 @@ import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
-import openai
 from loguru import logger
+
+import openai
 
 if TYPE_CHECKING:
     from ..core.providers import ProviderConfig

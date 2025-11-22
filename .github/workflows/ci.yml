@@ -62,17 +62,17 @@ jobs:
       - name: Check Black formatting
         run: |
           echo "Checking Black formatting..."
-          black --check --diff memori/ tests/ examples/ scripts/ --line-length 88
+          black --check --diff memori/ tests/ examples/ scripts/ demos/ --line-length 88 --target-version py310
 
       - name: Check import sorting
         run: |
           echo "Checking import sorting..."
-          isort --check-only --diff memori/ tests/ examples/ scripts/ --profile black
+          isort --check-only --diff memori/ tests/ examples/ scripts/ demos/ --profile black
 
       - name: Lint with Ruff
         run: |
           echo "Running Ruff linter..."
-          ruff check memori/ tests/ examples/ scripts/ --output-format=github
+          ruff check memori/ tests/ examples/ scripts/ demos/ --output-format=github
 
       - name: Type check with mypy
         run: |

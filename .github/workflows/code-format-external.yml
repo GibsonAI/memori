@@ -43,17 +43,17 @@ jobs:
       - name: Check Black formatting
         run: |
           echo "Checking Black formatting..."
-          black --check --diff memori/ tests/ examples/ scripts/ --line-length 88 --target-version py38
+          black --check --diff memori/ tests/ examples/ scripts/ demos/ --line-length 88 --target-version py310
 
       - name: Check isort
         run: |
           echo "Checking import sorting..."
-          isort --check-only --diff memori/ tests/ examples/ scripts/ --profile black
+          isort --check-only --diff memori/ tests/ examples/ scripts/ demos/ --profile black
 
       - name: Check Ruff
         run: |
           echo "Running Ruff checks..."
-          ruff check memori/ tests/ examples/ scripts/
+          ruff check memori/ tests/ examples/ scripts/ demos/
 
       - name: Comment on PR if formatting issues found
         if: failure()
@@ -69,9 +69,9 @@ jobs:
             pip install black ruff isort
 
             # Auto-fix formatting
-            black memori/ tests/ examples/ scripts/ --line-length 88 --target-version py38
-            isort memori/ tests/ examples/ scripts/ --profile black
-            ruff check memori/ tests/ examples/ scripts/ --fix
+            black memori/ tests/ examples/ scripts/ demos/ --line-length 88 --target-version py310
+            isort memori/ tests/ examples/ scripts/ demos/ --profile black
+            ruff check memori/ tests/ examples/ scripts/ demos/ --fix
 
             # Commit the changes
             git add .

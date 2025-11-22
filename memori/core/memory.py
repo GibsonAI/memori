@@ -727,7 +727,7 @@ class Memori:
                 )
 
                 # Insert directly into short-term memory with conscious_context category
-                connection.execute(
+                session.execute(
                     text(
                         """INSERT INTO short_term_memory (
                         memory_id, processed_data, importance_score, category_primary,
@@ -753,7 +753,7 @@ class Memori:
                         "is_permanent_context": True,
                     },
                 )
-                connection.commit()
+                session.commit()
 
             logger.debug(
                 f"Conscious-ingest: Copied memory {memory_id} to short-term as {short_term_id}"
@@ -2169,7 +2169,7 @@ class Memori:
 
         # Generate ID and timestamp
         chat_id = str(uuid.uuid4())
-        timestamp = datetime.now()
+        datetime.now()
 
         try:
             # Store conversation

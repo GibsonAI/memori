@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memorisdk"
-version = "2.3.2"
+version = "2.3.3"
 description = "The Open-Source Memory Layer for AI Agents & Multi-Agent Systems"
 authors = [{name = "Memori Labs Team", email = "noc@memorilabs.ai"}]
 license = {text = "Apache-2.0"}
@@ -165,7 +165,7 @@ select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
-    "I",   # isort
+    # "I" disabled - using isort for import sorting instead
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
