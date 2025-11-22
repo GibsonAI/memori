@@ -35,16 +35,30 @@ class SearchService:
 
         Args:
             query: Search query string
-            user_id: User identifier for multi-tenant isolation
-            assistant_id: Assistant identifier for multi-tenant isolation (optional)
-            session_id: Session identifier for conversation grouping (optional)
+            user_id: User identifier for multi-tenant isolation (REQUIRED)
+                     Cannot be None or empty - enforced for security
+            assistant_id: Assistant identifier for multi-tenant isolation
+                          - If None: searches across ALL assistants for this user
+                          - If specified: searches only this assistant's memories
+            session_id: Session identifier for conversation grouping
+                        - Applied only to short-term memories (conversation context)
+                        - Long-term memories are accessible across all sessions
             category_filter: List of categories to filter by
             limit: Maximum number of results
             memory_types: Types of memory to search ('short_term', 'long_term', or both)
 
         Returns:
             List of memory dictionaries with search metadata
+
+        Raises:
+            ValueError: If user_id is None or empty string
         """
+        # SECURITY: Validate user_id to prevent cross-user data leaks
+        if not user_id or not user_id.strip():
+            raise ValueError(
+                "user_id cannot be None or empty - required for user isolation and security"
+            )
+
         logger.debug(
             f"[SEARCH] Query initiated - '{query[:50]}{'...' if len(query) > 50 else ''}' | user_id: '{user_id}' | assistant_id: '{assistant_id}' | session_id: '{session_id}' | db: {self.database_type} | limit: {limit}"
         )
@@ -124,10 +138,13 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"[SEARCH] Full-text search failed for '{query[:30]}...' in user_id '{user_id}' - {type(e).__name__}: {e}"
+                f"Full-text search failed | query='{query[:50]}...' | user_id={user_id} | "
+                f"assistant_id={assistant_id} | database={self.database_type} | "
+                f"error={type(e).__name__}: {str(e)}"
             )
-            logger.debug("[SEARCH] Full-text error details", exc_info=True)
-            logger.warning("[SEARCH] Attempting LIKE fallback search")
+            logger.warning(
+                f"Attempting LIKE fallback search | user_id={user_id} | query='{query[:30]}...'"
+            )
             try:
                 results = self._search_like_fallback(
                     query,
@@ -139,10 +156,10 @@ class SearchService:
                     search_short_term,
                     search_long_term,
                 )
-                logger.debug(f"[SEARCH] LIKE fallback results: {len(results)} matches")
             except Exception as fallback_e:
                 logger.error(
-                    f"[SEARCH] LIKE fallback also failed - {type(fallback_e).__name__}: {fallback_e}"
+                    f"LIKE fallback search failed | query='{query[:30]}...' | user_id={user_id} | "
+                    f"error={type(fallback_e).__name__}: {str(fallback_e)}"
                 )
                 results = []
 
@@ -198,15 +215,32 @@ class SearchService:
             session_clause = ""
             params = {"fts_query": fts_query, "user_id": user_id}
 
+            # BEHAVIOR: Multi-assistant isolation
+            # - Short-term memory: Accessible to all assistants for the same user (no filter)
+            # - Long-term memory:
+            #   - If assistant_id=None: ONLY see shared memories (assistant_id IS NULL)
+            #   - If assistant_id='bot': See shared (NULL) OR own (bot) memories
             if assistant_id:
-                assistant_clause = "AND fts.assistant_id = :assistant_id"
+                assistant_clause = "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL OR fts.assistant_id = :assistant_id)"
                 params["assistant_id"] = assistant_id
-                logger.debug(f"Assistant filter applied: {assistant_id}")
+                logger.debug(
+                    f"Assistant filter: long-term allows NULL or {assistant_id}"
+                )
+            else:
+                # assistant_id=None: Can only see shared memories (not other assistants' private data)
+                assistant_clause = (
+                    "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL)"
+                )
+                logger.debug(
+                    "Assistant filter: long-term allows only NULL (shared memories)"
+                )
 
             if session_id:
-                session_clause = "AND fts.session_id = :session_id"
+                # Apply session filter only to short-term memories
+                # Long-term memories should be accessible across all sessions for the same user
+                session_clause = "AND (fts.memory_type = 'long_term' OR fts.session_id = :session_id)"
                 params["session_id"] = session_id
-                logger.debug(f"Session filter applied: {session_id}")
+                logger.debug(f"Session filter applied to short-term only: {session_id}")
 
             if category_filter:
                 category_placeholders = ",".join(
@@ -263,7 +297,7 @@ class SearchService:
 
             logger.debug(f"Executing SQLite FTS query with params: {params}")
             result = self.session.execute(text(sql_query), params)
-            rows = [dict(row) for row in result]
+            rows = [dict(row._mapping) for row in result]
             logger.debug(f"SQLite FTS search returned {len(rows)} results")
 
             # Log details of first result for debugging
@@ -276,11 +310,9 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"SQLite FTS5 search failed for query '{query}' in user_id '{user_id}': {e}"
-            )
-            logger.debug(
-                f"SQLite FTS5 error details: {type(e).__name__}: {str(e)}",
-                exc_info=True,
+                f"SQLite FTS5 search failed | query='{query[:50]}...' | user_id={user_id} | "
+                f"assistant_id={assistant_id} | session_id={session_id} | "
+                f"error={type(e).__name__}: {str(e)}"
             )
             # Roll back the transaction to recover from error state
             self.session.rollback()
@@ -329,10 +361,7 @@ class SearchService:
                     long_query = long_query.filter(
                         LongTermMemory.assistant_id == assistant_id
                     )
-                if session_id:
-                    long_query = long_query.filter(
-                        LongTermMemory.session_id == session_id
-                    )
+                # NOTE: No session filter for long-term memories (cross-session access)
                 long_count = long_query.count()
                 if long_count == 0:
                     logger.debug(
@@ -358,13 +387,11 @@ class SearchService:
                 try:
                     # Build filter clauses
                     category_clause = ""
-                    assistant_clause = ""
                     session_clause = ""
                     params = {"query": query, "user_id": user_id}
 
-                    if assistant_id:
-                        assistant_clause = "AND assistant_id = :assistant_id"
-                        params["assistant_id"] = assistant_id
+                    # BEHAVIOR: Short-term memory is accessible to all assistants for the same user
+                    # No assistant_id filter applied to short-term memory
 
                     if session_id:
                         session_clause = "AND session_id = :session_id"
@@ -395,7 +422,6 @@ class SearchService:
                             'mysql_fulltext' as search_strategy
                         FROM short_term_memory
                         WHERE user_id = :user_id
-                        {assistant_clause}
                         {session_clause}
                         AND MATCH(searchable_content, summary) AGAINST(:query IN NATURAL LANGUAGE MODE)
                         {category_clause}
@@ -443,16 +469,20 @@ class SearchService:
                     # Build filter clauses
                     category_clause = ""
                     assistant_clause = ""
-                    session_clause = ""
                     params = {"query": query, "user_id": user_id}
 
+                    # BEHAVIOR: Multi-assistant isolation for long-term memory
                     if assistant_id:
-                        assistant_clause = "AND assistant_id = :assistant_id"
+                        # Specific assistant: see shared (NULL) OR own memories
+                        assistant_clause = (
+                            "AND (assistant_id IS NULL OR assistant_id = :assistant_id)"
+                        )
                         params["assistant_id"] = assistant_id
+                    else:
+                        # No assistant: see ONLY shared memories (NULL)
+                        assistant_clause = "AND assistant_id IS NULL"
 
-                    if session_id:
-                        session_clause = "AND session_id = :session_id"
-                        params["session_id"] = session_id
+                    # NOTE: No session filter for long-term memories (cross-session access)
 
                     if category_filter:
                         category_placeholders = ",".join(
@@ -480,7 +510,6 @@ class SearchService:
                         FROM long_term_memory
                         WHERE user_id = :user_id
                         {assistant_clause}
-                        {session_clause}
                         AND MATCH(searchable_content, summary) AGAINST(:query IN NATURAL LANGUAGE MODE)
                         {category_clause}
                         ORDER BY search_score DESC
@@ -525,11 +554,9 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"MySQL FULLTEXT search failed for query '{query}' in user_id '{user_id}': {e}"
-            )
-            logger.debug(
-                f"MySQL FULLTEXT error details: {type(e).__name__}: {str(e)}",
-                exc_info=True,
+                f"MySQL FULLTEXT search failed | query='{query[:50]}...' | user_id={user_id} | "
+                f"assistant_id={assistant_id} | session_id={session_id} | "
+                f"error={type(e).__name__}: {str(e)}"
             )
             # Roll back the transaction to recover from error state
             self.session.rollback()
@@ -572,11 +599,10 @@ class SearchService:
 
                 # Build filter clauses safely
                 category_clause = ""
-                assistant_clause = ""
                 session_clause = ""
 
-                if assistant_id:
-                    assistant_clause = "AND assistant_id = :assistant_id"
+                # BEHAVIOR: Short-term memory is accessible to all assistants for the same user
+                # No assistant_id filter applied to short-term memory
 
                 if session_id:
                     session_clause = "AND session_id = :session_id"
@@ -592,7 +618,6 @@ class SearchService:
                            'short_term' as memory_type, 'postgresql_fts' as search_strategy
                     FROM short_term_memory
                     WHERE user_id = :user_id
-                    {assistant_clause}
                     {session_clause}
                     AND search_vector @@ to_tsquery('english', :query)
                     {category_clause}
@@ -606,8 +631,6 @@ class SearchService:
                     "query": tsquery_text,
                     "limit": short_limit,
                 }
-                if assistant_id:
-                    params["assistant_id"] = assistant_id
                 if session_id:
                     params["session_id"] = session_id
                 if category_filter:
@@ -636,13 +659,18 @@ class SearchService:
                 # Build filter clauses safely
                 category_clause = ""
                 assistant_clause = ""
-                session_clause = ""
 
+                # BEHAVIOR: Multi-assistant isolation for long-term memory
                 if assistant_id:
-                    assistant_clause = "AND assistant_id = :assistant_id"
+                    # Specific assistant: see shared (NULL) OR own memories
+                    assistant_clause = (
+                        "AND (assistant_id IS NULL OR assistant_id = :assistant_id)"
+                    )
+                else:
+                    # No assistant: see ONLY shared memories (NULL)
+                    assistant_clause = "AND assistant_id IS NULL"
 
-                if session_id:
-                    session_clause = "AND session_id = :session_id"
+                # NOTE: No session filter for long-term memories (cross-session access)
 
                 if category_filter:
                     category_clause = "AND category_primary = ANY(:category_list)"
@@ -656,7 +684,6 @@ class SearchService:
                     FROM long_term_memory
                     WHERE user_id = :user_id
                     {assistant_clause}
-                    {session_clause}
                     AND search_vector @@ to_tsquery('english', :query)
                     {category_clause}
                     ORDER BY search_score DESC
@@ -671,8 +698,7 @@ class SearchService:
                 }
                 if assistant_id:
                     params["assistant_id"] = assistant_id
-                if session_id:
-                    params["session_id"] = session_id
+                # NOTE: No session_id param for long-term
                 if category_filter:
                     params["category_list"] = category_filter
 
@@ -698,11 +724,9 @@ class SearchService:
 
         except Exception as e:
             logger.error(
-                f"PostgreSQL FTS search failed for query '{query}' in user_id '{user_id}': {e}"
-            )
-            logger.debug(
-                f"PostgreSQL FTS error details: {type(e).__name__}: {str(e)}",
-                exc_info=True,
+                f"PostgreSQL FTS search failed | query='{query[:50]}...' | user_id={user_id} | "
+                f"assistant_id={assistant_id} | session_id={session_id} | "
+                f"error={type(e).__name__}: {str(e)}"
             )
             # Roll back the transaction to recover from error state
             self.session.rollback()
@@ -757,8 +781,8 @@ class SearchService:
                 or_(*search_conditions),
             ]
 
-            if assistant_id:
-                filter_conditions.append(ShortTermMemory.assistant_id == assistant_id)
+            # BEHAVIOR: Short-term memory is accessible to all assistants for the same user
+            # No assistant_id filter applied to short-term memory
 
             if session_id:
                 filter_conditions.append(ShortTermMemory.session_id == session_id)
@@ -815,11 +839,21 @@ class SearchService:
                 or_(*search_conditions),
             ]
 
+            # BEHAVIOR: Multi-assistant isolation for long-term memory
             if assistant_id:
-                filter_conditions.append(LongTermMemory.assistant_id == assistant_id)
+                # Specific assistant: see shared (NULL) OR own memories
+                filter_conditions.append(
+                    or_(
+                        LongTermMemory.assistant_id.is_(None),
+                        LongTermMemory.assistant_id == assistant_id,
+                    )
+                )
+            else:
+                # No assistant: see ONLY shared memories (NULL)
+                filter_conditions.append(LongTermMemory.assistant_id.is_(None))
 
-            if session_id:
-                filter_conditions.append(LongTermMemory.session_id == session_id)
+            # NOTE: No session filter for long-term memories
+            # Long-term memories should be accessible across all sessions for the same user
 
             long_query = self.session.query(LongTermMemory).filter(
                 and_(*filter_conditions)
@@ -881,10 +915,8 @@ class SearchService:
                 ShortTermMemory.user_id == user_id
             )
 
-            if assistant_id:
-                short_query = short_query.filter(
-                    ShortTermMemory.assistant_id == assistant_id
-                )
+            # BEHAVIOR: Short-term memory is accessible to all assistants for the same user
+            # No assistant_id filter applied to short-term memory
 
             if session_id:
                 short_query = short_query.filter(
@@ -922,13 +954,21 @@ class SearchService:
                 LongTermMemory.user_id == user_id
             )
 
+            # BEHAVIOR: Multi-assistant isolation for long-term memory
             if assistant_id:
+                # Specific assistant: see shared (NULL) OR own memories
                 long_query = long_query.filter(
-                    LongTermMemory.assistant_id == assistant_id
+                    or_(
+                        LongTermMemory.assistant_id.is_(None),
+                        LongTermMemory.assistant_id == assistant_id,
+                    )
                 )
+            else:
+                # No assistant: see ONLY shared memories (NULL)
+                long_query = long_query.filter(LongTermMemory.assistant_id.is_(None))
 
-            if session_id:
-                long_query = long_query.filter(LongTermMemory.session_id == session_id)
+            # NOTE: No session filter for long-term memories (cross-session access)
+            # Long-term memories should be accessible across all sessions for the same user
 
             if category_filter:
                 long_query = long_query.filter(
@@ -987,12 +1027,15 @@ class SearchService:
 
             days_old = (datetime.now() - created_at).days
             return max(0, 1 - (days_old / 30))  # Full score for recent, 0 after 30 days
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(
+                f"Invalid date format for recency calculation: {created_at}, error: {e}"
+            )
             return 0.0
 
     def list_memories(
         self,
-        user_id: str | None = None,
+        user_id: str,
         assistant_id: str | None = None,
         session_id: str | None = None,
         limit: int = 50,
@@ -1005,7 +1048,8 @@ class SearchService:
         List memories with pagination and flexible filtering (for dashboard views)
 
         Args:
-            user_id: User identifier for multi-tenant isolation
+            user_id: User identifier for multi-tenant isolation (REQUIRED)
+                     Cannot be None or empty - enforced for security
             assistant_id: Assistant identifier for multi-tenant isolation (optional)
             session_id: Session identifier for conversation grouping (optional)
             limit: Maximum number of results per page
@@ -1016,7 +1060,16 @@ class SearchService:
 
         Returns:
             Tuple of (results list, total count)
+
+        Raises:
+            ValueError: If user_id is None or empty string
         """
+        # SECURITY: Validate user_id to prevent cross-user data leaks
+        if not user_id or not user_id.strip():
+            raise ValueError(
+                "user_id cannot be None or empty - required for user isolation and security"
+            )
+
         logger.debug(
             f"[LIST] Listing memories - user_id: '{user_id}' | assistant_id: '{assistant_id}' | "
             f"session_id: '{session_id}' | memory_type: '{memory_type}' | "
@@ -1100,7 +1153,7 @@ class SearchService:
 
     def _list_all_memories_combined(
         self,
-        user_id: str | None,
+        user_id: str,
         assistant_id: str | None,
         session_id: str | None,
         limit: int,
@@ -1130,9 +1183,8 @@ class SearchService:
                 ShortTermMemory.session_id.label("session_id"),
             )
 
-            # Apply filters conditionally (only if provided)
-            if user_id is not None:
-                short_select = short_select.filter(ShortTermMemory.user_id == user_id)
+            # SECURITY: user_id filter is ALWAYS applied (no longer conditional)
+            short_select = short_select.filter(ShortTermMemory.user_id == user_id)
             if assistant_id is not None:
                 short_select = short_select.filter(
                     ShortTermMemory.assistant_id == assistant_id
@@ -1157,9 +1209,8 @@ class SearchService:
                 LongTermMemory.session_id.label("session_id"),
             )
 
-            # Apply filters conditionally (only if provided)
-            if user_id is not None:
-                long_select = long_select.filter(LongTermMemory.user_id == user_id)
+            # SECURITY: user_id filter is ALWAYS applied (no longer conditional)
+            long_select = long_select.filter(LongTermMemory.user_id == user_id)
             if assistant_id is not None:
                 long_select = long_select.filter(
                     LongTermMemory.assistant_id == assistant_id
@@ -1220,7 +1271,7 @@ class SearchService:
         self,
         model_class,
         memory_type: str,
-        user_id: str | None,
+        user_id: str,
         assistant_id: str | None,
         session_id: str | None,
         limit: int,
@@ -1237,9 +1288,8 @@ class SearchService:
             # Build base query
             query = self.session.query(model_class)
 
-            # Apply filters conditionally (only if provided)
-            if user_id is not None:
-                query = query.filter(model_class.user_id == user_id)
+            # SECURITY: user_id filter is ALWAYS applied (no longer conditional)
+            query = query.filter(model_class.user_id == user_id)
 
             if assistant_id is not None:
                 query = query.filter(model_class.assistant_id == assistant_id)
@@ -1287,19 +1337,29 @@ class SearchService:
 
     def get_list_metadata(
         self,
-        user_id: str | None = None,
+        user_id: str,
         assistant_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Get metadata for list endpoint (available filters and stats)
 
         Args:
-            user_id: User identifier for multi-tenant isolation
+            user_id: User identifier for multi-tenant isolation (REQUIRED)
+                     Cannot be None or empty - enforced for security
             assistant_id: Optional assistant filter for scoping metadata
 
         Returns:
             Dictionary with available_filters and stats
+
+        Raises:
+            ValueError: If user_id is None or empty string
         """
+        # SECURITY: Validate user_id to prevent cross-user data leaks
+        if not user_id or not user_id.strip():
+            raise ValueError(
+                "user_id cannot be None or empty - required for user isolation and security"
+            )
+
         logger.debug(
             f"[METADATA] Getting list metadata - user_id: '{user_id}' | assistant_id: '{assistant_id}'"
         )
@@ -1323,10 +1383,9 @@ class SearchService:
             short_query = self.session.query(ShortTermMemory.user_id).distinct()
             long_query = self.session.query(LongTermMemory.user_id).distinct()
 
-            # Apply user_id filter if provided
-            if user_id is not None:
-                short_query = short_query.filter(ShortTermMemory.user_id == user_id)
-                long_query = long_query.filter(LongTermMemory.user_id == user_id)
+            # SECURITY: user_id filter is ALWAYS applied (no longer conditional)
+            short_query = short_query.filter(ShortTermMemory.user_id == user_id)
+            long_query = long_query.filter(LongTermMemory.user_id == user_id)
 
             short_users = short_query.all()
             long_users = long_query.all()
@@ -1339,14 +1398,11 @@ class SearchService:
             ).distinct()
             base_long_query = self.session.query(LongTermMemory.assistant_id).distinct()
 
-            # Apply user_id filter if provided
-            if user_id is not None:
-                base_short_query = base_short_query.filter(
-                    ShortTermMemory.user_id == user_id
-                )
-                base_long_query = base_long_query.filter(
-                    LongTermMemory.user_id == user_id
-                )
+            # SECURITY: user_id filter is ALWAYS applied (no longer conditional)
+            base_short_query = base_short_query.filter(
+                ShortTermMemory.user_id == user_id
+            )
+            base_long_query = base_long_query.filter(LongTermMemory.user_id == user_id)
 
             # Apply assistant_id filter if provided
             if assistant_id is not None:
@@ -1375,14 +1431,13 @@ class SearchService:
                 LongTermMemory.session_id
             ).distinct()
 
-            # Apply user_id filter if provided
-            if user_id is not None:
-                short_sessions_query = short_sessions_query.filter(
-                    ShortTermMemory.user_id == user_id
-                )
-                long_sessions_query = long_sessions_query.filter(
-                    LongTermMemory.user_id == user_id
-                )
+            # SECURITY: user_id filter is ALWAYS applied (no longer conditional)
+            short_sessions_query = short_sessions_query.filter(
+                ShortTermMemory.user_id == user_id
+            )
+            long_sessions_query = long_sessions_query.filter(
+                LongTermMemory.user_id == user_id
+            )
 
             short_sessions = short_sessions_query.all()
             long_sessions = long_sessions_query.all()
@@ -1396,14 +1451,13 @@ class SearchService:
             short_count_query = self.session.query(ShortTermMemory)
             long_count_query = self.session.query(LongTermMemory)
 
-            # Apply user_id filter if provided
-            if user_id is not None:
-                short_count_query = short_count_query.filter(
-                    ShortTermMemory.user_id == user_id
-                )
-                long_count_query = long_count_query.filter(
-                    LongTermMemory.user_id == user_id
-                )
+            # SECURITY: user_id filter is ALWAYS applied (no longer conditional)
+            short_count_query = short_count_query.filter(
+                ShortTermMemory.user_id == user_id
+            )
+            long_count_query = long_count_query.filter(
+                LongTermMemory.user_id == user_id
+            )
 
             short_count = short_count_query.count()
             long_count = long_count_query.count()
@@ -1420,14 +1474,13 @@ class SearchService:
                 LongTermMemory.category_primary, func.count().label("count")
             )
 
-            # Apply user_id filter if provided
-            if user_id is not None:
-                short_categories_query = short_categories_query.filter(
-                    ShortTermMemory.user_id == user_id
-                )
-                long_categories_query = long_categories_query.filter(
-                    LongTermMemory.user_id == user_id
-                )
+            # SECURITY: user_id filter is ALWAYS applied (no longer conditional)
+            short_categories_query = short_categories_query.filter(
+                ShortTermMemory.user_id == user_id
+            )
+            long_categories_query = long_categories_query.filter(
+                LongTermMemory.user_id == user_id
+            )
 
             short_categories = short_categories_query.group_by(
                 ShortTermMemory.category_primary
@@ -1453,8 +1506,10 @@ class SearchService:
             return metadata
 
         except Exception as e:
-            logger.error(f"[METADATA] Error getting metadata: {e}")
-            logger.debug("[METADATA] Error details", exc_info=True)
+            logger.error(
+                f"Failed to get list metadata | user_id={user_id} | assistant_id={assistant_id} | "
+                f"error={type(e).__name__}: {str(e)}"
+            )
             return {
                 "available_filters": {
                     "user_ids": [],

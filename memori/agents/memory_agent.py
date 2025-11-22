@@ -5,6 +5,7 @@ This agent processes conversations and extracts structured information with
 enhanced classification and conscious context detection.
 """
 
+import asyncio
 import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
@@ -51,9 +52,11 @@ class MemoryAgent:
             logger.debug(f"Memory agent initialized with model: {self.model}")
             self.provider_config = provider_config
         else:
-            # Backward compatibility: use api_key directly
-            self.client = openai.OpenAI(api_key=api_key)
-            self.async_client = openai.AsyncOpenAI(api_key=api_key)
+            # Backward compatibility: use api_key directly with proper timeout and retries
+            self.client = openai.OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
+            self.async_client = openai.AsyncOpenAI(
+                api_key=api_key, timeout=60.0, max_retries=2
+            )
             self.model = model or "gpt-4o"
             self.provider_config = None
 
@@ -141,6 +144,45 @@ Set promotion_eligible=True for memories that should be immediately available in
 
 Focus on extracting information that would genuinely help provide better context and assistance in future conversations."""
 
+    async def _retry_with_backoff(self, func, *args, max_retries=3, **kwargs):
+        """
+        Retry a function with exponential backoff for connection errors
+
+        Args:
+            func: Async function to retry
+            max_retries: Maximum number of retry attempts (default: 3)
+            *args, **kwargs: Arguments to pass to func
+
+        Returns:
+            Result from func
+
+        Raises:
+            Exception: Re-raises the last exception if all retries are exhausted
+        """
+        last_exception = None
+        for attempt in range(max_retries):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                last_exception = e
+                error_msg = str(e).lower()
+                # Retry only on connection/timeout errors
+                if "connection" in error_msg or "timeout" in error_msg:
+                    if attempt < max_retries - 1:
+                        wait_time = (2**attempt) * 0.5  # 0.5s, 1s, 2s
+                        logger.debug(
+                            f"Connection error (attempt {attempt + 1}/{max_retries}), "
+                            f"retrying in {wait_time}s: {e}"
+                        )
+                        await asyncio.sleep(wait_time)
+                        continue
+                # Re-raise if not a retryable error or max retries reached
+                raise
+        # If all retries exhausted with connection errors, raise the last exception
+        if last_exception:
+            raise last_exception
+        return None
+
     async def process_conversation_async(
         self,
         chat_id: str,
@@ -194,18 +236,20 @@ CONVERSATION CONTEXT:
 
             if self._supports_structured_outputs:
                 try:
-                    # Call OpenAI Structured Outputs (async)
-                    completion = await self.async_client.beta.chat.completions.parse(
-                        model=self.model,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {
-                                "role": "user",
-                                "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
-                            },
-                        ],
-                        response_format=ProcessedLongTermMemory,
-                        temperature=0.1,  # Low temperature for consistent processing
+                    # Call OpenAI Structured Outputs (async) with retry logic
+                    completion = await self._retry_with_backoff(
+                        lambda: self.async_client.beta.chat.completions.parse(
+                            model=self.model,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {
+                                    "role": "user",
+                                    "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
+                                },
+                            ],
+                            response_format=ProcessedLongTermMemory,
+                            temperature=0.1,  # Low temperature for consistent processing
+                        )
                     )
 
                     # Handle potential refusal
@@ -279,7 +323,7 @@ CONVERSATION CONTEXT:
         self,
         new_memory: ProcessedLongTermMemory,
         existing_memories: list[ProcessedLongTermMemory],
-        similarity_threshold: float = 0.8,
+        similarity_threshold: float = 0.92,  # Increased from 0.8 to reduce false positives
     ) -> str | None:
         """
         Detect if new memory is a duplicate of existing memories
@@ -287,11 +331,20 @@ CONVERSATION CONTEXT:
         Args:
             new_memory: New memory to check
             existing_memories: List of existing memories to compare against
-            similarity_threshold: Threshold for considering memories similar
+            similarity_threshold: Threshold for considering memories similar (default: 0.92)
 
         Returns:
             Memory ID of duplicate if found, None otherwise
         """
+        # FIX #2: Skip deduplication for conversational/query memories
+        # Queries like "What's my name?" are valid every time and shouldn't be deduplicated
+        skip_classifications = ["conversational", "query", "question", "reference"]
+        if new_memory.classification in skip_classifications:
+            logger.debug(
+                f"[AGENT] Skipping duplicate check for {new_memory.classification} memory"
+            )
+            return None
+
         # Simple text similarity check - could be enhanced with embeddings
         new_content = new_memory.content.lower().strip()
         new_summary = new_memory.summary.lower().strip()
@@ -312,8 +365,15 @@ CONVERSATION CONTEXT:
             avg_similarity = (content_similarity + summary_similarity) / 2
 
             if avg_similarity >= similarity_threshold:
+                # FIX #4: Improved logging with details
                 logger.info(
                     f"[AGENT] Duplicate detected - {avg_similarity:.2f} similarity with {existing.session_id[:8]}..."
+                )
+                logger.debug(
+                    f"[AGENT] Duplicate match details:\n"
+                    f"  New content: '{new_content[:80]}...'\n"
+                    f"  Existing content: '{existing_content[:80]}...'\n"
+                    f"  Content similarity: {content_similarity:.2f}, Summary similarity: {summary_similarity:.2f}"
                 )
                 return existing.session_id
 
@@ -411,18 +471,20 @@ CONVERSATION CONTEXT:
             json_system_prompt += self._get_json_schema_prompt()
             json_system_prompt += "\n\nRespond ONLY with the JSON object, no additional text or formatting."
 
-            # Call regular chat completions
-            completion = await self.async_client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": json_system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
-                    },
-                ],
-                temperature=0.1,  # Low temperature for consistent processing
-                max_tokens=2000,  # Ensure enough tokens for full response
+            # Call regular chat completions with retry logic
+            completion = await self._retry_with_backoff(
+                lambda: self.async_client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": json_system_prompt},
+                        {
+                            "role": "user",
+                            "content": f"Process this conversation for enhanced memory storage:\n\n{conversation_text}\n{context_info}",
+                        },
+                    ],
+                    temperature=0.1,  # Low temperature for consistent processing
+                    max_tokens=2000,  # Ensure enough tokens for full response
+                )
             )
 
             # Extract and parse JSON response

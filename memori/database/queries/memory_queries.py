@@ -246,7 +246,9 @@ class MemoryQueries(BaseQueries):
     SELECT_MEMORIES_FOR_DEDUPLICATION = """
         SELECT memory_id, summary, searchable_content, classification, created_at
         FROM long_term_memory
-        WHERE user_id = :user_id AND processed_for_duplicates = :processed_for_duplicates
+        WHERE user_id = :user_id
+          AND processed_for_duplicates = :processed_for_duplicates
+          AND created_at > :time_threshold
         ORDER BY created_at DESC
         LIMIT :limit
     """

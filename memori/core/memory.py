@@ -23,6 +23,7 @@ except ImportError:
 
 from ..agents.conscious_agent import ConsciouscAgent
 from ..config.memory_manager import MemoryManager
+from ..config.pool_config import pool_config
 from ..config.settings import LoggingSettings, LogLevel
 from ..database.sqlalchemy_manager import SQLAlchemyDatabaseManager
 from ..utils.exceptions import DatabaseError, MemoriError
@@ -76,11 +77,11 @@ class Memori:
         database_suffix: str | None = None,  # Database name suffix
         conscious_memory_limit: int = 10,  # Limit for conscious memory processing
         # Database connection pool parameters
-        pool_size: int = 2,  # SQLAlchemy connection pool size
-        max_overflow: int = 3,  # Max overflow connections
-        pool_timeout: int = 30,  # Connection timeout in seconds
-        pool_recycle: int = 3600,  # Recycle connections after seconds
-        pool_pre_ping: bool = True,  # Test connections before use
+        pool_size: int = pool_config.DEFAULT_POOL_SIZE,  # SQLAlchemy connection pool size
+        max_overflow: int = pool_config.DEFAULT_MAX_OVERFLOW,  # Max overflow connections
+        pool_timeout: int = pool_config.DEFAULT_POOL_TIMEOUT,  # Connection timeout in seconds
+        pool_recycle: int = pool_config.DEFAULT_POOL_RECYCLE,  # Recycle connections after seconds
+        pool_pre_ping: bool = pool_config.DEFAULT_POOL_PRE_PING,  # Test connections before use
     ):
         """
         Initialize Memori memory system v1.0.
@@ -147,6 +148,9 @@ class Memori:
         self.database_prefix = database_prefix
         self.database_suffix = database_suffix
 
+        # Setup logging immediately after verbose is set, so all subsequent logs respect verbose mode
+        self._setup_logging()
+
         # Validate conscious_memory_limit parameter
         if not isinstance(conscious_memory_limit, int) or isinstance(
             conscious_memory_limit, bool
@@ -160,6 +164,10 @@ class Memori:
 
         # Thread safety for conscious memory initialization
         self._conscious_init_lock = threading.RLock()
+
+        # DEDUPLICATION: Hash-based conversation deduplication safety net
+        self._recent_conversation_hashes = {}
+        self._hash_lock = threading.Lock()
 
         # Configure provider based on explicit settings ONLY - no auto-detection
         if provider_config:
@@ -232,9 +240,6 @@ class Memori:
         self.openai_api_key = api_key or openai_api_key or ""
         if self.provider_config and hasattr(self.provider_config, "api_key"):
             self.openai_api_key = self.provider_config.api_key or self.openai_api_key
-
-        # Setup logging based on verbose mode
-        self._setup_logging()
 
         # Store connection pool settings
         self.pool_size = pool_size
@@ -315,7 +320,7 @@ class Memori:
 
         # State tracking
         self._enabled = False
-        self._session_id = str(uuid.uuid4())
+        # Note: self._session_id already set on line 140-142, don't overwrite it!
         self._conscious_context_injected = (
             False  # Track if conscious context was already injected
         )
@@ -875,6 +880,17 @@ class Memori:
         # Stop background analysis task
         self._stop_background_analysis()
 
+        # Shutdown persistent background event loop if it was used
+        try:
+            from ..utils.async_bridge import BackgroundEventLoop
+
+            bg_loop = BackgroundEventLoop()
+            if bg_loop.is_running:
+                logger.debug("Shutting down background event loop...")
+                bg_loop.shutdown(timeout=5.0)
+        except Exception as e:
+            logger.debug(f"Background loop shutdown skipped or failed: {e}")
+
         self._enabled = False
 
         # Report status based on memory manager results
@@ -1357,6 +1373,8 @@ class Memori:
                         query=user_input,
                         db_manager=self.db_manager,
                         user_id=self.user_id,
+                        assistant_id=self.assistant_id,
+                        session_id=self.session_id,
                         limit=5,
                     )
 
@@ -1896,18 +1914,12 @@ class Memori:
             # Run async processing in new event loop
             import threading
 
-            # CRITICAL FIX: Capture context before creating thread
             from ..integrations.openai_integration import set_active_memori_context
-
-            # Ensure this instance is set as active
-            set_active_memori_context(self)
-            logger.debug(
-                f"Set context before memory processing: user_id={self.user_id}, chat_id={chat_id[:8]}..."
-            )
 
             def run_memory_processing():
                 """Run memory processing with improved event loop management"""
-                # CRITICAL FIX: Set context in the new thread
+                # CRITICAL FIX: Set context in the new thread (where it's actually needed)
+                # Context doesn't propagate to new threads, so we must set it here
                 set_active_memori_context(self)
                 logger.debug(
                     f"Context set in memory processing thread: user_id={self.user_id}"
@@ -1915,16 +1927,8 @@ class Memori:
 
                 new_loop = None
                 try:
-                    # Check if we're already in an async context
-                    try:
-                        asyncio.get_running_loop()
-                        logger.debug(
-                            "Found existing event loop, creating new one for memory processing"
-                        )
-                    except RuntimeError:
-                        # No running loop, safe to create new one
-                        logger.debug("No existing event loop found, creating new one")
-
+                    # Create new event loop for this thread
+                    # (We're always in a new thread here, so no existing loop)
                     new_loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(new_loop)
 
@@ -1983,7 +1987,7 @@ class Memori:
                         # Clean up pending tasks
                         pending = asyncio.all_tasks(new_loop)
                         if pending:
-                            logger.debug(f"Cancelling {len(pending)} pending tasks")
+                            # Cancel and clean up pending tasks without logging
                             for task in pending:
                                 task.cancel()
                             # Wait for cancellation to complete
@@ -1992,13 +1996,13 @@ class Memori:
                             )
 
                         new_loop.close()
-                        logger.debug(f"Event loop closed for {chat_id}")
+                        # Event loop cleanup happens silently (no need to log)
 
                     # Reset event loop policy to prevent conflicts
                     try:
                         asyncio.set_event_loop(None)
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to reset event loop: {e}")
 
             # Run in background thread to avoid blocking
             thread = threading.Thread(target=run_memory_processing, daemon=True)
@@ -2059,6 +2063,62 @@ class Memori:
         # Fallback
         return str(response), "unknown"
 
+    def _generate_conversation_fingerprint(
+        self, user_input: str, ai_output: str
+    ) -> str:
+        """
+        Generate a fingerprint for conversation deduplication.
+
+        Uses first 200 chars to handle minor variations but catch obvious duplicates.
+        """
+        import hashlib
+
+        content = f"{user_input[:200]}|{ai_output[:200]}|{self.session_id}"
+        return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+    def _is_duplicate_conversation(
+        self, user_input: str, ai_output: str, window_seconds: int = 5
+    ) -> bool:
+        """
+        Check if this conversation was recently recorded (within time window).
+
+        This is a safety net to catch duplicates from multiple integrations.
+        Uses a 5-second window by default to catch near-simultaneous recordings.
+
+        RACE CONDITION FIX: Marks conversation as seen BEFORE checking, using
+        a two-phase approach to handle concurrent recordings.
+
+        Args:
+            user_input: User's message
+            ai_output: AI's response
+            window_seconds: Time window for considering duplicates (default: 5 seconds)
+
+        Returns:
+            True if duplicate detected, False otherwise
+        """
+        import time
+
+        fingerprint = self._generate_conversation_fingerprint(user_input, ai_output)
+        current_time = time.time()
+
+        with self._hash_lock:
+            # Clean old entries (older than window)
+            self._recent_conversation_hashes = {
+                fp: timestamp
+                for fp, timestamp in self._recent_conversation_hashes.items()
+                if current_time - timestamp < window_seconds
+            }
+
+            # RACE CONDITION FIX: Check if already seen
+            if fingerprint in self._recent_conversation_hashes:
+                # Duplicate detected
+                return True
+
+            # Mark as seen IMMEDIATELY (before releasing lock)
+            # This prevents race condition where both integrations check simultaneously
+            self._recent_conversation_hashes[fingerprint] = current_time
+            return False
+
     def record_conversation(
         self,
         user_input: str,
@@ -2089,6 +2149,23 @@ class Memori:
         # Parse response
         response_text, detected_model = self._parse_llm_response(ai_output)
         response_model = model or detected_model
+
+        # DEDUPLICATION SAFETY NET: Check for duplicate conversations
+        fingerprint = self._generate_conversation_fingerprint(user_input, response_text)
+        if self._is_duplicate_conversation(user_input, response_text):
+            integration = (
+                metadata.get("integration", "unknown") if metadata else "unknown"
+            )
+            logger.warning(
+                f"Duplicate conversation detected from '{integration}' integration - skipping recording | "
+                f"fingerprint: {fingerprint}"
+            )
+            # Return a dummy chat_id - conversation was already recorded by another integration
+            return str(uuid.uuid4())
+
+        logger.debug(
+            f"New conversation fingerprint: {fingerprint} | integration: {metadata.get('integration', 'unknown') if metadata else 'unknown'}"
+        )
 
         # Generate ID and timestamp
         chat_id = str(uuid.uuid4())
@@ -2136,17 +2213,9 @@ class Memori:
     def _schedule_memory_processing(
         self, chat_id: str, user_input: str, ai_output: str, model: str
     ):
-        """Schedule memory processing (async if possible, sync fallback)."""
+        """Schedule memory processing (async if possible, background loop fallback)."""
         try:
-            # CRITICAL FIX: Set context before scheduling async task
-            # Context DOES propagate to tasks created with create_task(), but we ensure it's set
-            from ..integrations.openai_integration import set_active_memori_context
-
-            set_active_memori_context(self)
-            logger.debug(
-                f"Context set before scheduling async memory processing: user_id={self.user_id}"
-            )
-
+            # Try to use existing event loop (for async contexts)
             loop = asyncio.get_running_loop()
             task = loop.create_task(
                 self._process_memory_async(chat_id, user_input, ai_output, model)
@@ -2157,10 +2226,33 @@ class Memori:
                 self._memory_tasks = set()
             self._memory_tasks.add(task)
             task.add_done_callback(self._memory_tasks.discard)
+            logger.debug(
+                f"[MEMORY] Processing scheduled in current loop - ID: {chat_id[:8]}..."
+            )
         except RuntimeError:
-            # No event loop, use sync fallback
-            logger.debug("No event loop, using synchronous memory processing")
-            self._process_memory_sync(chat_id, user_input, ai_output, model)
+            # No event loop - use persistent background loop instead of creating new thread
+            from ..integrations.openai_integration import set_active_memori_context
+            from ..utils.async_bridge import BackgroundEventLoop
+
+            # Set context before submitting to background loop
+            # Context needs to be explicitly set since we're crossing thread boundary
+            set_active_memori_context(self)
+
+            # Submit to persistent background loop
+            bg_loop = BackgroundEventLoop()
+            future = bg_loop.submit_task(
+                self._process_memory_async(chat_id, user_input, ai_output, model)
+            )
+
+            # Track the future to prevent garbage collection
+            if not hasattr(self, "_memory_futures"):
+                self._memory_futures = set()
+            self._memory_futures.add(future)
+            future.add_done_callback(self._memory_futures.discard)
+
+            logger.debug(
+                f"[MEMORY] Processing scheduled in background loop - ID: {chat_id[:8]}..."
+            )
 
     async def _process_memory_async(
         self, chat_id: str, user_input: str, ai_output: str, model: str = "unknown"
@@ -2177,11 +2269,14 @@ class Memori:
             set_active_memori_context,
         )
 
-        current_context = get_active_memori_context()
-        if current_context != self:
-            logger.debug(
-                f"Context mismatch detected in async processing, setting to user_id={self.user_id}"
-            )
+        current_context = get_active_memori_context(require_valid=False)
+        # Only set context if it's missing or doesn't match (using identity check)
+        if current_context is not self:
+            # Only log if context was actually wrong (not just missing)
+            if current_context is not None:
+                logger.debug(
+                    f"Context mismatch in async processing, correcting to user_id={self.user_id}"
+                )
             set_active_memori_context(self)
 
         try:
@@ -2230,7 +2325,11 @@ class Memori:
 
             # Store processed memory with new schema
             memory_id = self.db_manager.store_long_term_memory_enhanced(
-                processed_memory, chat_id, self.user_id
+                processed_memory,
+                chat_id,
+                self.user_id,
+                self.assistant_id,
+                self._session_id,
             )
 
             if memory_id:
@@ -2251,13 +2350,25 @@ class Memori:
         except Exception as e:
             logger.error(f"Memory ingestion failed for {chat_id}: {e}")
 
-    async def _get_recent_memories_for_dedup(self) -> list:
-        """Get recent memories for deduplication check"""
+    async def _get_recent_memories_for_dedup(self, hours: int = 24) -> list:
+        """
+        Get recent memories for deduplication check.
+
+        Args:
+            hours: Time window in hours to check for duplicates (default: 24)
+        """
         try:
+            from datetime import datetime, timedelta
+
             from sqlalchemy import text
 
             from ..database.queries.memory_queries import MemoryQueries
             from ..utils.pydantic_models import ProcessedLongTermMemory
+
+            # FIX #3: Only check duplicates within time window (default 24 hours)
+            # This prevents old memories from blocking new ones
+            time_threshold = datetime.now() - timedelta(hours=hours)
+            time_threshold_str = time_threshold.isoformat()
 
             with self.db_manager._get_connection() as connection:
                 result = connection.execute(
@@ -2265,6 +2376,7 @@ class Memori:
                     {
                         "user_id": self.user_id,
                         "processed_for_duplicates": False,
+                        "time_threshold": time_threshold_str,
                         "limit": 20,
                     },
                 )
@@ -2294,7 +2406,10 @@ class Memori:
                 return memories
 
         except Exception as e:
-            logger.error(f"Failed to get recent memories for dedup: {e}")
+            # This is expected on first use or fresh databases
+            logger.debug(
+                f"Could not retrieve memories for deduplication (expected on fresh database): {e}"
+            )
             return []
 
     def retrieve_context(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
@@ -2328,6 +2443,8 @@ class Memori:
                         query=query,
                         db_manager=self.db_manager,
                         user_id=self.user_id,
+                        assistant_id=self.assistant_id,
+                        session_id=self.session_id,
                         limit=remaining_limit,
                     )
                 else:
@@ -2546,18 +2663,11 @@ class Memori:
                 # No event loop running, create a new thread for async tasks
                 import threading
 
-                # CRITICAL FIX: Capture the current context before creating the thread
-                # This ensures the Memori instance context propagates to background tasks
                 from ..integrations.openai_integration import set_active_memori_context
 
-                # Ensure this instance is set as active before setting context
-                set_active_memori_context(self)
-                logger.debug(
-                    f"Captured context for background thread: user_id={self.user_id}"
-                )
-
                 def run_background_loop():
-                    # Set the context in the new thread
+                    # CRITICAL FIX: Set context in the new thread (where it's actually needed)
+                    # Context doesn't propagate to new threads, so we must set it here
                     set_active_memori_context(self)
                     logger.debug(
                         f"Set context in background thread: user_id={self.user_id}"
@@ -2692,8 +2802,12 @@ class Memori:
         """Destructor to ensure cleanup"""
         try:
             self.cleanup()
-        except:
-            pass  # Ignore errors during destruction
+        except Exception as e:
+            # Destructors shouldn't raise, but log for debugging
+            try:
+                logger.debug(f"Cleanup error in destructor: {e}")
+            except Exception:
+                pass  # Can't do anything if logging fails in destructor
 
     async def _background_analysis_loop(self):
         """Background analysis loop for memory processing"""
