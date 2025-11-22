@@ -1390,7 +1390,7 @@ class SearchService:
             short_users = short_query.all()
             long_users = long_query.all()
             all_users = set([u[0] for u in short_users] + [u[0] for u in long_users])
-            metadata["available_filters"]["user_ids"] = sorted(list(all_users))
+            metadata["available_filters"]["user_ids"] = sorted(all_users)
 
             # Get distinct assistant_ids
             base_short_query = self.session.query(
@@ -1419,9 +1419,7 @@ class SearchService:
                 [a[0] for a in short_assistants if a[0]]
                 + [a[0] for a in long_assistants if a[0]]
             )
-            metadata["available_filters"]["assistant_ids"] = sorted(
-                list(all_assistants)
-            )
+            metadata["available_filters"]["assistant_ids"] = sorted(all_assistants)
 
             # Get distinct session_ids
             short_sessions_query = self.session.query(
@@ -1445,7 +1443,7 @@ class SearchService:
                 [s[0] for s in short_sessions if s[0]]
                 + [s[0] for s in long_sessions if s[0]]
             )
-            metadata["available_filters"]["session_ids"] = sorted(list(all_sessions))
+            metadata["available_filters"]["session_ids"] = sorted(all_sessions)
 
             # Get counts
             short_count_query = self.session.query(ShortTermMemory)
