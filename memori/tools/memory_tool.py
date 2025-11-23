@@ -98,6 +98,8 @@ class MemoryTool:
                 query=query,
                 db_manager=self.memori.db_manager,
                 user_id=self.memori.user_id,
+                assistant_id=self.memori.assistant_id,
+                session_id=self.memori.session_id,
                 limit=5,
             )
 
@@ -108,7 +110,11 @@ class MemoryTool:
                 # Try fallback direct database search
                 try:
                     fallback_results = self.memori.db_manager.search_memories(
-                        query=query, user_id=self.memori.user_id, limit=5
+                        query=query,
+                        user_id=self.memori.user_id,
+                        assistant_id=self.memori.assistant_id,
+                        session_id=self.memori.session_id,
+                        limit=5,
                     )
 
                     if fallback_results:
@@ -363,7 +369,11 @@ class MemoryTool:
                 return {"error": "Query is required for search"}
 
             search_results = self.memori.db_manager.search_memories(
-                query=query, user_id=self.memori.user_id, limit=limit
+                query=query,
+                user_id=self.memori.user_id,
+                assistant_id=self.memori.assistant_id,
+                session_id=self.memori.session_id,
+                limit=limit,
             )
 
             return {

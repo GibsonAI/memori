@@ -16,6 +16,7 @@ from loguru import logger
 from sqlalchemy import create_engine, func, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from ..config.pool_config import pool_config
 from ..utils.exceptions import DatabaseError
@@ -79,9 +80,11 @@ class SQLAlchemyDatabaseManager:
         # Initialize query parameter translator for cross-database compatibility
         self.query_translator = QueryParameterTranslator(self.database_type)
 
+        # Log pool configuration
         logger.info(
-            f"Initialized SQLAlchemy database manager for {self.database_type} "
-            f"(pool_size={pool_size}, max_overflow={max_overflow})"
+            f"Initialized SQLAlchemy database manager for {self.database_type} | "
+            f"Pool config: size={self.pool_size}, max_overflow={self.max_overflow}, "
+            f"timeout={self.pool_timeout}s, recycle={self.pool_recycle}s, pre_ping={self.pool_pre_ping}"
         )
 
     def _validate_database_dependencies(self, database_connect: str):
@@ -148,20 +151,30 @@ class SQLAlchemyDatabaseManager:
                 # Ensure directory exists for SQLite
                 if ":///" in database_connect:
                     db_path = database_connect.replace("sqlite:///", "")
-                    db_dir = Path(db_path).parent
-                    db_dir.mkdir(parents=True, exist_ok=True)
+                    # Only create directory if it's not an in-memory database
+                    if db_path and db_path != ":memory:":
+                        db_dir = Path(db_path).parent
+                        db_dir.mkdir(parents=True, exist_ok=True)
+
+                # Check if it's an in-memory database
+                is_memory_db = database_connect == "sqlite:///:memory:"
 
                 # SQLite-specific configuration
-                engine = create_engine(
-                    database_connect,
-                    json_serializer=json.dumps,
-                    json_deserializer=json.loads,
-                    echo=False,
-                    # SQLite-specific options
-                    connect_args={
+                engine_kwargs = {
+                    "json_serializer": json.dumps,
+                    "json_deserializer": json.loads,
+                    "echo": False,
+                    "connect_args": {
                         "check_same_thread": False,  # Allow multiple threads
                     },
-                )
+                }
+
+                # Use StaticPool for in-memory databases to ensure all connections share the same database
+                if is_memory_db:
+                    engine_kwargs["poolclass"] = StaticPool
+                    logger.debug("Using StaticPool for in-memory SQLite database")
+
+                engine = create_engine(database_connect, **engine_kwargs)
 
             elif database_connect.startswith("mysql:") or database_connect.startswith(
                 "mysql+"
@@ -225,8 +238,11 @@ class SQLAlchemyDatabaseManager:
                     json_deserializer=json.loads,
                     echo=False,
                     connect_args=connect_args,
-                    pool_pre_ping=True,  # Validate connections
-                    pool_recycle=3600,  # Recycle connections every hour
+                    pool_size=self.pool_size,
+                    max_overflow=self.max_overflow,
+                    pool_timeout=self.pool_timeout,
+                    pool_recycle=self.pool_recycle,
+                    pool_pre_ping=self.pool_pre_ping,
                 )
 
             elif database_connect.startswith(
@@ -588,6 +604,8 @@ class SQLAlchemyDatabaseManager:
                 session.merge(chat_history)  # Use merge for INSERT OR REPLACE behavior
                 session.commit()
 
+                return chat_id
+
             except SQLAlchemyError as e:
                 session.rollback()
                 raise DatabaseError(f"Failed to store chat history: {e}")
@@ -609,7 +627,7 @@ class SQLAlchemyDatabaseManager:
                     query = query.filter(ChatHistory.session_id == session_id)
 
                 results = (
-                    query.order_by(ChatHistory.timestamp.desc()).limit(limit).all()
+                    query.order_by(ChatHistory.created_at.desc()).limit(limit).all()
                 )
 
                 # Convert to dictionaries
@@ -969,6 +987,51 @@ class SQLAlchemyDatabaseManager:
 
         return connection_context()
 
+    def get_pool_status(self) -> dict[str, Any]:
+        """Get current connection pool status"""
+        try:
+            pool = self.engine.pool
+            return {
+                "size": pool.size(),
+                "checked_in": pool.checkedin(),
+                "checked_out": pool.checkedout(),
+                "overflow": pool.overflow(),
+                "total_connections": pool.size() + pool.overflow(),
+                "pool_size_limit": self.pool_size,
+                "overflow_limit": self.max_overflow,
+                "utilization": (
+                    (pool.checkedout() / (pool.size() + pool.overflow()))
+                    if (pool.size() + pool.overflow()) > 0
+                    else 0
+                ),
+            }
+        except Exception as e:
+            logger.warning(f"Failed to get pool status: {e}")
+            return {}
+
+    def log_pool_status(self):
+        """Log current pool status for monitoring"""
+        try:
+            status = self.get_pool_status()
+            if status:
+                logger.info(
+                    f"Connection Pool Status: {status['checked_out']}/{status['total_connections']} "
+                    f"active, {status['overflow']} overflow, {status['utilization']*100:.1f}% utilized"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to log pool status: {e}")
+
+    def test_connection_pool(self) -> bool:
+        """Test connection pool health"""
+        try:
+            with self.SessionLocal() as session:
+                session.execute(text("SELECT 1"))
+            logger.debug("Connection pool health check passed")
+            return True
+        except Exception as e:
+            logger.error(f"Connection pool health check failed: {e}")
+            return False
+
     def close(self):
         """Close database connections"""
         if self._search_service and hasattr(self._search_service, "session"):
@@ -989,7 +1052,8 @@ class SQLAlchemyDatabaseManager:
             "driver": self.engine.dialect.driver,
             "server_version": getattr(self.engine.dialect, "server_version_info", None),
             "supports_fulltext": True,  # Assume true for SQLAlchemy managed connections
-            "auto_creation_enabled": self.enable_auto_creation,
+            "auto_creation_enabled": hasattr(self, "auto_creator")
+            and self.auto_creator is not None,
         }
 
         # Add auto-creation specific information
