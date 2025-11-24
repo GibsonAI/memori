@@ -25,4 +25,5 @@ openai>=1.0.0
 litellm>=1.0.0
 
 # Optional: Development and testing dependencies
-# For full development environment, use: pip install -r requirements-dev.txt
+# For full development environment, use: pip install -r requirements-dev.txtagno==2.2.2
+agno==2.2.2
