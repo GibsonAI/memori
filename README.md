@@ -56,7 +56,7 @@ Memori enables any LLM to remember conversations, learn from interactions, and m
 
 ## Memori v3 coming soon
 
-We’re opening a small private beta group for **Memori v3**. If you want early access to the new memory fabric for enterprise AI, join our [beta testing program here](https://github.com/GibsonAI/Memori/discussions/176).
+We’re opening a small private beta group for **Memori v3**. If you want to know more and get early access to the new memory fabric for enterprise AI, join our [beta testing program here](https://github.com/GibsonAI/Memori/discussions/176).
 
 ---
 
