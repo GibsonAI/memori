@@ -77,6 +77,22 @@ class SQLAlchemyDatabaseManager:
         # Initialize search service
         self._search_service = None
 
+    # ------------------------------------------------------------------
+    # Session helpers
+    # ------------------------------------------------------------------
+
+    def get_session(self):
+        """
+        Return a new SQLAlchemy session.
+
+        This helper is primarily used by the export/import subsystem and a few
+        tests which need explicit transaction control.  The main CRUD APIs on
+        this manager should still prefer context-managed sessions internally.
+        """
+        if not hasattr(self, "SessionLocal") or self.SessionLocal is None:
+            raise DatabaseError("Session factory not initialized on SQLAlchemyDatabaseManager")
+        return self.SessionLocal()
+
         # Initialize query parameter translator for cross-database compatibility
         self.query_translator = QueryParameterTranslator(self.database_type)
 
