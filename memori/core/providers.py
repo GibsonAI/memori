@@ -2,7 +2,7 @@
 Provider configuration for different LLM providers (OpenAI, Azure, custom)
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -31,8 +31,8 @@ class ProviderConfig:
     api_key: str | None = None
     api_type: str | None = None  # "openai", "azure", or custom
     base_url: str | None = None  # Custom endpoint URL
-    timeout: float | None = 60.0  # Default 60 second timeout for API calls
-    max_retries: int | None = 2  # Default 2 retries
+    timeout: float | None = None
+    max_retries: int | None = None
 
     # Azure-specific parameters
     azure_endpoint: str | None = None
@@ -52,7 +52,19 @@ class ProviderConfig:
     default_query: dict[str, Any] | None = None
 
     # HTTP client configuration
-    http_client: Any | None = None
+    http_client: Any | None = None  # Deprecated: use sync_http_client
+    sync_http_client: Any | None = None
+    async_http_client: Any | None = None
+
+    def __post_init__(self):
+        if self.http_client:
+            logger.warning(
+                "The 'http_client' parameter is deprecated. "
+                "Please use 'sync_http_client' for synchronous clients and "
+                "'async_http_client' for asynchronous clients."
+            )
+            if self.sync_http_client is None:
+                self.sync_http_client = self.http_client
 
     @classmethod
     def from_openai(
@@ -142,8 +154,6 @@ class ProviderConfig:
             kwargs["default_headers"] = self.default_headers
         if self.default_query:
             kwargs["default_query"] = self.default_query
-        if self.http_client:
-            kwargs["http_client"] = self.http_client
 
         return kwargs
 
@@ -157,6 +167,8 @@ class ProviderConfig:
         import openai
 
         kwargs = self.get_openai_client_kwargs()
+        if self.sync_http_client:
+            kwargs["http_client"] = self.sync_http_client
 
         # Check if we should use Azure client
         if kwargs.pop("_use_azure_client", False):
@@ -178,6 +190,8 @@ class ProviderConfig:
         import openai
 
         kwargs = self.get_openai_client_kwargs()
+        if self.async_http_client:
+            kwargs["http_client"] = self.async_http_client
 
         # Check if we should use Azure client
         if kwargs.pop("_use_azure_client", False):
