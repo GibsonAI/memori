@@ -3026,13 +3026,19 @@ class Memori:
         try:
             from sqlalchemy import text
 
-            # Get all conversations marked as essential
+            # Get all conversations marked as essential or conscious context
+            # Note: category_primary values vary:
+            #   - short_term: 'essential_%', 'conscious_context', 'conscious_%'
+            #   - may also use hyphen: 'conscious-info', 'conscious-context'
             with self.db_manager._get_connection() as connection:
                 query = """
                 SELECT memory_id, summary, category_primary, importance_score,
                        created_at, searchable_content, processed_data
                 FROM short_term_memory
-                WHERE user_id = :user_id AND category_primary LIKE 'essential_%'
+                WHERE user_id = :user_id AND (
+                    category_primary LIKE 'essential%' 
+                    OR category_primary LIKE 'conscious%'
+                )
                 ORDER BY importance_score DESC, created_at DESC
                 LIMIT :limit
                 """

@@ -220,8 +220,9 @@ class SearchService:
             # - Long-term memory:
             #   - If assistant_id=None: ONLY see shared memories (assistant_id IS NULL)
             #   - If assistant_id='bot': See shared (NULL) OR own (bot) memories
+            # Note: Use source table columns (st/lt) since FTS is contentless
             if assistant_id:
-                assistant_clause = "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL OR fts.assistant_id = :assistant_id)"
+                assistant_clause = "AND (st.memory_id IS NOT NULL OR lt.assistant_id IS NULL OR lt.assistant_id = :assistant_id)"
                 params["assistant_id"] = assistant_id
                 logger.debug(
                     f"Assistant filter: long-term allows NULL or {assistant_id}"
@@ -229,7 +230,7 @@ class SearchService:
             else:
                 # assistant_id=None: Can only see shared memories (not other assistants' private data)
                 assistant_clause = (
-                    "AND (fts.memory_type = 'short_term' OR fts.assistant_id IS NULL)"
+                    "AND (st.memory_id IS NOT NULL OR lt.assistant_id IS NULL)"
                 )
                 logger.debug(
                     "Assistant filter: long-term allows only NULL (shared memories)"
@@ -238,7 +239,8 @@ class SearchService:
             if session_id:
                 # Apply session filter only to short-term memories
                 # Long-term memories should be accessible across all sessions for the same user
-                session_clause = "AND (fts.memory_type = 'long_term' OR fts.session_id = :session_id)"
+                # Note: Use source table columns since FTS is contentless
+                session_clause = "AND (lt.memory_id IS NOT NULL OR st.session_id = :session_id)"
                 params["session_id"] = session_id
                 logger.debug(f"Session filter applied to short-term only: {session_id}")
 
@@ -246,48 +248,57 @@ class SearchService:
                 category_placeholders = ",".join(
                     [f":cat_{i}" for i in range(len(category_filter))]
                 )
+                # Note: Use source table columns since FTS is contentless
                 category_clause = (
-                    f"AND fts.category_primary IN ({category_placeholders})"
+                    f"AND COALESCE(st.category_primary, lt.category_primary) IN ({category_placeholders})"
                 )
                 for i, cat in enumerate(category_filter):
                     params[f"cat_{i}"] = cat
                 logger.debug(f"Category filter applied: {category_filter}")
 
             # SQLite FTS5 search query with COALESCE to handle NULL values
+            # Note: FTS table is contentless (content=''), so we must get actual values
+            # from the source tables via JOIN. FTS columns return NULL directly.
             sql_query = f"""
                 SELECT
-                    fts.memory_id,
-                    fts.memory_type,
-                    fts.category_primary,
+                    COALESCE(st.memory_id, lt.memory_id) as memory_id,
+                    CASE
+                        WHEN st.memory_id IS NOT NULL THEN 'short_term'
+                        WHEN lt.memory_id IS NOT NULL THEN 'long_term'
+                        ELSE 'unknown'
+                    END as memory_type,
+                    COALESCE(st.category_primary, lt.category_primary, '') as category_primary,
                     COALESCE(
                         CASE
-                            WHEN fts.memory_type = 'short_term' THEN st.processed_data
-                            WHEN fts.memory_type = 'long_term' THEN lt.processed_data
+                            WHEN st.memory_id IS NOT NULL THEN st.processed_data
+                            WHEN lt.memory_id IS NOT NULL THEN lt.processed_data
                         END,
                         '{{}}'
                     ) as processed_data,
                     COALESCE(
                         CASE
-                            WHEN fts.memory_type = 'short_term' THEN st.importance_score
-                            WHEN fts.memory_type = 'long_term' THEN lt.importance_score
+                            WHEN st.memory_id IS NOT NULL THEN st.importance_score
+                            WHEN lt.memory_id IS NOT NULL THEN lt.importance_score
                             ELSE 0.5
                         END,
                         0.5
                     ) as importance_score,
                     COALESCE(
                         CASE
-                            WHEN fts.memory_type = 'short_term' THEN st.created_at
-                            WHEN fts.memory_type = 'long_term' THEN lt.created_at
+                            WHEN st.memory_id IS NOT NULL THEN st.created_at
+                            WHEN lt.memory_id IS NOT NULL THEN lt.created_at
                         END,
                         datetime('now')
                     ) as created_at,
-                    COALESCE(fts.summary, '') as summary,
+                    COALESCE(st.summary, lt.summary, '') as summary,
+                    COALESCE(st.searchable_content, lt.searchable_content, '') as searchable_content,
                     COALESCE(rank, 0.0) as search_score,
                     'sqlite_fts5' as search_strategy
                 FROM memory_search_fts fts
-                LEFT JOIN short_term_memory st ON fts.memory_id = st.memory_id AND fts.memory_type = 'short_term'
-                LEFT JOIN long_term_memory lt ON fts.memory_id = lt.memory_id AND fts.memory_type = 'long_term'
-                WHERE memory_search_fts MATCH :fts_query AND fts.user_id = :user_id
+                LEFT JOIN short_term_memory st ON fts.rowid = st.rowid
+                LEFT JOIN long_term_memory lt ON fts.rowid = lt.rowid
+                WHERE memory_search_fts MATCH :fts_query
+                    AND (st.user_id = :user_id OR lt.user_id = :user_id)
                 {assistant_clause}
                 {session_clause}
                 {category_clause}
