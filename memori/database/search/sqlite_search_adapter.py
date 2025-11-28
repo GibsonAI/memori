@@ -129,14 +129,12 @@ class SQLiteSearchAdapter(BaseSearchAdapter):
             # Create FTS5 virtual table
             """
             CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
-                memory_id,
-                memory_type,
-                namespace,
+                memory_id UNINDEXED,
+                memory_type UNINDEXED,
+                namespace UNINDEXED,
                 searchable_content,
                 summary,
-                category_primary,
-                content='',
-                contentless_delete=1
+                category_primary UNINDEXED
             )
             """,
             # Triggers to maintain FTS index

@@ -72,17 +72,15 @@ class SQLiteSearchAdapter(BaseSearchAdapter):
             with self.connector.get_connection() as conn:
                 cursor = conn.cursor()
 
-                # Create FTS5 virtual table if not exists
+                # Create FTS5 virtual table if not exists (non-contentless for full data access)
                 fts_sql = """
                     CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
-                        memory_id,
-                        memory_type,
-                        namespace,
+                        memory_id UNINDEXED,
+                        memory_type UNINDEXED,
+                        namespace UNINDEXED,
                         searchable_content,
                         summary,
-                        category_primary,
-                        content='',
-                        contentless_delete=1
+                        category_primary UNINDEXED
                     )
                 """
                 cursor.execute(fts_sql)

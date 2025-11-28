@@ -256,49 +256,45 @@ class SearchService:
                     params[f"cat_{i}"] = cat
                 logger.debug(f"Category filter applied: {category_filter}")
 
-            # SQLite FTS5 search query with COALESCE to handle NULL values
-            # Note: FTS table is contentless (content=''), so we must get actual values
-            # from the source tables via JOIN. FTS columns return NULL directly.
+            # SQLite FTS5 search query
+            # FTS table stores full data (not contentless), so we can read directly from it.
+            # We still JOIN source tables to get extra fields like processed_data, importance_score, created_at.
             sql_query = f"""
                 SELECT
-                    COALESCE(st.memory_id, lt.memory_id) as memory_id,
-                    CASE
-                        WHEN st.memory_id IS NOT NULL THEN 'short_term'
-                        WHEN lt.memory_id IS NOT NULL THEN 'long_term'
-                        ELSE 'unknown'
-                    END as memory_type,
-                    COALESCE(st.category_primary, lt.category_primary, '') as category_primary,
+                    fts.memory_id as memory_id,
+                    fts.memory_type as memory_type,
+                    COALESCE(fts.category_primary, '') as category_primary,
                     COALESCE(
                         CASE
-                            WHEN st.memory_id IS NOT NULL THEN st.processed_data
-                            WHEN lt.memory_id IS NOT NULL THEN lt.processed_data
+                            WHEN fts.memory_type = 'short_term' THEN st.processed_data
+                            WHEN fts.memory_type = 'long_term' THEN lt.processed_data
                         END,
                         '{{}}'
                     ) as processed_data,
                     COALESCE(
                         CASE
-                            WHEN st.memory_id IS NOT NULL THEN st.importance_score
-                            WHEN lt.memory_id IS NOT NULL THEN lt.importance_score
+                            WHEN fts.memory_type = 'short_term' THEN st.importance_score
+                            WHEN fts.memory_type = 'long_term' THEN lt.importance_score
                             ELSE 0.5
                         END,
                         0.5
                     ) as importance_score,
                     COALESCE(
                         CASE
-                            WHEN st.memory_id IS NOT NULL THEN st.created_at
-                            WHEN lt.memory_id IS NOT NULL THEN lt.created_at
+                            WHEN fts.memory_type = 'short_term' THEN st.created_at
+                            WHEN fts.memory_type = 'long_term' THEN lt.created_at
                         END,
                         datetime('now')
                     ) as created_at,
-                    COALESCE(st.summary, lt.summary, '') as summary,
-                    COALESCE(st.searchable_content, lt.searchable_content, '') as searchable_content,
+                    COALESCE(fts.summary, '') as summary,
+                    COALESCE(fts.searchable_content, '') as searchable_content,
                     COALESCE(rank, 0.0) as search_score,
                     'sqlite_fts5' as search_strategy
                 FROM memory_search_fts fts
-                LEFT JOIN short_term_memory st ON fts.rowid = st.rowid
-                LEFT JOIN long_term_memory lt ON fts.rowid = lt.rowid
+                LEFT JOIN short_term_memory st ON fts.memory_id = st.memory_id AND fts.memory_type = 'short_term'
+                LEFT JOIN long_term_memory lt ON fts.memory_id = lt.memory_id AND fts.memory_type = 'long_term'
                 WHERE memory_search_fts MATCH :fts_query
-                    AND (st.user_id = :user_id OR lt.user_id = :user_id)
+                    AND fts.user_id = :user_id
                 {assistant_clause}
                 {session_clause}
                 {category_clause}

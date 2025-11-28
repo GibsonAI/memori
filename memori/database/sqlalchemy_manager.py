@@ -335,27 +335,25 @@ class SQLAlchemyDatabaseManager:
     def _setup_sqlite_fts(self, conn):
         """Setup SQLite FTS5"""
         try:
-            # Create FTS5 virtual table
+            # Create FTS5 virtual table (non-contentless for full data access)
             conn.execute(
                 text(
                     """
                 CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
-                    memory_id,
-                    memory_type,
-                    user_id,
-                    assistant_id,
-                    session_id,
+                    memory_id UNINDEXED,
+                    memory_type UNINDEXED,
+                    user_id UNINDEXED,
+                    assistant_id UNINDEXED,
+                    session_id UNINDEXED,
                     searchable_content,
                     summary,
-                    category_primary,
-                    content='',
-                    contentless_delete=1
+                    category_primary UNINDEXED
                 )
             """
                 )
             )
 
-            # Create triggers
+            # Create triggers to maintain FTS index
             conn.execute(
                 text(
                     """

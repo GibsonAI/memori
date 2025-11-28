@@ -125,16 +125,14 @@ CREATE INDEX IF NOT EXISTS idx_long_term_confidence ON long_term_memory(confiden
 -- Full-Text Search Support (SQLite FTS5)
 -- Enables advanced text search capabilities with multi-tenant filtering
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_search_fts USING fts5(
-    memory_id,
-    memory_type,
-    user_id,
-    assistant_id,
-    session_id,
+    memory_id UNINDEXED,
+    memory_type UNINDEXED,
+    user_id UNINDEXED,
+    assistant_id UNINDEXED,
+    session_id UNINDEXED,
     searchable_content,
     summary,
-    category_primary,
-    content='',
-    contentless_delete=1
+    category_primary UNINDEXED
 );
 
 -- Triggers to maintain FTS index with multi-tenant fields
