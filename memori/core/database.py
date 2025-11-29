@@ -6,6 +6,7 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -86,7 +87,7 @@ class DatabaseManager:
                 with open(schema_path) as f:
                     schema_sql = f.read()
 
-                with self._get_connection() as conn:
+                with closing(self._get_connection()) as conn:
                     # Execute schema using executescript for better multi-statement handling
                     try:
                         conn.executescript(schema_sql)
@@ -110,7 +111,7 @@ class DatabaseManager:
     def _check_fts5_support(self) -> bool:
         """Check if FTS5 is supported in this SQLite installation"""
         try:
-            with self._get_connection() as conn:
+            with closing(self._get_connection()) as conn:
                 cursor = conn.cursor()
                 cursor.execute("CREATE VIRTUAL TABLE fts_test USING fts5(content)")
                 cursor.execute("DROP TABLE fts_test")
@@ -157,7 +158,7 @@ class DatabaseManager:
 
     def _create_basic_schema(self):
         """Create basic schema if SQL file is not available"""
-        with self._get_connection() as conn:
+        with closing(self._get_connection()) as conn:
             cursor = conn.cursor()
 
             # Basic tables for fallback
@@ -257,7 +258,7 @@ class DatabaseManager:
             logger.error(f"Invalid chat history data: {e}")
             raise DatabaseError(f"Cannot store chat history: {e}")
 
-        with self._get_connection() as conn:
+        with closing(self._get_connection()) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -297,7 +298,7 @@ class DatabaseManager:
             logger.error(f"Invalid chat history parameters: {e}")
             return []
 
-        with self._get_connection() as conn:
+        with closing(self._get_connection()) as conn:
             cursor = conn.cursor()
 
             if session_id:
@@ -548,7 +549,7 @@ class DatabaseManager:
 
         all_results = []
 
-        with self._get_connection() as conn:
+        with closing(self._get_connection()) as conn:
             cursor = conn.cursor()
 
             # 1. Try FTS search first (most relevant)
@@ -910,7 +911,7 @@ class DatabaseManager:
 
     def get_memory_stats(self, user_id: str = "default") -> dict[str, Any]:
         """Get comprehensive memory statistics"""
-        with self._get_connection() as conn:
+        with closing(self._get_connection()) as conn:
             cursor = conn.cursor()
 
             stats = {}
@@ -974,7 +975,7 @@ class DatabaseManager:
 
     def clear_memory(self, user_id: str = "default", memory_type: str | None = None):
         """Clear memory data with multi-tenant isolation"""
-        with self._get_connection() as conn:
+        with closing(self._get_connection()) as conn:
             cursor = conn.cursor()
 
             if memory_type == "short_term":
