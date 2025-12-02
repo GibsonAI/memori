@@ -41,26 +41,26 @@ jobs:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
 
-      - name: Update package name to memori-sdk
+      - name: Update package name to memorisdk
         run: |
           python -c "
             import toml
             with open('pyproject.toml', 'r') as f:
                 config = toml.load(f)
-            config['project']['name'] = 'memori-sdk'
+            config['project']['name'] = 'memorisdk'
             with open('pyproject.toml', 'w') as f:
                 toml.dump(config, f)
           "
 
-      - name: Build memori-sdk package
-        run: python -m build --outdir dist/memori-sdk
+      - name: Build memorisdk package
+        run: python -m build --outdir dist/memorisdk
 
-      - name: Verify memori-sdk distribution
-        run: twine check dist/memori-sdk/*
+      - name: Verify memorisdk distribution
+        run: twine check dist/memorisdk/*
 
-      - name: Publish memori-sdk to PyPI
+      - name: Publish memorisdk to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: dist/memori-sdk/
+          packages-dir: dist/memorisdk/
           user: __token__
           password: ${{ secrets.PYPI_SDK_API_TOKEN }}
