@@ -280,4 +280,4 @@ Apache 2.0 - see [LICENSE](https://github.com/MemoriLabs/Memori/blob/main/LICENS
 
 **Star us on GitHub** to support the project
 
-[![Star History](https://api.star-history.com/svg?repos=GibsonAI/memori&type=date)](https://star-history.com/#GibsonAI/memori)
+[![Star History](https://api.star-history.com/svg?repos=MemoriLabs/memori&type=date)](https://star-history.com/#MemoriLabs/memori)
