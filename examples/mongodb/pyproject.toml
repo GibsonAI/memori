@@ -1,0 +1,12 @@
+[project]
+name = "memori-mongodb-example"
+version = "0.1.0"
+description = "Memori SDK example with MongoDB"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "memori>=3.0.0",
+    "openai>=2.6.1",
+    "pymongo>=4.7.0",
+    "python-dotenv>=1.2.1",
+]

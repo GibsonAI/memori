@@ -1,0 +1,66 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-pypi-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: 'pip'
+
+      - name: Install build tools
+        run: pip install --upgrade pip build twine toml
+
+      - name: Build memori package
+        run: python -m build --outdir dist/memori
+
+      - name: Verify memori distribution
+        run: twine check dist/memori/*
+
+      - name: Publish memori to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/memori/
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Update package name to memori-sdk
+        run: |
+          python -c "
+            import toml
+            with open('pyproject.toml', 'r') as f:
+                config = toml.load(f)
+            config['project']['name'] = 'memori-sdk'
+            with open('pyproject.toml', 'w') as f:
+                toml.dump(config, f)
+          "
+
+      - name: Build memori-sdk package
+        run: python -m build --outdir dist/memori-sdk
+
+      - name: Verify memori-sdk distribution
+        run: twine check dist/memori-sdk/*
+
+      - name: Publish memori-sdk to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/memori-sdk/
+          user: __token__
+          password: ${{ secrets.PYPI_SDK_API_TOKEN }}

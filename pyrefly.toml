@@ -1,5 +1,0 @@
-project_includes = ["**/*"]
-project_excludes = [
-    "**/.[!/.]*",
-    '**/*venv/**\*',
-]

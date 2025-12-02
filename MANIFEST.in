@@ -1,0 +1,42 @@
+# Include essential files
+include README.md
+include LICENSE
+
+# Exclude all development and Docker files
+exclude Dockerfile
+exclude docker-compose.yml
+exclude .dockerignore
+exclude Makefile
+exclude .env.example
+exclude conftest.py
+exclude CONTRIBUTING.md
+exclude .pre-commit-config.yaml
+exclude uv.lock
+exclude google-credentials.json
+exclude .coverage
+exclude coverage.xml
+exclude CHANGELOG.md
+exclude insert_facts.py
+exclude memori_test.db
+
+# Exclude test directories
+prune tests
+
+# Exclude documentation build artifacts
+prune docs
+prune htmlcov
+
+# Exclude version control and CI
+prune .git
+prune .github
+exclude .gitignore
+
+# Exclude IDE and editor files
+prune .vscode
+prune .venv
+prune .pytest_cache
+prune .ruff_cache
+global-exclude .DS_Store
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__

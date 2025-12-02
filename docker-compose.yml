@@ -1,0 +1,134 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - /app/.venv
+      - /app/__pycache__
+      - ./google-credentials.json:/app/google-credentials.json:ro
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://memori:memori@postgres:5432/memori_test
+      - MONGODB_URL=mongodb://memori:memori@mongodb:27017/memori_test?authSource=admin
+      - MYSQL_DATABASE_URL=mysql+pymysql://memori:memori@mysql:3306/memori_test
+      - ORACLE_DATABASE_URL=oracle+oracledb://system:memori@oracle:1521/?service_name=FREEPDB1
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
+    command: /bin/bash
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      oracle:
+        condition: service_healthy
+    networks:
+      - memori-network
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: memori
+      POSTGRES_PASSWORD: memori
+      POSTGRES_DB: memori_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memori"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - memori-network
+
+  mongodb:
+    image: mongo:7.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: memori
+      MONGO_INITDB_ROOT_PASSWORD: memori
+      MONGO_INITDB_DATABASE: memori_test
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - memori-network
+
+  mongo-express:
+    image: mongo-express:1.0.0
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: memori
+      ME_CONFIG_MONGODB_ADMINPASSWORD: memori
+      ME_CONFIG_MONGODB_URL: mongodb://memori:memori@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: pass
+    depends_on:
+      - mongodb
+    networks:
+      - memori-network
+
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: memori
+      MYSQL_DATABASE: memori_test
+      MYSQL_USER: memori
+      MYSQL_PASSWORD: memori
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "memori", "-pmemori"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - memori-network
+
+  oracle:
+    image: container-registry.oracle.com/database/free:latest-lite
+    environment:
+      ORACLE_PWD: memori
+      ORACLE_CHARACTERSET: AL32UTF8
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    shm_size: 2gb
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -s system/memori@FREEPDB1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 90s
+    networks:
+      - memori-network
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  mysql_data:
+  oracle_data:
+
+networks:
+  memori-network:
+    driver: bridge
