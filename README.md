@@ -131,10 +131,11 @@ This step is not necessary but will prep your environment for faster execution. 
 
 ```python
 import os
+
+from memori import Memori
 from openai import OpenAI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from memori import Memori
 
 # Setup OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
