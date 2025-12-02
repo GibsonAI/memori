@@ -256,7 +256,7 @@ This will display a menu of the available options. For more information about wh
 
 ## Contributing
 
-We welcome contributions from the community! Please see our [Contributing Guidelines](https://github.com/MemoriLabs/Memori/blob/main/docs/CONTRIBUTING.md) for details on:
+We welcome contributions from the community! Please see our [Contributing Guidelines](https://github.com/MemoriLabs/Memori/blob/main/CONTRIBUTING.md) for details on:
 
 - Setting up your development environment
 - Code style and standards
