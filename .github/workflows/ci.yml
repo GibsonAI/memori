@@ -1,238 +1,94 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [main, develop, phase-1]
-    paths-ignore:
-      - 'demos/**'
-      - '*.md'
-      - 'docs/**'
+    branches: [main]
   pull_request:
-    branches: [main, develop]
-    paths-ignore:
-      - 'demos/**'
-      - '*.md'
-      - 'docs/**'
-  workflow_dispatch:
-    inputs:
-      debug:
-        description: 'Enable debug mode'
-        required: false
-        type: boolean
-        default: false
-
-permissions:
-  contents: read
-  pull-requests: read  # Changed from write to read for external PR compatibility
-  checks: read         # Changed from write to read for external PR compatibility
-
-env:
-  CACHE_VERSION: v1
+    branches: [main]
 
 jobs:
-  quality-checks:
-    name: Code Quality
+  lint:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
-          restore-keys: |
-            ${{ env.CACHE_VERSION }}-${{ runner.os }}-pip-
+        run: uv python install 3.12
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e ".[dev]"
+        run: uv sync --dev
 
-      - name: Check Black formatting
-        run: |
-          echo "Checking Black formatting..."
-          black --check --diff memori/ tests/ examples/ scripts/ --line-length 88
+      - name: Run ruff linting
+        run: uv run ruff check .
 
-      - name: Check import sorting
-        run: |
-          echo "Checking import sorting..."
-          isort --check-only --diff memori/ tests/ examples/ scripts/ --profile black
+      - name: Run ruff format check
+        run: uv run ruff format --check .
 
-      - name: Lint with Ruff
-        run: |
-          echo "Running Ruff linter..."
-          ruff check memori/ tests/ examples/ scripts/ --output-format=github
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Type check with mypy
-        run: |
-          echo "Running mypy type checking..."
-          mypy memori/ --ignore-missing-imports --show-error-codes
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
-      - name: Security check with Bandit
-        run: |
-          echo "Running Bandit security check..."
-          # Generate report (continue on error for report)
-          bandit -r memori/ -f json -o bandit-report.json || echo "Bandit report generation completed with warnings"
-          # Fail on medium+ severity issues
-          bandit -r memori/ --severity-level medium
+      - name: Set up Python
+        run: uv python install 3.12
 
-      - name: Dependency security check
-        run: |
-          echo "Checking dependencies for known vulnerabilities..."
-          # Generate report (continue on error for report)
-          safety check --json --output safety-report.json || echo "Safety report generation completed with warnings"
-          # Fail on actual vulnerabilities
-          safety check
+      - name: Install dependencies
+        run: uv sync --dev
 
-      - name: Upload security reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: security-reports
-          path: |
-            bandit-report.json
-            safety-report.json
+      - name: Run Bandit security checks
+        run: uv run bandit -r memori -ll -ii
+
+      - name: Run pip-audit for dependency vulnerabilities
+        run: uv run pip-audit --require-hashes --disable-pip
+        continue-on-error: true
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run type checking with ty
+        run: uvx ty check --exclude 'tests/llm/clients/**/*.py'
 
   test:
-    name: Test Suite
-    runs-on: ${{ matrix.os }}
-    needs: quality-checks
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        exclude:
-          # Reduce matrix size for faster builds
-          - os: windows-latest
-            python-version: "3.8"
-          - os: macos-latest
-            python-version: "3.8"
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.local/share/virtualenvs
-          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-py${{ matrix.python-version }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
-          restore-keys: |
-            ${{ env.CACHE_VERSION }}-${{ runner.os }}-py${{ matrix.python-version }}-pip-
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e ".[dev]"
+        run: uv sync --dev
 
-      - name: Skip tests (not implemented yet)
-        run: |
-          echo "Test suite will be added in future versions..."
-          echo "Skipping test execution for now..."
+      - name: Run pytest with coverage
+        run: uv run pytest
 
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' || github.event.pull_request.base.ref == 'main'
-
-    steps:
-      - name: Skip integration tests (not implemented yet)
-        run: |
-          echo "Integration tests will be added in future versions..."
-          echo "Skipping integration test execution for now..."
-
-  build-package:
-    name: Build Package
-    runs-on: ubuntu-latest
-    needs: [quality-checks, test]
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
         with:
-          python-version: "3.11"
-
-      - name: Install build dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install build twine
-
-      - name: Build package
-        run: |
-          echo "Building package..."
-          python -m build
-
-      - name: Check package
-        run: |
-          echo "Checking package..."
-          twine check dist/*
-
-      - name: Upload package artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-dist
-          path: dist/
-
-  performance-test:
-    name: Performance Tests
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Skip performance tests (not implemented yet)
-        run: |
-          echo "Performance tests will be added in future versions..."
-          echo "Skipping performance test execution for now..."
-
-  summary:
-    name: CI Summary
-    runs-on: ubuntu-latest
-    needs: [quality-checks, test, integration-tests, build-package]
-    if: always()
-    
-    steps:
-      - name: Check workflow status
-        run: |
-          echo "## CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Quality | ${{ needs.quality-checks.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Tests | ${{ needs.test.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Integration | ${{ needs.integration-tests.result == 'success' && 'Passed' || (needs.integration-tests.result == 'skipped' && 'Skipped' || 'Failed') }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Package Build | ${{ needs.build-package.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [[ "${{ needs.quality-checks.result }}" == "success" && "${{ needs.test.result }}" == "success" && "${{ needs.build-package.result }}" == "success" ]]; then
-            echo "**All checks passed!** Ready for merge." >> $GITHUB_STEP_SUMMARY
-            exit 0
-          else
-            echo "**Some checks failed.** Please review the logs above." >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
+          file: ./coverage.xml
+          fail_ci_if_error: false

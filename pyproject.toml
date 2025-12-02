@@ -1,14 +1,14 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=60", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "memorisdk"
-version = "2.3.3"
-description = "The Open-Source Memory Layer for AI Agents & Multi-Agent Systems"
+name = "memori"
+version = "3.0.0"
+description = "Memori Python SDK"
 authors = [{name = "Memori Labs Team", email = "noc@memorilabs.ai"}]
 license = {text = "Apache-2.0"}
-readme = "README.md"
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
 keywords = ["ai", "memory", "agents", "llm", "artificial-intelligence", "multi-agent"]
 classifiers = [
@@ -27,138 +27,37 @@ classifiers = [
 ]
 
 dependencies = [
-    "loguru>=0.6.0",
-    "pydantic>=2.0.0",
-    "python-dotenv>=1.0.0",
-    "sqlalchemy>=2.0.0",
-    "openai>=1.0.0",
-    "litellm>=1.0.0",
+    "aiohttp>=3.9.0",
+    "botocore>=1.34.0",
+    "faiss-cpu>=1.7.0",
+    "grpcio>=1.60.0",
+    "numpy>=1.24.0",
+    "protobuf>=4.25.0,<6.0.0",
+    "psycopg[binary]>=3.1.0",
+    "pyfiglet>=0.8.0",
+    "requests>=2.32.5",
+    "sentence-transformers>=3.0.0",
 ]
 
-[project.optional-dependencies]
-# Development dependencies
-dev = [
-    "black>=23.0",
-    "ruff>=0.1.0",
-    "isort>=5.9.0",
-    "mypy>=1.0",
-    "pre-commit>=2.15",
-    "types-PyYAML>=6.0.0",
-    "pytest>=6.0",
-    "pytest-cov>=2.0",
-    "pytest-asyncio>=0.18.0",
-]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["memori*"]
+exclude = ["tests*", "docs*", "*.egg-info"]
 
-# Documentation dependencies
-docs = [
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
-    "mkdocs-git-revision-date-localized-plugin>=1.2.0",
-    "mkdocs-minify-plugin>=0.7.0",
-    "mkdocs-redirects>=1.2.0",
-]
-
-# Database drivers
-postgres = ["psycopg2-binary>=2.9.0"]
-mysql = ["PyMySQL>=1.0.0"]
-mongodb = ["pymongo[srv]>=4.0.0"]  # Includes DNS seedlist discovery for MongoDB Atlas
-databases = ["psycopg2-binary>=2.9.0", "PyMySQL>=1.0.0", "pymongo[srv]>=4.0.0"]
-
-# AI/LLM integrations
-anthropic = ["anthropic>=0.3.0"]
-litellm = ["litellm>=1.0.0"]
-integrations = [
-    "litellm>=1.0.0",
-    "anthropic>=0.3.0",
-]
-
-# Demo/example dependencies
-demos = [
-    "streamlit>=1.28.0",
-    "pandas>=2.0.0",
-    "plotly>=5.17.0",
-    "crewai>=0.152.0",
-    "crewai-tools>=0.59.0",
-]
-
-# All optional dependencies
-all = [
-    # Dev tools
-    "black>=23.0",
-    "ruff>=0.1.0",
-    "isort>=5.9.0",
-    "mypy>=1.0",
-    "pre-commit>=2.15",
-    "pytest>=6.0",
-    "pytest-cov>=2.0",
-    "pytest-asyncio>=0.18.0",
-    # Documentation
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
-    "mkdocs-git-revision-date-localized-plugin>=1.2.0",
-    "mkdocs-minify-plugin>=0.7.0",
-    "mkdocs-redirects>=1.2.0",
-    # Database drivers
-    "psycopg2-binary>=2.9.0",
-    "PyMySQL>=1.0.0",
-    "pymongo[srv]>=4.0.0",
-    # AI integrations
-    "litellm>=1.0.0",
-    "anthropic>=0.3.0",
-    # Demo dependencies
-    "streamlit>=1.28.0",
-    "pandas>=2.0.0",
-    "plotly>=5.17.0",
-]
+[tool.setuptools.package-data]
+memori = ["py.typed", "models/**/*"]
 
 [project.urls]
 Homepage = "https://memorilabs.ai"
-Documentation = "https://memorilabs.ai/docs"
-Repository = "https://github.com/GibsonAI/memori.git"
-"Bug Tracker" = "https://github.com/GibsonAI/memori/issues"
-"Changelog" = "https://github.com/GibsonAI/memori/blob/main/CHANGELOG.md"
-"Contributing" = "https://github.com/GibsonAI/memori/blob/main/CONTRIBUTING.md"
-
-# [project.scripts]
-# CLI not yet implemented - remove entry point until CLI is created
-# memori = "memori.cli:main"
-
-[tool.setuptools.packages.find]
-include = ["memori*"]
-exclude = ["tests*", "docs*", "examples*", "scripts*", "archive*"]
-
-[tool.setuptools.package-data]
-memori = ["py.typed", "*.json", "*.sql"]
-
-[tool.black]
-line-length = 88
-target-version = ['py310']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-  | archive
-)/
-'''
+Documentation = "https://github.com/MemoriLabs/memori-examples"
+Repository = "https://github.com/MemoriLabs/memori-examples"
+"Bug Tracker" = "https://github.com/MemoriLabs/python-sdk/issues"
+"Changelog" = "https://github.com/MemoriLabs/python-sdk/blob/main/CHANGELOG.md"
+"Contributing" = "https://github.com/MemoriLabs/python-sdk/blob/main/docs/CONTRIBUTING.md"
 
 [tool.ruff]
 line-length = 88
 target-version = "py310"
-exclude = [
-    ".git",
-    "__pycache__",
-    "dist",
-    "build",
-    "archive",
-]
 
 [tool.ruff.lint]
 select = [
@@ -171,96 +70,79 @@ select = [
     "UP",  # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long, handled by black
-    "B904",  # exception chaining - would require significant refactoring
-    "E722",  # bare except in legacy database code
+    "E501",  # line too long (handled by formatter)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]
-"tests/*" = ["B018", "B017"]
+"memori/storage/__init__.py" = ["I001"]  # Import order matters for adapter registration
 
-[tool.isort]
-profile = "black"
-line_length = 88
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
-src_paths = ["memori", "tests"]
-
-[tool.mypy]
-python_version = "3.10"
-warn_unused_configs = true
-# Temporarily relaxed for CI - TODO: Gradually enable stricter typing
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false
-disallow_untyped_decorators = false
-no_implicit_optional = false
-warn_return_any = false
-warn_redundant_casts = false
-warn_unused_ignores = false
-warn_no_return = false
-warn_unreachable = false
-strict_equality = false
-show_error_codes = true
-exclude = ["archive/", "build/", "dist/"]
-# Additional ignores for CI compatibility
-disable_error_code = [
-    "assignment", "arg-type", "return-value", "union-attr", "attr-defined",
-    "index", "var-annotated", "valid-type", "dict-item", "no-untyped-def",
-    "no-any-return", "import-untyped", "unreachable", "call-overload",
-    "call-arg", "override", "annotation-unchecked"
-]
-
-[[tool.mypy.overrides]]
-module = ["tests.*"]
-disallow_untyped_defs = false
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
+    "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
 ]
-filterwarnings = [
-    "error",
-    "ignore::UserWarning",
-    "ignore::DeprecationWarning",
+asyncio_mode = "auto"
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--cov=memori",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
 ]
 
 [tool.coverage.run]
 source = ["memori"]
 omit = [
     "*/tests/*",
-    "*/test_*",
-    "archive/*",
-    "examples/*",
-    "scripts/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
 ]
 
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
     "raise AssertionError",
     "raise NotImplementedError",
-    "if 0:",
     "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
+    "if TYPE_CHECKING:",
 ]
 
-[tool.bandit]
-exclude_dirs = ["tests", "archive", "examples"]
-skips = ["B101", "B601"]
+[tool.ty]
+
+[dependency-groups]
+dev = [
+    "anthropic>=0.71.0",
+    "bandit>=1.8.0",
+    "google-genai>=1.46.0",
+    "langchain-community>=0.3.0",
+    "langchain-core>=1.0.1",
+    "langchain-google-genai>=3.0.0",
+    "langchain-google-vertexai>=2.0.0",
+    "langchain-openai>=1.0.1",
+    "openai>=2.6.0",
+    "oracledb>=3.0.0",
+    "pip-audit>=2.8.0",
+    "pre-commit>=4.0.0",
+    "psycopg2-binary>=2.9.0",
+    "psycopg[binary]>=3.1.0",
+    "pymongo>=4.15.3",
+    "pymysql>=1.1.2",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.15.1",
+    "requests>=2.32.5",
+    "ruff>=0.8.0",
+    "sqlalchemy>=2.0.44",
+    "sqlalchemy-cockroachdb>=1.4.0",
+    "xai-sdk>=1.3.1",
+]

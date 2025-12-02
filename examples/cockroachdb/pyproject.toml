@@ -1,0 +1,12 @@
+[project]
+name = "memori-cockroachdb-example"
+version = "0.1.0"
+description = "Memori SDK example with CockroachDB"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "memori>=3.0.0",
+    "openai>=2.6.1",
+    "psycopg2-binary>=2.9.11",
+    "python-dotenv>=1.2.1",
+]

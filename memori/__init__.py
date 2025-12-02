@@ -1,164 +1,91 @@
+r"""
+ __  __                           _
+|  \/  | ___ _ __ ___   ___  _ __(_)
+| |\/| |/ _ \ '_ ` _ \ / _ \| '__| |
+| |  | |  __/ | | | | | (_) | |  | |
+|_|  |_|\___|_| |_| |_|\___/|_|  |_|
+                  perfectam memoriam
+                       memorilabs.ai
 """
-Memoriai - The Open-Source Memory Layer for AI Agents & Multi-Agent Systems v1.0
 
-Professional-grade memory layer with comprehensive error handling, configuration
-management, and modular architecture for production AI systems.
-"""
+import os
+from collections.abc import Callable
+from typing import Any
+from uuid import uuid4
 
-__version__ = "2.3.0"
-__author__ = "Harshal More"
-__email__ = "harshalmore2468@gmail.com"
+import psycopg
 
-from typing import Any, Optional
+from memori._config import Config
+from memori._exceptions import QuotaExceededError
+from memori.llm._providers import Anthropic as LlmProviderAnthropic
+from memori.llm._providers import Google as LlmProviderGoogle
+from memori.llm._providers import LangChain as LlmProviderLangChain
+from memori.llm._providers import OpenAi as LlmProviderOpenAi
+from memori.llm._providers import PydanticAi as LlmProviderPydanticAi
+from memori.llm._providers import XAi as LlmProviderXAi
+from memori.memory.augmentation import Manager as AugmentationManager
+from memori.memory.recall import Recall
+from memori.storage import Manager as StorageManager
 
-# Configuration system
-from .config import (
-    AgentSettings,
-    ConfigManager,
-    DatabaseSettings,
-    LoggingSettings,
-    MemoriSettings,
-)
-from .core.database import DatabaseManager
+__all__ = ["Memori", "QuotaExceededError"]
 
-# Core components
-from .core.memory import Memori
 
-# Database system
-from .database.connectors import MySQLConnector, PostgreSQLConnector, SQLiteConnector
-from .database.queries import (  # EntityQueries removed (graph search simplified)
-    BaseQueries,
-    ChatQueries,
-    MemoryQueries,
-)
+class Memori:
+    def __init__(self, conn: Callable[[], Any] | Any | None = None):
+        self.config = Config()
+        self.config.api_key = os.environ.get("MEMORI_API_KEY", None)
+        self.config.enterprise = os.environ.get("MEMORI_ENTERPRISE", "0") == "1"
+        self.config.session_id = uuid4()
 
-# Wrapper integrations
-from .integrations import MemoriAnthropic, MemoriOpenAI
+        if conn is None:
+            conn = self._get_default_connection()
 
-# Tools and integrations
-from .tools.memory_tool import MemoryTool, create_memory_search_tool, create_memory_tool
+        self.config.storage = StorageManager(self.config).start(conn)
+        self.config.augmentation = AugmentationManager(self.config).start(conn)
 
-# Utils and models
-from .utils import (  # Pydantic models; Enhanced exceptions; Validators and helpers; Logging
-    AgentError,
-    AsyncUtils,
-    AuthenticationError,
-    ConcurrentUpdateError,
-    ConfigurationError,
-    ConversationContext,
-    DatabaseError,
-    DataValidator,
-    DateTimeUtils,
-    EntityType,
-    ExceptionHandler,
-    ExtractedEntities,
-    FileUtils,
-    IntegrationError,
-    JsonUtils,
-    LoggingManager,
-    MemoriError,
-    MemoryCategory,
-    MemoryCategoryType,
-    MemoryImportance,
-    MemoryNotFoundError,
-    MemoryValidator,
-    PerformanceUtils,
-    ProcessedMemory,
-    ProcessingError,
-    RateLimitError,
-    ResourceExhaustedError,
-    RetentionType,
-    RetryUtils,
-    SecurityError,
-    StringUtils,
-    TimeoutError,
-    ValidationError,
-    get_logger,
-)
+        self.anthropic = LlmProviderAnthropic(self)
+        self.google = LlmProviderGoogle(self)
+        self.langchain = LlmProviderLangChain(self)
+        self.openai = LlmProviderOpenAi(self)
+        self.pydantic_ai = LlmProviderPydanticAi(self)
+        self.xai = LlmProviderXAi(self)
 
-# Memory agents (dynamically imported to avoid import errors)
-MemoryAgent: Any | None = None
-MemorySearchEngine: Any | None = None
-_AGENTS_AVAILABLE = False
+    def _get_default_connection(self) -> Callable[[], Any]:
+        connection_string = os.environ.get("MEMORI_COCKROACHDB_CONNECTION_STRING")
+        if connection_string:
+            return lambda: psycopg.connect(connection_string)
 
-try:
-    from .agents.memory_agent import MemoryAgent
-    from .agents.retrieval_agent import MemorySearchEngine
+        raise RuntimeError(
+            "No connection factory provided. Either pass 'conn' parameter or set "
+            "MEMORI_COCKROACHDB_CONNECTION_STRING environment variable."
+        )
 
-    _AGENTS_AVAILABLE = True
-except ImportError:
-    # Agents are not available, use placeholder None values
-    pass
+    def attribution(self, entity_id=None, process_id=None):
+        if entity_id is not None:
+            entity_id = str(entity_id)
 
-# Build __all__ list dynamically based on available components
-_all_components = [
-    # Core
-    "Memori",
-    "DatabaseManager",
-    # Configuration
-    "MemoriSettings",
-    "DatabaseSettings",
-    "AgentSettings",
-    "LoggingSettings",
-    "ConfigManager",
-    # Database
-    "SQLiteConnector",
-    "PostgreSQLConnector",
-    "MySQLConnector",
-    "BaseQueries",
-    "MemoryQueries",
-    "ChatQueries",
-    # "EntityQueries",  # Removed: graph search simplified
-    # Tools
-    "MemoryTool",
-    "create_memory_tool",
-    "create_memory_search_tool",
-    # Integrations
-    "MemoriOpenAI",
-    "MemoriAnthropic",
-    # Pydantic Models
-    "ProcessedMemory",
-    "MemoryCategory",
-    "ExtractedEntities",
-    "MemoryImportance",
-    "ConversationContext",
-    "MemoryCategoryType",
-    "RetentionType",
-    "EntityType",
-    # Enhanced Exceptions
-    "MemoriError",
-    "DatabaseError",
-    "AgentError",
-    "ConfigurationError",
-    "ValidationError",
-    "IntegrationError",
-    "AuthenticationError",
-    "RateLimitError",
-    "MemoryNotFoundError",
-    "ProcessingError",
-    "TimeoutError",
-    "ResourceExhaustedError",
-    "SecurityError",
-    "ConcurrentUpdateError",
-    "ExceptionHandler",
-    # Validators
-    "DataValidator",
-    "MemoryValidator",
-    # Helpers
-    "StringUtils",
-    "DateTimeUtils",
-    "JsonUtils",
-    "FileUtils",
-    "RetryUtils",
-    "PerformanceUtils",
-    "AsyncUtils",
-    # Logging
-    "LoggingManager",
-    "get_logger",
-]
+            if len(entity_id) > 100:
+                raise RuntimeError("entity_id cannot be greater than 100 characters")
 
-# Add agents only if available
-if _AGENTS_AVAILABLE:
-    _all_components.extend(["MemoryAgent", "MemorySearchEngine"])
+        if process_id is not None:
+            process_id = str(process_id)
 
-__all__ = _all_components
+            if len(process_id) > 100:
+                raise RuntimeError("process_id cannot be greater than 100 characters")
+
+        self.config.entity_id = entity_id
+        self.config.process_id = process_id
+
+        return self
+
+    def new_session(self):
+        self.config.session_id = uuid4()
+        self.config.reset_cache()
+        return self
+
+    def set_session(self, id):
+        self.config.session_id = id
+        return self
+
+    def recall(self, query: str, limit: int = 5):
+        return Recall(self.config).search_facts(query, limit)
