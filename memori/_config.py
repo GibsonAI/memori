@@ -47,7 +47,7 @@ class Config:
         self.storage = None
         self.storage_config = Storage()
         self.thread_pool_executor = ThreadPoolExecutor(max_workers=15)
-        self.version = "3.0.0"
+        self.version = "3.0.1"
 
     def is_test_mode(self):
         return os.environ.get("MEMORI_TEST_MODE", None) is not None
