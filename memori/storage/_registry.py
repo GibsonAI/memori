@@ -41,15 +41,12 @@ class Registry:
             if matcher(conn_to_check):
                 return adapter_class(lambda: conn_to_check)
 
-        raise ValueError(
-            f"No adapter registered for connection type: {type(conn_to_check).__module__}"
+        raise RuntimeError(
+            f"Unsupported database: {type(conn_to_check).__module__}.{type(conn_to_check).__name__}"
         )
 
     def driver(self, conn: BaseStorageAdapter):
         dialect = conn.get_dialect()
         if dialect not in self._drivers:
-            raise ValueError(
-                f"No driver registered for dialect: {dialect}. "
-                f"Available dialects: {list(self._drivers.keys())}"
-            )
+            raise RuntimeError(f"Unsupported database dialect: {dialect}")
         return self._drivers[dialect](conn)

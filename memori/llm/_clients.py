@@ -381,6 +381,9 @@ class LangChain(BaseClient):
 
                 chatvertexai.prediction_client._memori_installed = True
 
+        if self.config.llm.provider is None:
+            raise RuntimeError("Unsupported LLM client")
+
         return self
 
 

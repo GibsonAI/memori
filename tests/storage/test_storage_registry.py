@@ -1,3 +1,5 @@
+import pytest
+
 from memori.storage._registry import Registry
 from memori.storage.adapters.sqlalchemy._adapter import (
     Adapter as SqlAlchemyStorageAdapter,
@@ -43,3 +45,23 @@ def test_storage_driver_cockroachdb(mocker):
     driver = Registry().driver(adapter)
 
     assert isinstance(driver, PostgresqlStorageDriver)
+
+
+def test_storage_adapter_raises_for_unsupported_connection():
+    """Test that unsupported database connection raises RuntimeError."""
+
+    class UnsupportedConnection:
+        pass
+
+    with pytest.raises(RuntimeError, match="Unsupported database"):
+        Registry().adapter(UnsupportedConnection())
+
+
+def test_storage_driver_raises_for_unsupported_dialect(mocker):
+    """Test that unsupported database dialect raises RuntimeError."""
+
+    fake_adapter = mocker.Mock()
+    fake_adapter.get_dialect.return_value = "unsupported_db"
+
+    with pytest.raises(RuntimeError, match="Unsupported database dialect"):
+        Registry().driver(fake_adapter)
