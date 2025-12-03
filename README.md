@@ -205,7 +205,7 @@ Memories are tracked at several different levels:
 - process: think your agent, LLM interaction or program
 - session: the current interactions between the entity, process and the LLM
 
-[Memori's Advanced Augmentation](https://github.com/MemoriLabs/Memori/blob/main/docs/AdvancedAugmentation.md) enhances memories at each of these levels with:
+[Memori's Advanced Augmentation](https://github.com/MemoriLabs/Memori/blob/main/docs/advanced-augmentation.md) enhances memories at each of these levels with:
 
 - attributes
 - events
