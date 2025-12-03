@@ -1,0 +1,57 @@
+name: Feature Request
+description: Suggest an idea or improvement for Memori
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in improving Memori! Please describe your idea in detail.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear and concise description of what the problem is.
+      placeholder: Ex. I'm always frustrated when I try to integrate with...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: The Solution
+      description: Describe the solution you'd like.
+      placeholder: |
+        I would like a new method `memori.recall_batch()` that accepts...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered.
+      placeholder: I thought about using a loop, but it's too slow for my use case...
+
+  - type: dropdown
+    id: context
+    attributes:
+      label: Affected Components
+      description: Which parts of Memori would this feature touch?
+      multiple: true
+      options:
+        - LLM Provider / Adapter
+        - Vector Store / Memory
+        - Database Schema
+        - CLI
+        - Documentation
+        - Other
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Participation
+      description: Would you be willing to help implement this?
+      options:
+        - label: I am willing to submit a pull request for this feature.

@@ -1,0 +1,112 @@
+name: Bug Report
+description: Create a report to help us improve Memori
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please provide as much detail as possible.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First Check
+      description: Please ensure you have done the following before submitting your issue.
+      options:
+        - label: I added a very descriptive title to this issue.
+          required: true
+        - label: I searched existing issues and documentation.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Memori Version
+      description: What version of the sdk are you using?
+      placeholder: e.g., 3.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS / Python Version
+      description: e.g., Windows 10 / Python 3.10, or Ubuntu 22.04 / Python 3.11
+      placeholder: macOS / Python 3.12
+    validations:
+      required: true
+
+  - type: dropdown
+    id: llm_provider
+    attributes:
+      label: LLM Provider
+      description: Which LLM provider are you using?
+      options:
+        - OpenAI
+        - Anthropic
+        - Gemini
+        - Bedrock
+        - Grok (xAI)
+        - Ollama / Local
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: llm_details
+    attributes:
+      label: LLM Model & Version
+      description: Please specify the model name/version.
+      placeholder: e.g., gpt-4o or claude-3-5-sonnet
+    validations:
+      required: true
+
+  - type: dropdown
+    id: database
+    attributes:
+      label: Database
+      description: Which database integration are you using?
+      options:
+        - Postgres
+        - MySQL
+        - MongoDB
+        - Oracle
+        - SQLite
+        - Neon
+        - Supabase
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Please describe the bug clearly. What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal Reproducible Example
+      description: Please provide a code snippet that reproduces the issue.
+      render: python
+      placeholder: |
+        from memori import Memori
+        # Your code here...
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log Output / Stack Trace
+      description: Please copy and paste any relevant log output or error messages here.
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Participation
+      options:
+        - label: I am willing to submit a pull request for this issue.
