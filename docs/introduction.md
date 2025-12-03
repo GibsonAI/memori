@@ -6,7 +6,7 @@
 
 ## Why Memori?
 
-Memori uses an intelligent system called [Advanced Augmentation](https://github.com/MemoriLabs/Memori/blob/main/docs/AdvancedAugmentation.md) to automatically enhance your memories with facts, preferences, attributes, events, relationships, and more. Since it runs in the background there is no added latency to your AI processes.
+Memori uses an intelligent system called [Advanced Augmentation](https://github.com/MemoriLabs/Memori/blob/main/docs/advanced-augmentation.md) to automatically enhance your memories with facts, preferences, attributes, events, relationships, and more. Since it runs in the background there is no added latency to your AI processes.
 
 Memori doesn't require you to rewrite code or use yet another framework. It plugs directly into your existing systems and is database, LLM and framework agnostic. Best of all, it's SQL-native so it uses infrastructure you already have and know how to scale.
 

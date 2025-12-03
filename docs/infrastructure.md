@@ -14,7 +14,7 @@ If you would like to see us integrate something please reach out and let us know
 
 ### How Does It Work?
 
-Manage CockroachDB clusters by using [Memori's Command Line Interface (CLI)](https://github.com/MemoriLabs/Memori/blob/main/docs/CommandLineInterface.md).
+Manage CockroachDB clusters by using [Memori's Command Line Interface (CLI)](https://github.com/MemoriLabs/Memori/blob/main/docs/cli.md).
 
 #### Start a CockroachDB Cluster
 
