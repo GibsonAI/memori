@@ -49,11 +49,11 @@ memori = ["py.typed", "models/**/*"]
 
 [project.urls]
 Homepage = "https://memorilabs.ai"
-Documentation = "https://github.com/MemoriLabs/memori-examples"
-Repository = "https://github.com/MemoriLabs/memori-examples"
-"Bug Tracker" = "https://github.com/MemoriLabs/python-sdk/issues"
-"Changelog" = "https://github.com/MemoriLabs/python-sdk/blob/main/CHANGELOG.md"
-"Contributing" = "https://github.com/MemoriLabs/python-sdk/blob/main/CONTRIBUTING.md"
+Documentation = "https://memorilabs.ai/docs/"
+Repository = "https://github.com/MemoriLabs/Memori"
+"Bug Tracker" = "https://github.com/MemoriLabs/Memori/issues"
+"Changelog" = "https://github.com/MemoriLabs/Memori/blob/main/CHANGELOG.md"
+"Contributing" = "https://github.com/MemoriLabs/Memori/blob/main/CONTRIBUTING.md"
 
 [tool.ruff]
 line-length = 88
