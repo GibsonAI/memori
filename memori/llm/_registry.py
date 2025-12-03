@@ -16,7 +16,7 @@ from memori.llm._base import BaseClient, BaseLlmAdaptor
 
 class Registry:
     _clients: dict[Callable[[Any], bool], type[BaseClient]] = {}
-    _adapters: dict[Callable[[str | None, str], bool], type[BaseLlmAdaptor]] = {}
+    _adapters: dict[Callable[[str | None, str | None], bool], type[BaseLlmAdaptor]] = {}
 
     @classmethod
     def register_client(cls, matcher: Callable[[Any], bool]):
@@ -27,7 +27,7 @@ class Registry:
         return decorator
 
     @classmethod
-    def register_adapter(cls, matcher: Callable[[str | None, str], bool]):
+    def register_adapter(cls, matcher: Callable[[str | None, str | None], bool]):
         def decorator(adapter_class: type[BaseLlmAdaptor]):
             cls._adapters[matcher] = adapter_class
             return adapter_class
@@ -39,11 +39,15 @@ class Registry:
             if matcher(client_obj):
                 return client_class(config)
 
-        raise ValueError(f"No client registered for type: {type(client_obj).__name__}")
+        raise RuntimeError(
+            f"Unsupported LLM client type: {type(client_obj).__module__}.{type(client_obj).__name__}"
+        )
 
-    def adapter(self, provider: str | None, title: str) -> BaseLlmAdaptor:
+    def adapter(self, provider: str | None, title: str | None) -> BaseLlmAdaptor:
         for matcher, adapter_class in self._adapters.items():
             if matcher(provider, title):
                 return adapter_class()
 
-        raise RuntimeError("could not determine LLM for adapter")
+        raise RuntimeError(
+            f"Unsupported LLM provider: framework={provider}, llm={title}"
+        )
