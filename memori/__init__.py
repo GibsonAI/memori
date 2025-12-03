@@ -17,6 +17,7 @@ import psycopg
 
 from memori._config import Config
 from memori._exceptions import QuotaExceededError
+from memori.llm._providers import Agno as LlmProviderAgno
 from memori.llm._providers import Anthropic as LlmProviderAnthropic
 from memori.llm._providers import Google as LlmProviderGoogle
 from memori.llm._providers import LangChain as LlmProviderLangChain
@@ -43,6 +44,7 @@ class Memori:
         self.config.storage = StorageManager(self.config).start(conn)
         self.config.augmentation = AugmentationManager(self.config).start(conn)
 
+        self.agno = LlmProviderAgno(self)
         self.anthropic = LlmProviderAnthropic(self)
         self.google = LlmProviderGoogle(self)
         self.langchain = LlmProviderLangChain(self)

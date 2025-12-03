@@ -8,6 +8,7 @@ r"""
                        memorilabs.ai
 """
 
+import inspect
 import time
 from collections.abc import AsyncIterator, Iterator
 
@@ -33,7 +34,7 @@ class Invoke(BaseInvoke):
 
         raw_response = self._method(**kwargs)
 
-        if isinstance(raw_response, Iterator):
+        if isinstance(raw_response, Iterator) or inspect.isgenerator(raw_response):
             return (
                 MemoriIterator(self.config, raw_response)
                 .configure_invoke(self)

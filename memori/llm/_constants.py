@@ -8,6 +8,11 @@ r"""
                        memorilabs.ai
 """
 
+AGNO_ANTHROPIC_LLM_PROVIDER = "anthropic"
+AGNO_FRAMEWORK_PROVIDER = "agno"
+AGNO_GOOGLE_LLM_PROVIDER = "google"
+AGNO_OPENAI_LLM_PROVIDER = "openai"
+AGNO_XAI_LLM_PROVIDER = "xai"
 ATHROPIC_LLM_PROVIDER = "anthropic"
 GOOGLE_LLM_PROVIDER = "google"
 LANGCHAIN_CHATBEDROCK_LLM_PROVIDER = "chatbedrock"

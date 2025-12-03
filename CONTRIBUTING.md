@@ -232,8 +232,8 @@ uv run pre-commit run --all-files
 - AWS Bedrock
 
 ### Frameworks
+- Agno
 - LangChain
-- Pydantic AI
 
 ### Database Adapters
 - PostgreSQL (via psycopg2, psycopg3)

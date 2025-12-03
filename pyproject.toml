@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memori"
-version = "3.0.3"
+version = "3.0.4"
 description = "Memori Python SDK"
 authors = [{name = "Memori Labs Team", email = "noc@memorilabs.ai"}]
 license = {text = "Apache-2.0"}
@@ -120,6 +120,7 @@ exclude_lines = [
 
 [dependency-groups]
 dev = [
+    "agno>=2.0.0",
     "anthropic>=0.71.0",
     "bandit>=1.8.0",
     "google-genai>=1.46.0",

@@ -9,12 +9,26 @@ r"""
 """
 
 from memori.llm._base import BaseProvider
+from memori.llm._clients import Agno as AgnoMemoriClient
 from memori.llm._clients import Anthropic as AnthropicMemoriClient
 from memori.llm._clients import Google as GoogleMemoriClient
 from memori.llm._clients import LangChain as LangChainMemoriClient
 from memori.llm._clients import OpenAi as OpenAiMemoriClient
 from memori.llm._clients import PydanticAi as PydanticAiMemoriClient
 from memori.llm._clients import XAi as XAiMemoriClient
+
+
+class Agno(BaseProvider):
+    def register(self, openai_chat=None, claude=None, gemini=None, xai=None):
+        if self.client is None:
+            self.client = AgnoMemoriClient(self.config).register(
+                openai_chat=openai_chat,
+                claude=claude,
+                gemini=gemini,
+                xai=xai,
+            )
+
+        return self.entity
 
 
 class Anthropic(BaseProvider):

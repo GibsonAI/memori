@@ -4,10 +4,11 @@ r"""
 | |\/| |/ _ \ '_ ` _ \ / _ \| '__| |
 | |  | |  __/ | | | | | (_) | |  | |
 |_|  |_|\___|_| |_| |_|\___/|_|  |_|
-                  perfectam memoriam
+                 perfectam memoriam
                       memorilabs.ai
 """
 
+import json
 import time
 
 from sqlalchemy.exc import OperationalError
@@ -89,11 +90,14 @@ class Writer:
         if messages:
             for message in messages:
                 if message["role"] != "system":
+                    content = message["content"]
+                    if isinstance(content, dict | list):
+                        content = json.dumps(content)
                     self.config.storage.driver.conversation.message.create(
                         self.config.cache.conversation_id,
                         message["role"],
                         None,
-                        message["content"],
+                        content,
                     )
 
         responses = llm.get_formatted_response(payload)
