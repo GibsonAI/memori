@@ -176,8 +176,8 @@ _(unstreamed, streamed, synchronous and asynchronous)_
 
 ## Supported Frameworks
 
+- Agno
 - LangChain
-- Pydantic AI
 
 ## Supported Database Integrations
 

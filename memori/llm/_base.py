@@ -16,6 +16,10 @@ from google.protobuf import json_format
 from memori._config import Config
 from memori._utils import merge_chunk
 from memori.llm._utils import (
+    agno_is_anthropic,
+    agno_is_google,
+    agno_is_openai,
+    agno_is_xai,
     llm_is_anthropic,
     llm_is_bedrock,
     llm_is_google,
@@ -39,9 +43,11 @@ class BaseInvoke:
         self._injected_message_count = 0
 
     def configure_for_streaming_usage(self, kwargs: dict) -> dict:
-        if llm_is_openai(
-            self.config.framework.provider, self.config.llm.provider
-        ) or llm_is_xai(self.config.framework.provider, self.config.llm.provider):
+        if (
+            llm_is_openai(self.config.framework.provider, self.config.llm.provider)
+            or llm_is_xai(self.config.framework.provider, self.config.llm.provider)
+            or agno_is_openai(self.config.framework.provider, self.config.llm.provider)
+        ):
             if kwargs.get("stream", None):
                 stream_options = kwargs.get("stream_options", None)
                 if stream_options is None or not isinstance(stream_options, dict):
@@ -256,11 +262,19 @@ class BaseInvoke:
 
         self._injected_message_count = len(messages)
 
-        if llm_is_openai(self.config.framework.provider, self.config.llm.provider):
+        if (
+            llm_is_openai(self.config.framework.provider, self.config.llm.provider)
+            or agno_is_openai(self.config.framework.provider, self.config.llm.provider)
+            or agno_is_xai(self.config.framework.provider, self.config.llm.provider)
+        ):
             kwargs["messages"] = messages + kwargs["messages"]
-        elif llm_is_anthropic(
-            self.config.framework.provider, self.config.llm.provider
-        ) or llm_is_bedrock(self.config.framework.provider, self.config.llm.provider):
+        elif (
+            llm_is_anthropic(self.config.framework.provider, self.config.llm.provider)
+            or llm_is_bedrock(self.config.framework.provider, self.config.llm.provider)
+            or agno_is_anthropic(
+                self.config.framework.provider, self.config.llm.provider
+            )
+        ):
             filtered_messages = [m for m in messages if m.get("role") != "system"]
             kwargs["messages"] = filtered_messages + kwargs["messages"]
         elif llm_is_xai(self.config.framework.provider, self.config.llm.provider):
@@ -276,12 +290,15 @@ class BaseInvoke:
                     xai_messages.append(assistant(content))
 
             kwargs["messages"] = xai_messages + kwargs["messages"]
-        elif llm_is_google(self.config.framework.provider, self.config.llm.provider):
+        elif llm_is_google(
+            self.config.framework.provider, self.config.llm.provider
+        ) or agno_is_google(self.config.framework.provider, self.config.llm.provider):
             contents = []
             for message in messages:
-                contents.append(
-                    {"parts": [{"text": message["content"]}], "role": message["role"]}
-                )
+                role = message["role"]
+                if role == "assistant":
+                    role = "model"
+                contents.append({"parts": [{"text": message["content"]}], "role": role})
 
             if "request" in kwargs:
                 formatted_kwargs = json.loads(
@@ -396,11 +413,17 @@ class BaseInvoke:
             messages_for_aug = list(messages) if isinstance(messages, list) else []
 
             if isinstance(raw_response, dict):
-                content = (
-                    raw_response.get("choices", [{}])[0]
-                    .get("message", {})
-                    .get("content", "")
-                )
+                choices = raw_response.get("choices", [])
+                if choices:
+                    choice = choices[0]
+                    if isinstance(choice, dict):
+                        content = choice.get("message", {}).get("content", "")
+                    elif hasattr(choice, "message"):
+                        content = getattr(choice.message, "content", "")
+                    else:
+                        content = ""
+                else:
+                    content = ""
             elif hasattr(raw_response, "choices"):
                 content = raw_response.choices[0].message.content
             elif hasattr(raw_response, "text"):

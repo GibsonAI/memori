@@ -9,6 +9,11 @@ r"""
 """
 
 from memori.llm._constants import (
+    AGNO_ANTHROPIC_LLM_PROVIDER,
+    AGNO_FRAMEWORK_PROVIDER,
+    AGNO_GOOGLE_LLM_PROVIDER,
+    AGNO_OPENAI_LLM_PROVIDER,
+    AGNO_XAI_LLM_PROVIDER,
     ATHROPIC_LLM_PROVIDER,
     GOOGLE_LLM_PROVIDER,
     LANGCHAIN_CHATBEDROCK_LLM_PROVIDER,
@@ -53,6 +58,26 @@ def llm_is_openai(provider, title):
 
 def llm_is_xai(provider, title):
     return title == XAI_LLM_PROVIDER
+
+
+def agno_is_anthropic(provider, title):
+    return provider_is_agno(provider) and title == AGNO_ANTHROPIC_LLM_PROVIDER
+
+
+def agno_is_google(provider, title):
+    return provider_is_agno(provider) and title == AGNO_GOOGLE_LLM_PROVIDER
+
+
+def agno_is_openai(provider, title):
+    return provider_is_agno(provider) and title == AGNO_OPENAI_LLM_PROVIDER
+
+
+def agno_is_xai(provider, title):
+    return provider_is_agno(provider) and title == AGNO_XAI_LLM_PROVIDER
+
+
+def provider_is_agno(provider):
+    return provider == AGNO_FRAMEWORK_PROVIDER
 
 
 def provider_is_langchain(provider):

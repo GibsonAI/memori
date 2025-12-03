@@ -40,6 +40,9 @@ class AdvancedAugmentation(BaseAugmentation):
         return {
             "conversation": conversation_data,
             "meta": {
+                "framework": {
+                    "provider": self.config.framework.provider,
+                },
                 "llm": {
                     "model": {
                         "provider": self.config.llm.provider,

@@ -1,7 +1,15 @@
 import pytest
 
 from memori._config import Config
-from memori.llm._clients import Anthropic, Google, LangChain, OpenAi, PydanticAi, XAi
+from memori.llm._clients import (
+    Agno,
+    Anthropic,
+    Google,
+    LangChain,
+    OpenAi,
+    PydanticAi,
+    XAi,
+)
 
 
 @pytest.fixture
@@ -37,6 +45,11 @@ def langchain_client(config):
 @pytest.fixture
 def xai_client(config):
     return XAi(config)
+
+
+@pytest.fixture
+def agno_client(config):
+    return Agno(config)
 
 
 def test_anthropic_register_adds_memori_wrappers_sync(anthropic_client, mocker):
@@ -387,3 +400,195 @@ def test_xai_register_raises_without_chat_attr(xai_client, mocker):
 
     with pytest.raises(RuntimeError, match="not instance of xAI"):
         xai_client.register(mock_client)
+
+
+def test_agno_register_openai_chat_sync(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "agno.models.openai"
+
+    mock_client = mocker.MagicMock()
+    mock_client._version = "1.0.0"
+    mock_client.chat.completions.create = mocker.MagicMock()
+    mock_client.beta.chat.completions.parse = mocker.MagicMock()
+    del mock_client._memori_installed
+
+    mock_model.get_client.return_value = mock_client
+    mocker.patch("asyncio.get_running_loop", side_effect=RuntimeError)
+
+    result = agno_client.register(openai_chat=mock_model)
+
+    assert result is agno_client
+    assert hasattr(mock_client, "_memori_installed")
+    assert mock_client._memori_installed is True
+    assert hasattr(mock_client.chat, "_completions_create")
+    assert hasattr(mock_client.beta, "_chat_completions_parse")
+
+
+@pytest.mark.asyncio
+async def test_agno_register_openai_chat_async(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "agno.models.openai"
+
+    mock_client = mocker.MagicMock()
+    mock_client._version = "1.0.0"
+    mock_client.chat.completions.create = mocker.MagicMock()
+    mock_client.beta.chat.completions.parse = mocker.MagicMock()
+    del mock_client._memori_installed
+
+    mock_model.get_client.return_value = mock_client
+
+    result = agno_client.register(openai_chat=mock_model)
+
+    assert result is agno_client
+    assert mock_client._memori_installed is True
+
+
+def test_agno_register_claude_sync(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "agno.models.anthropic"
+
+    mock_client = mocker.MagicMock()
+    mock_client._version = "1.0.0"
+    mock_client.messages.create = mocker.MagicMock()
+    mock_client.beta.messages.create = mocker.MagicMock()
+    del mock_client._memori_installed
+
+    mock_model.get_client.return_value = mock_client
+    mocker.patch("asyncio.get_running_loop", side_effect=RuntimeError)
+
+    result = agno_client.register(claude=mock_model)
+
+    assert result is agno_client
+    assert hasattr(mock_client, "_memori_installed")
+    assert mock_client._memori_installed is True
+    assert hasattr(mock_client, "_messages_create")
+    assert hasattr(mock_client.beta, "_messages_create")
+
+
+def test_agno_register_gemini_sync(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "agno.models.google"
+
+    mock_client = mocker.MagicMock()
+    mock_client._version = "1.0.0"
+    mock_client.models.generate_content = mocker.MagicMock()
+    del mock_client._memori_installed
+    del mock_client.aio
+
+    mock_model.get_client.return_value = mock_client
+    mocker.patch("asyncio.get_running_loop", side_effect=RuntimeError)
+
+    result = agno_client.register(gemini=mock_model)
+
+    assert result is agno_client
+    assert hasattr(mock_client, "_memori_installed")
+    assert mock_client._memori_installed is True
+    assert hasattr(mock_client.models, "actual_generate_content")
+
+
+@pytest.mark.asyncio
+async def test_agno_register_gemini_async(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "agno.models.google"
+
+    mock_client = mocker.MagicMock()
+    mock_client._version = "1.0.0"
+    mock_client.models.generate_content = mocker.MagicMock()
+    del mock_client._memori_installed
+    del mock_client.aio
+
+    mock_model.get_client.return_value = mock_client
+
+    result = agno_client.register(gemini=mock_model)
+
+    assert result is agno_client
+    assert mock_client._memori_installed is True
+
+
+def test_agno_register_skips_if_already_installed(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "agno.models.openai"
+
+    mock_client = mocker.MagicMock()
+    mock_client._version = "1.0.0"
+    mock_client._memori_installed = True
+    original_create = mock_client.chat.completions.create
+
+    mock_model.get_client.return_value = mock_client
+
+    result = agno_client.register(openai_chat=mock_model)
+
+    assert result is agno_client
+    assert mock_client.chat.completions.create == original_create
+
+
+def test_agno_register_raises_without_models(agno_client):
+    with pytest.raises(RuntimeError, match="Agno::register called without model"):
+        agno_client.register()
+
+
+def test_agno_register_raises_with_invalid_openai_model(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "invalid.module"
+
+    with pytest.raises(
+        RuntimeError, match="not instance of agno.models.openai.OpenAIChat"
+    ):
+        agno_client.register(openai_chat=mock_model)
+
+
+def test_agno_register_raises_with_invalid_gemini_model(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "invalid.module"
+
+    with pytest.raises(RuntimeError, match="not instance of agno.models.google.Gemini"):
+        agno_client.register(gemini=mock_model)
+
+
+def test_agno_register_xai_sync(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "agno.models.xai"
+
+    mock_client = mocker.MagicMock()
+    mock_client._version = "1.0.0"
+    mock_client.chat.completions.create = mocker.MagicMock()
+    mock_client.beta.chat.completions.parse = mocker.MagicMock()
+    del mock_client._memori_installed
+
+    mock_model.get_client.return_value = mock_client
+    mocker.patch("asyncio.get_running_loop", side_effect=RuntimeError)
+
+    result = agno_client.register(xai=mock_model)
+
+    assert result is agno_client
+    assert hasattr(mock_client, "_memori_installed")
+    assert mock_client._memori_installed is True
+    assert hasattr(mock_client.chat, "_completions_create")
+    assert hasattr(mock_client.beta, "_chat_completions_parse")
+
+
+@pytest.mark.asyncio
+async def test_agno_register_xai_async(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "agno.models.xai"
+
+    mock_client = mocker.MagicMock()
+    mock_client._version = "1.0.0"
+    mock_client.chat.completions.create = mocker.MagicMock()
+    mock_client.beta.chat.completions.parse = mocker.MagicMock()
+    del mock_client._memori_installed
+
+    mock_model.get_client.return_value = mock_client
+
+    result = agno_client.register(xai=mock_model)
+
+    assert result is agno_client
+    assert mock_client._memori_installed is True
+
+
+def test_agno_register_raises_with_invalid_xai_model(agno_client, mocker):
+    mock_model = mocker.MagicMock()
+    type(mock_model).__module__ = "invalid.module"
+
+    with pytest.raises(RuntimeError, match="not instance of agno.models.xai.xAI"):
+        agno_client.register(xai=mock_model)

@@ -12,6 +12,8 @@ import asyncio
 
 from memori.llm._base import BaseClient
 from memori.llm._constants import (
+    AGNO_FRAMEWORK_PROVIDER,
+    AGNO_GOOGLE_LLM_PROVIDER,
     ATHROPIC_LLM_PROVIDER,
     GOOGLE_LLM_PROVIDER,
     LANGCHAIN_CHATBEDROCK_LLM_PROVIDER,
@@ -35,7 +37,7 @@ from memori.llm._registry import Registry
 
 @Registry.register_client(lambda client: hasattr(client, "messages"))
 class Anthropic(BaseClient):
-    def register(self, client):
+    def register(self, client, _provider=None):
         if not hasattr(client, "messages"):
             raise RuntimeError("client provided is not instance of Anthropic")
 
@@ -48,23 +50,23 @@ class Anthropic(BaseClient):
 
                 client.beta.messages.create = (
                     InvokeAsync(self.config, client.beta._messages_create)
-                    .set_client(None, ATHROPIC_LLM_PROVIDER, client._version)
+                    .set_client(_provider, ATHROPIC_LLM_PROVIDER, client._version)
                     .invoke
                 )
                 client.messages.create = (
                     InvokeAsync(self.config, client._messages_create)
-                    .set_client(None, ATHROPIC_LLM_PROVIDER, client._version)
+                    .set_client(_provider, ATHROPIC_LLM_PROVIDER, client._version)
                     .invoke
                 )
             except RuntimeError:
                 client.beta.messages.create = (
                     Invoke(self.config, client.beta._messages_create)
-                    .set_client(None, ATHROPIC_LLM_PROVIDER, client._version)
+                    .set_client(_provider, ATHROPIC_LLM_PROVIDER, client._version)
                     .invoke
                 )
                 client.messages.create = (
                     Invoke(self.config, client._messages_create)
-                    .set_client(None, ATHROPIC_LLM_PROVIDER, client._version)
+                    .set_client(_provider, ATHROPIC_LLM_PROVIDER, client._version)
                     .invoke
                 )
 
@@ -75,19 +77,41 @@ class Anthropic(BaseClient):
 
 @Registry.register_client(lambda client: hasattr(client, "models"))
 class Google(BaseClient):
-    def register(self, client):
+    def register(self, client, _provider=None):
         if not hasattr(client, "models"):
             raise RuntimeError("client provided is not instance of genai.Client")
 
         if not hasattr(client, "_memori_installed"):
             client.models.actual_generate_content = client.models.generate_content
             client_version = getattr(client, "_version", None)
+
+            llm_provider = (
+                AGNO_GOOGLE_LLM_PROVIDER
+                if _provider == AGNO_FRAMEWORK_PROVIDER
+                else GOOGLE_LLM_PROVIDER
+            )
+
             client.models.generate_content = (
                 Invoke(self.config, client.models.actual_generate_content)
-                .set_client(None, GOOGLE_LLM_PROVIDER, client_version)
+                .set_client(_provider, llm_provider, client_version)
                 .uses_protobuf()
                 .invoke
             )
+
+            # Register sync streaming if available
+            if hasattr(client.models, "generate_content_stream"):
+                client.models.actual_generate_content_stream = (
+                    client.models.generate_content_stream
+                )
+                client.models.generate_content_stream = (
+                    Invoke(
+                        self.config,
+                        client.models.actual_generate_content_stream,
+                    )
+                    .set_client(_provider, llm_provider, client_version)
+                    .uses_protobuf()
+                    .invoke
+                )
 
             # Register async client if available
             if hasattr(client, "aio") and hasattr(client.aio, "models"):
@@ -96,7 +120,7 @@ class Google(BaseClient):
                 )
                 client.aio.models.generate_content = (
                     InvokeAsync(self.config, client.aio.models.actual_generate_content)
-                    .set_client(None, GOOGLE_LLM_PROVIDER, client_version)
+                    .set_client(_provider, llm_provider, client_version)
                     .uses_protobuf()
                     .invoke
                 )
@@ -111,7 +135,7 @@ class Google(BaseClient):
                             self.config,
                             client.aio.models.actual_generate_content_stream,
                         )
-                        .set_client(None, GOOGLE_LLM_PROVIDER, client_version)
+                        .set_client(_provider, llm_provider, client_version)
                         .uses_protobuf()
                         .invoke
                     )
@@ -483,7 +507,7 @@ class XAi(BaseClient):
     logic is delegated to the XAiWrappers class.
     """
 
-    def register(self, client, stream=False):
+    def register(self, client, _provider=None, stream=False):
         from memori.llm._constants import XAI_LLM_PROVIDER
         from memori.llm._xai_wrappers import XAiWrappers
 
@@ -491,21 +515,244 @@ class XAi(BaseClient):
             raise RuntimeError("client provided is not instance of xAI")
 
         if not hasattr(client, "_memori_installed"):
-            client.chat._create = client.chat.create
-            client_version = getattr(client, "_version", None)
+            if hasattr(client.chat, "completions"):
+                client.beta._chat_completions_parse = client.beta.chat.completions.parse
+                client.chat._completions_create = client.chat.completions.create
+                client_version = getattr(client, "_version", None)
 
-            self.config.llm.provider = XAI_LLM_PROVIDER
-            self.config.llm.version = client_version
+                self.config.framework.provider = _provider
+                self.config.llm.provider = XAI_LLM_PROVIDER
+                self.config.llm.version = client_version
 
-            wrappers = XAiWrappers(self.config)
+                try:
+                    asyncio.get_running_loop()
 
-            def wrapped_create(*args, **kwargs):
-                kwargs = wrappers.inject_conversation_history(kwargs)
-                chat_obj = client.chat._create(*args, **kwargs)
-                wrappers.wrap_chat_methods(chat_obj, client_version)
-                return chat_obj
+                    if stream is True:
+                        client.beta.chat.completions.parse = (
+                            InvokeAsyncStream(
+                                self.config, client.beta._chat_completions_parse
+                            )
+                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
+                            .invoke
+                        )
+                        client.chat.completions.create = (
+                            InvokeAsyncStream(
+                                self.config,
+                                client.chat._completions_create,
+                            )
+                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
+                            .invoke
+                        )
+                    else:
+                        client.beta.chat.completions.parse = (
+                            InvokeAsync(
+                                self.config, client.beta._chat_completions_parse
+                            )
+                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
+                            .invoke
+                        )
+                        client.chat.completions.create = (
+                            InvokeAsync(
+                                self.config,
+                                client.chat._completions_create,
+                            )
+                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
+                            .invoke
+                        )
+                except RuntimeError:
+                    if stream is True:
+                        client.beta.chat.completions.parse = (
+                            InvokeStream(
+                                self.config, client.beta._chat_completions_parse
+                            )
+                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
+                            .invoke
+                        )
+                        client.chat.completions.create = (
+                            InvokeStream(
+                                self.config,
+                                client.chat._completions_create,
+                            )
+                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
+                            .invoke
+                        )
+                    else:
+                        client.beta.chat.completions.parse = (
+                            Invoke(self.config, client.beta._chat_completions_parse)
+                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
+                            .invoke
+                        )
+                        client.chat.completions.create = (
+                            Invoke(
+                                self.config,
+                                client.chat._completions_create,
+                            )
+                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
+                            .invoke
+                        )
+            else:
+                client.chat._create = client.chat.create
+                client_version = getattr(client, "_version", None)
 
-            client.chat.create = wrapped_create
+                self.config.framework.provider = _provider
+                self.config.llm.provider = XAI_LLM_PROVIDER
+                self.config.llm.version = client_version
+
+                wrappers = XAiWrappers(self.config)
+
+                def wrapped_create(*args, **kwargs):
+                    kwargs = wrappers.inject_conversation_history(kwargs)
+                    chat_obj = client.chat._create(*args, **kwargs)
+                    wrappers.wrap_chat_methods(chat_obj, client_version)
+                    return chat_obj
+
+                client.chat.create = wrapped_create
+
             client._memori_installed = True
 
         return self
+
+
+class Agno(BaseClient):
+    def register(self, openai_chat=None, claude=None, gemini=None, xai=None):
+        if openai_chat is None and claude is None and gemini is None and xai is None:
+            raise RuntimeError("Agno::register called without model")
+
+        if openai_chat is not None:
+            if not self._is_agno_openai_model(openai_chat):
+                raise RuntimeError(
+                    "model provided is not instance of agno.models.openai.OpenAIChat"
+                )
+            client = openai_chat.get_client()
+            OpenAi(self.config).register(client, _provider=AGNO_FRAMEWORK_PROVIDER)
+
+            if not hasattr(openai_chat, "_memori_original_get_client"):
+                original_get_client = openai_chat.get_client
+                openai_chat._memori_original_get_client = original_get_client
+                openai_wrapper = OpenAi(self.config)
+
+                def wrapped_get_client():
+                    client = openai_chat._memori_original_get_client()
+                    openai_wrapper.register(client, _provider=AGNO_FRAMEWORK_PROVIDER)
+                    return client
+
+                openai_chat.get_client = wrapped_get_client
+
+                # Also wrap get_async_client for async support
+                if hasattr(openai_chat, "get_async_client"):
+                    original_get_async_client = openai_chat.get_async_client
+                    openai_chat._memori_original_get_async_client = (
+                        original_get_async_client
+                    )
+
+                    def wrapped_get_async_client():
+                        client = openai_chat._memori_original_get_async_client()
+                        openai_wrapper.register(
+                            client, _provider=AGNO_FRAMEWORK_PROVIDER
+                        )
+                        return client
+
+                    openai_chat.get_async_client = wrapped_get_async_client
+
+        if claude is not None:
+            if not self._is_agno_anthropic_model(claude):
+                raise RuntimeError(
+                    "model provided is not instance of agno.models.anthropic.Claude"
+                )
+            client = claude.get_client()
+            Anthropic(self.config).register(client, _provider=AGNO_FRAMEWORK_PROVIDER)
+
+            if not hasattr(claude, "_memori_original_get_client"):
+                original_get_client = claude.get_client
+                claude._memori_original_get_client = original_get_client
+                anthropic_wrapper = Anthropic(self.config)
+
+                def wrapped_get_client():
+                    client = claude._memori_original_get_client()
+                    anthropic_wrapper.register(
+                        client, _provider=AGNO_FRAMEWORK_PROVIDER
+                    )
+                    return client
+
+                claude.get_client = wrapped_get_client
+
+                # Also wrap get_async_client for async support
+                if hasattr(claude, "get_async_client"):
+                    original_get_async_client = claude.get_async_client
+                    claude._memori_original_get_async_client = original_get_async_client
+
+                    def wrapped_get_async_client():
+                        client = claude._memori_original_get_async_client()
+                        anthropic_wrapper.register(
+                            client, _provider=AGNO_FRAMEWORK_PROVIDER
+                        )
+                        return client
+
+                    claude.get_async_client = wrapped_get_async_client
+
+        if gemini is not None:
+            if not self._is_agno_google_model(gemini):
+                raise RuntimeError(
+                    "model provided is not instance of agno.models.google.Gemini"
+                )
+            client = gemini.get_client()
+            Google(self.config).register(client, _provider=AGNO_FRAMEWORK_PROVIDER)
+
+            # Wrap get_client to ensure all future client instances are wrapped
+            if not hasattr(gemini, "_memori_original_get_client"):
+                original_get_client = gemini.get_client
+                gemini._memori_original_get_client = original_get_client
+                google_wrapper = Google(self.config)
+
+                def wrapped_get_client():
+                    client = gemini._memori_original_get_client()
+                    google_wrapper.register(client, _provider=AGNO_FRAMEWORK_PROVIDER)
+                    return client
+
+                gemini.get_client = wrapped_get_client
+
+        if xai is not None:
+            if not self._is_agno_xai_model(xai):
+                raise RuntimeError(
+                    "model provided is not instance of agno.models.xai.xAI"
+                )
+            client = xai.get_client()
+            XAi(self.config).register(client, _provider=AGNO_FRAMEWORK_PROVIDER)
+
+            if not hasattr(xai, "_memori_original_get_client"):
+                original_get_client = xai.get_client
+                xai._memori_original_get_client = original_get_client
+                xai_wrapper = XAi(self.config)
+
+                def wrapped_get_client():
+                    client = xai._memori_original_get_client()
+                    xai_wrapper.register(client, _provider=AGNO_FRAMEWORK_PROVIDER)
+                    return client
+
+                xai.get_client = wrapped_get_client
+
+                # Also wrap get_async_client for async support
+                if hasattr(xai, "get_async_client"):
+                    original_get_async_client = xai.get_async_client
+                    xai._memori_original_get_async_client = original_get_async_client
+
+                    def wrapped_get_async_client():
+                        client = xai._memori_original_get_async_client()
+                        xai_wrapper.register(client, _provider=AGNO_FRAMEWORK_PROVIDER)
+                        return client
+
+                    xai.get_async_client = wrapped_get_async_client
+
+        return self
+
+    def _is_agno_openai_model(self, model):
+        return "agno.models.openai" in str(type(model).__module__)
+
+    def _is_agno_anthropic_model(self, model):
+        return "agno.models.anthropic" in str(type(model).__module__)
+
+    def _is_agno_google_model(self, model):
+        return "agno.models.google" in str(type(model).__module__)
+
+    def _is_agno_xai_model(self, model):
+        return "agno.models.xai" in str(type(model).__module__)
