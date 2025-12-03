@@ -252,7 +252,7 @@ To use the Memori CLI, execute the following from the command line:
 python -m memori
 ```
 
-This will display a menu of the available options. For more information about what you can do with the Memori CLI, please reference [Command Line Interface](https://github.com/MemoriLabs/Memori/blob/main/docs/CommandLineInterface.md).
+This will display a menu of the available options. For more information about what you can do with the Memori CLI, please reference [Command Line Interface](https://github.com/MemoriLabs/Memori/blob/main/docs/cli.md).
 
 ## Contributing
 
