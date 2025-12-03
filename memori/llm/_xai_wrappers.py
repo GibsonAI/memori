@@ -98,11 +98,29 @@ class XAiWrappers:
                 "role": self._normalize_role(response),
             }
 
-            MemoryManager(self.config).execute(
-                self._build_payload(
-                    query_formatted, response_json, client_version, start
-                )
+            payload = self._build_payload(
+                query_formatted, response_json, client_version, start
             )
+            MemoryManager(self.config).execute(payload)
+
+            if self.config.augmentation is not None:
+                from memori.memory.augmentation.input import AugmentationInput
+
+                messages = payload["conversation"]["query"].get("messages", [])
+                messages_for_aug = list(messages) if isinstance(messages, list) else []
+                messages_for_aug.append(
+                    {"role": "assistant", "content": response.content}
+                )
+
+                if self.config.entity_id or self.config.process_id:
+                    augmentation_input = AugmentationInput(
+                        conversation_id=self.config.cache.conversation_id,
+                        entity_id=self.config.entity_id,
+                        process_id=self.config.process_id,
+                        conversation_messages=messages_for_aug,
+                        system_prompt=None,
+                    )
+                    self.config.augmentation.enqueue(augmentation_input)
 
             return response
 
@@ -127,11 +145,29 @@ class XAiWrappers:
                 "role": self._normalize_role(response),
             }
 
-            MemoryManager(self.config).execute(
-                self._build_payload(
-                    query_formatted, response_json, client_version, start
-                )
+            payload = self._build_payload(
+                query_formatted, response_json, client_version, start
             )
+            MemoryManager(self.config).execute(payload)
+
+            if self.config.augmentation is not None:
+                from memori.memory.augmentation.input import AugmentationInput
+
+                messages = payload["conversation"]["query"].get("messages", [])
+                messages_for_aug = list(messages) if isinstance(messages, list) else []
+                messages_for_aug.append(
+                    {"role": "assistant", "content": response.content}
+                )
+
+                if self.config.entity_id or self.config.process_id:
+                    augmentation_input = AugmentationInput(
+                        conversation_id=self.config.cache.conversation_id,
+                        entity_id=self.config.entity_id,
+                        process_id=self.config.process_id,
+                        conversation_messages=messages_for_aug,
+                        system_prompt=None,
+                    )
+                    self.config.augmentation.enqueue(augmentation_input)
 
             return response
 
@@ -172,11 +208,31 @@ class XAiWrappers:
                     else "assistant",
                 }
 
-                MemoryManager(self.config).execute(
-                    self._build_payload(
-                        query_formatted, response_json, client_version, start
-                    )
+                payload = self._build_payload(
+                    query_formatted, response_json, client_version, start
                 )
+                MemoryManager(self.config).execute(payload)
+
+                if self.config.augmentation is not None:
+                    from memori.memory.augmentation.input import AugmentationInput
+
+                    messages = payload["conversation"]["query"].get("messages", [])
+                    messages_for_aug = (
+                        list(messages) if isinstance(messages, list) else []
+                    )
+                    messages_for_aug.append(
+                        {"role": "assistant", "content": "".join(full_content)}
+                    )
+
+                    if self.config.entity_id or self.config.process_id:
+                        augmentation_input = AugmentationInput(
+                            conversation_id=self.config.cache.conversation_id,
+                            entity_id=self.config.entity_id,
+                            process_id=self.config.process_id,
+                            conversation_messages=messages_for_aug,
+                            system_prompt=None,
+                        )
+                        self.config.augmentation.enqueue(augmentation_input)
 
         return wrapped_stream
 
@@ -191,8 +247,8 @@ class XAiWrappers:
             },
             "conversation": {
                 "client": {
-                    "provider": None,
-                    "title": XAI_LLM_PROVIDER,
+                    "provider": self.config.framework.provider,
+                    "title": self.config.llm.provider or XAI_LLM_PROVIDER,
                     "version": client_version,
                 },
                 "query": query_formatted,

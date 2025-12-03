@@ -484,6 +484,7 @@ class XAi(BaseClient):
     """
 
     def register(self, client, stream=False):
+        from memori.llm._constants import XAI_LLM_PROVIDER
         from memori.llm._xai_wrappers import XAiWrappers
 
         if not hasattr(client, "chat"):
@@ -492,6 +493,10 @@ class XAi(BaseClient):
         if not hasattr(client, "_memori_installed"):
             client.chat._create = client.chat.create
             client_version = getattr(client, "_version", None)
+
+            self.config.llm.provider = XAI_LLM_PROVIDER
+            self.config.llm.version = client_version
+
             wrappers = XAiWrappers(self.config)
 
             def wrapped_create(*args, **kwargs):
