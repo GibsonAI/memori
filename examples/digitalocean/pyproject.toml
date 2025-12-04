@@ -11,6 +11,3 @@ dependencies = [
     "psycopg2-binary>=2.9.0",
     "python-dotenv>=1.2.1",
 ]
-
-[tool.uv.sources]
-memori = { path = "../../..", editable = true }
