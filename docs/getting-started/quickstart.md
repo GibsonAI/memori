@@ -1,6 +1,13 @@
+[![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
+
 # Quickstart
 
-Get started with Memori in under 3 minutes. This guide will show you how to add memory capabilities to your OpenAI application. Memori is model agnostic and check other [supported LLM providers](https://github.com/Boburmirzo/memori/blob/main/docs/features/llm.md#supported-llm-providers).
+Get started with Memori in under 3 minutes.
+
+Memori is LLM, database and framework agnostic and works with the tools you already use today. In this example, we'll show Memori working with OpenAI, SQLAlchemy and SQLite.
+
+- [Support LLM providers](https://github.com/MemoriLabs/Memori/blob/main/docs/features/llm.md)
+- [Support databases](https://github.com/MemoriLabs/Memori/blob/main/docs/features/databases.md)
 
 ## Prerequisites
 
@@ -9,10 +16,16 @@ Get started with Memori in under 3 minutes. This guide will show you how to add 
 
 ## Step 1: Install Libraries
 
-Install Memori and its dependencies:
+Install Memori:
 
 ```bash
-pip install memori openai sqlalchemy
+pip install memori
+```
+
+For this example, you may also need to install:
+
+```bash
+pip install openai sqlalchemy
 ```
 
 ## Step 2: Set Your OpenAI API Key
