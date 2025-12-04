@@ -8,19 +8,24 @@ r"""
                        memorilabs.ai
 """
 
+import importlib
+
 from memori.storage._manager import Manager
+
+
+def _import_optional_module(module_path: str) -> None:
+    try:
+        importlib.import_module(module_path)
+    except ImportError:
+        pass
+
 
 # Import adapters and drivers to trigger their self-registration decorators.
 # Order matters: more specific matchers (sqlalchemy, django) before generic ones (mongodb, dbapi)
-from memori.storage.adapters import sqlalchemy, django, mongodb, dbapi  # noqa: F401
-from memori.storage.drivers import (
-    mongodb as mongodb_driver,  # noqa: F401
-)
-from memori.storage.drivers import (
-    mysql,  # noqa: F401
-    oracle,  # noqa: F401
-    postgresql,  # noqa: F401
-    sqlite,  # noqa: F401
-)
+for adapter in ("sqlalchemy", "django", "mongodb", "dbapi"):
+    _import_optional_module(f"memori.storage.adapters.{adapter}")
+
+for driver in ("mongodb", "mysql", "oracle", "postgresql", "sqlite"):
+    _import_optional_module(f"memori.storage.drivers.{driver}")
 
 __all__ = ["Manager"]
