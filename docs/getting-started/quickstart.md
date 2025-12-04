@@ -6,8 +6,8 @@ Get started with Memori in under 3 minutes.
 
 Memori is LLM, database and framework agnostic and works with the tools you already use today. In this example, we'll show Memori working with OpenAI, SQLAlchemy and SQLite.
 
-- [Support LLM providers](https://github.com/MemoriLabs/Memori/blob/main/docs/features/llm.md)
-- [Support databases](https://github.com/MemoriLabs/Memori/blob/main/docs/features/databases.md)
+- [Supported LLM providers](https://github.com/MemoriLabs/Memori/blob/main/docs/features/llm.md)
+- [Supported databases](https://github.com/MemoriLabs/Memori/blob/main/docs/features/databases.md)
 
 ## Prerequisites
 
