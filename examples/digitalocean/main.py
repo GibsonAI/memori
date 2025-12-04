@@ -21,7 +21,11 @@ agent_access_key = os.getenv("AGENT_ACCESS_KEY")
 if not agent_endpoint or not agent_access_key:
     raise ValueError("AGENT_ENDPOINT and AGENT_ACCESS_KEY must be set in .env")
 
-base_url = agent_endpoint if agent_endpoint.endswith("/api/v1/") else f"{agent_endpoint}/api/v1/"
+base_url = (
+    agent_endpoint
+    if agent_endpoint.endswith("/api/v1/")
+    else f"{agent_endpoint}/api/v1/"
+)
 client = OpenAI(base_url=base_url, api_key=agent_access_key)
 
 engine = create_engine(os.getenv("DATABASE_CONNECTION_STRING"))
