@@ -258,7 +258,7 @@ This will display a menu of the available options. For more information about wh
 
 We welcome contributions from the community! Please see our [Contributing Guidelines](https://github.com/MemoriLabs/Memori/blob/main/CONTRIBUTING.md) for details on:
 
-- Setting up your development environment
+- Setting up your development environment **(Recommended: Use Conda/Mamba)**
 - Code style and standards
 - Submitting pull requests
 - Reporting issues
