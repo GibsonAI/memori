@@ -160,6 +160,6 @@ def test_llm_register_no_deprecation_warning(memori_instance, mocker):
         for w in warning_list
         if issubclass(w.category, DeprecationWarning) and "register()" in str(w.message)
     ]
-    assert (
-        len(deprecation_warnings) == 0
-    ), "llm.register() should not emit deprecation warnings"
+    assert len(deprecation_warnings) == 0, (
+        "llm.register() should not emit deprecation warnings"
+    )

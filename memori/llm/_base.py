@@ -39,6 +39,9 @@ class BaseClient:
         self.config = config
         self.stream = False
 
+    def register(self, *args, **kwargs):
+        raise NotImplementedError("Subclasses must implement register()")
+
     def _wrap_method(
         self,
         obj,
