@@ -17,7 +17,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 engine = create_engine(os.getenv("NEON_CONNECTION_STRING"))
 Session = sessionmaker(bind=engine)
 
-mem = Memori(conn=Session).openai.register(client)
+mem = Memori(conn=Session).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 mem.config.storage.build()
 

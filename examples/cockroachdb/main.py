@@ -18,7 +18,7 @@ def get_conn():
     return psycopg2.connect(os.getenv("COCKROACHDB_CONNECTION_STRING"))
 
 
-mem = Memori(conn=get_conn).openai.register(client)
+mem = Memori(conn=get_conn).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 mem.config.storage.build()
 

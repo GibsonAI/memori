@@ -8,13 +8,18 @@ r"""
                        memorilabs.ai
 """
 
+import asyncio
 import copy
 import json
+from typing import TYPE_CHECKING
 
 from google.protobuf import json_format
 
 from memori._config import Config
 from memori._utils import merge_chunk
+
+if TYPE_CHECKING:
+    pass
 from memori.llm._utils import (
     agno_is_anthropic,
     agno_is_google,
@@ -33,6 +38,57 @@ class BaseClient:
     def __init__(self, config: Config):
         self.config = config
         self.stream = False
+
+    def register(self, *args, **kwargs):
+        raise NotImplementedError("Subclasses must implement register()")
+
+    def _wrap_method(
+        self,
+        obj,
+        method_name,
+        backup_obj,
+        backup_attr,
+        provider,
+        llm_provider,
+        version,
+        stream=False,
+    ):
+        """Helper to wrap a method with the appropriate Invoke wrapper.
+
+        Automatically detects async context and chooses the correct wrapper class.
+
+        Args:
+            obj: The object containing the method to wrap (e.g., client.chat.completions)
+            method_name: Name of the method to wrap (e.g., 'create')
+            backup_obj: The object where backup is stored (e.g., client.chat)
+            backup_attr: Name of backup attribute where original is stored (e.g., '_completions_create')
+            provider: Framework provider name
+            llm_provider: LLM provider name
+            version: Provider SDK version
+            stream: Whether to use streaming wrappers
+        """
+        from memori.llm._invoke import (
+            Invoke,
+            InvokeAsync,
+            InvokeAsyncStream,
+            InvokeStream,
+        )
+
+        original = getattr(backup_obj, backup_attr)
+
+        try:
+            asyncio.get_running_loop()
+            wrapper_class = InvokeAsyncStream if stream else InvokeAsync
+        except RuntimeError:
+            wrapper_class = InvokeStream if stream else Invoke
+
+        setattr(
+            obj,
+            method_name,
+            wrapper_class(self.config, original)
+            .set_client(provider, llm_provider, version)
+            .invoke,
+        )
 
 
 class BaseInvoke:
@@ -336,10 +392,10 @@ class BaseInvoke:
     def response_to_json(self, response) -> dict | list:
         return self._convert_to_json(response)
 
-    def set_client(self, framework_provider, llm_provider, llm_version):
+    def set_client(self, framework_provider, llm_provider, provider_sdk_version):
         self.config.framework.provider = framework_provider
         self.config.llm.provider = llm_provider
-        self.config.llm.version = llm_version
+        self.config.llm.provider_sdk_version = provider_sdk_version
         return self
 
     def uses_protobuf(self):
@@ -393,6 +449,9 @@ class BaseInvoke:
 
     def handle_post_response(self, kwargs, start_time, raw_response):
         from memori.memory._manager import Manager as MemoryManager
+
+        if "model" in kwargs:
+            self.config.llm.version = kwargs["model"]
 
         payload = self._format_payload(
             self.config.framework.provider,

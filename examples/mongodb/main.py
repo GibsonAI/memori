@@ -16,7 +16,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 mongo_client = MongoClient(os.getenv("MONGODB_CONNECTION_STRING"))
 db = mongo_client["memori"]
 
-mem = Memori(conn=lambda: db).openai.register(client)
+mem = Memori(conn=lambda: db).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 mem.config.storage.build()
 

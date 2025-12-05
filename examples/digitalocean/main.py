@@ -31,7 +31,7 @@ client = OpenAI(base_url=base_url, api_key=agent_access_key)
 engine = create_engine(os.getenv("DATABASE_CONNECTION_STRING"))
 Session = sessionmaker(bind=engine)
 
-mem = Memori(conn=Session).openai.register(client)
+mem = Memori(conn=Session).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="gradient-agent")
 mem.config.storage.build()
 

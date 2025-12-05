@@ -33,6 +33,7 @@ class Config:
         self.enterprise = False
         self.llm = Llm()
         self.framework = Framework()
+        self.platform = Platform()
         self.entity_id = None
         self.process_id = None
         self.raise_final_request_attempt = True
@@ -62,7 +63,13 @@ class Framework:
         self.provider = None
 
 
+class Platform:
+    def __init__(self):
+        self.provider = None
+
+
 class Llm:
     def __init__(self):
         self.provider = None
+        self.provider_sdk_version = None
         self.version = None

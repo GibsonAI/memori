@@ -46,8 +46,12 @@ class AdvancedAugmentation(BaseAugmentation):
                 "llm": {
                     "model": {
                         "provider": self.config.llm.provider,
+                        "provider_sdk_version": self.config.llm.provider_sdk_version,
                         "version": self.config.llm.version,
                     }
+                },
+                "platform": {
+                    "provider": self.config.platform.provider,
                 },
                 "sdk": {"lang": "python", "version": self.config.version},
                 "storage": {

@@ -43,7 +43,7 @@ async def run(db_backend: str = "default"):
 
     mem.config.storage.build()
 
-    mem.xai.register(client)
+    mem.llm.register(client)
 
     mem.attribution(entity_id="123", process_id="456")
 

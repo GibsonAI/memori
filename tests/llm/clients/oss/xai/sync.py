@@ -18,7 +18,7 @@ client = Client(api_key=os.environ.get("XAI_API_KEY"))
 
 mem = Memori(conn=session).xai.register(client)
 
-mem.xai.register(client)
+mem.llm.register(client)
 
 mem.attribution(entity_id="123", process_id="456")
 
