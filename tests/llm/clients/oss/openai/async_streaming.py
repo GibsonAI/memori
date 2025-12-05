@@ -21,7 +21,7 @@ async def run():
     mem = Memori(conn=session).openai.register(client, stream=True)
 
     # Multiple registrations should not cause an issue.
-    mem.openai.register(client)
+    mem.llm.register(client)
 
     mem.attribution(entity_id="123", process_id="456")
 

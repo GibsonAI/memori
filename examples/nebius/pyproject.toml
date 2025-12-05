@@ -1,0 +1,10 @@
+[project]
+name = "memori-nebius-example"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+    "memori",
+    "openai",
+    "sqlalchemy",
+    "python-dotenv",
+]

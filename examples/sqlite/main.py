@@ -20,7 +20,7 @@ engine = create_engine("sqlite:///memori.db")
 Session = sessionmaker(bind=engine)
 
 # Setup Memori - that's it!
-mem = Memori(conn=Session).openai.register(client)
+mem = Memori(conn=Session).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 mem.config.storage.build()
 

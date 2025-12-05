@@ -58,10 +58,13 @@ class XAiWrappers:
 
         return kwargs
 
-    def wrap_chat_methods(self, chat_obj, client_version):
+    def wrap_chat_methods(self, chat_obj, client_version, model=None):
         """Wrap the Chat object's sample() and stream() methods."""
         if hasattr(chat_obj, "_memori_installed"):
             return
+
+        if model:
+            self.config.llm.version = model
 
         chat_obj._sample = chat_obj.sample
         is_async = asyncio.iscoroutinefunction(chat_obj._sample)
