@@ -60,7 +60,7 @@ Background AI extracts structured information:
 graph LR
     A[LLM Conversation] --> B[Wrapped Client]
     B --> C[Message Storage]
-    C --> D[Background Augmentation]
+    C --> D[Advanced Augmentation]
     D --> E[Fact Extraction]
     E --> F[Recall API]
 ```
