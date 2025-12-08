@@ -26,10 +26,10 @@ async def main():
     )
     chain = prompt | client | StrOutputParser()
 
-    mem = Memori(conn=session).langchain.register(chatopenai=client)
+    mem = Memori(conn=session).llm.register(chatopenai=client)
 
     # Multiple registrations should not cause an issue.
-    mem.langchain.register(chatopenai=client)
+    mem.llm.register(chatopenai=client)
 
     mem.attribution(entity_id="123", process_id="456")
 

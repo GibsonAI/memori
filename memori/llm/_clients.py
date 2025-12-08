@@ -8,8 +8,6 @@ r"""
                        memorilabs.ai
 """
 
-import asyncio
-
 from memori.llm._base import BaseClient
 from memori.llm._constants import (
     AGNO_FRAMEWORK_PROVIDER,
@@ -29,13 +27,13 @@ from memori.llm._invoke import (
     Invoke,
     InvokeAsync,
     InvokeAsyncIterator,
-    InvokeAsyncStream,
-    InvokeStream,
 )
 from memori.llm._registry import Registry
 
 
-@Registry.register_client(lambda client: hasattr(client, "messages"))
+@Registry.register_client(
+    lambda client: type(client).__module__.startswith("anthropic")
+)
 class Anthropic(BaseClient):
     def register(self, client, _provider=None):
         if not hasattr(client, "messages"):
@@ -46,36 +44,41 @@ class Anthropic(BaseClient):
             client._messages_create = client.messages.create
 
             try:
-                asyncio.get_running_loop()
+                import anthropic
 
-                client.beta.messages.create = (
-                    InvokeAsync(self.config, client.beta._messages_create)
-                    .set_client(_provider, ATHROPIC_LLM_PROVIDER, client._version)
-                    .invoke
-                )
-                client.messages.create = (
-                    InvokeAsync(self.config, client._messages_create)
-                    .set_client(_provider, ATHROPIC_LLM_PROVIDER, client._version)
-                    .invoke
-                )
-            except RuntimeError:
-                client.beta.messages.create = (
-                    Invoke(self.config, client.beta._messages_create)
-                    .set_client(_provider, ATHROPIC_LLM_PROVIDER, client._version)
-                    .invoke
-                )
-                client.messages.create = (
-                    Invoke(self.config, client._messages_create)
-                    .set_client(_provider, ATHROPIC_LLM_PROVIDER, client._version)
-                    .invoke
-                )
+                client_version = anthropic.__version__
+            except (ImportError, AttributeError):
+                client_version = None
+
+            self._wrap_method(
+                client.beta.messages,
+                "create",
+                client.beta,
+                "_messages_create",
+                _provider,
+                ATHROPIC_LLM_PROVIDER,
+                client_version,
+            )
+            self._wrap_method(
+                client.messages,
+                "create",
+                client,
+                "_messages_create",
+                _provider,
+                ATHROPIC_LLM_PROVIDER,
+                client_version,
+            )
 
             client._memori_installed = True
 
         return self
 
 
-@Registry.register_client(lambda client: hasattr(client, "models"))
+@Registry.register_client(
+    lambda client: type(client).__module__.startswith(
+        ("google.generativeai", "google.ai.generativelanguage", "google.genai")
+    )
+)
 class Google(BaseClient):
     def register(self, client, _provider=None):
         if not hasattr(client, "models"):
@@ -83,7 +86,18 @@ class Google(BaseClient):
 
         if not hasattr(client, "_memori_installed"):
             client.models.actual_generate_content = client.models.generate_content
-            client_version = getattr(client, "_version", None)
+
+            try:
+                from google import genai
+
+                client_version = genai.__version__
+            except (ImportError, AttributeError):
+                try:
+                    from importlib.metadata import version
+
+                    client_version = version("google-genai")
+                except Exception:
+                    client_version = None
 
             llm_provider = (
                 AGNO_GOOGLE_LLM_PROVIDER
@@ -384,9 +398,16 @@ class LangChain(BaseClient):
         return self
 
 
-@Registry.register_client(
-    lambda client: hasattr(client, "chat") and hasattr(client, "_version")
-)
+def _detect_platform(client):
+    """Detect hosting platform from client base_url."""
+    if hasattr(client, "base_url"):
+        base_url = str(client.base_url).lower()
+        if "nebius" in base_url:
+            return "nebius"
+    return None
+
+
+@Registry.register_client(lambda client: type(client).__module__ == "openai")
 class OpenAi(BaseClient):
     def register(self, client, _provider=None, stream=False):
         if not hasattr(client, "chat"):
@@ -396,68 +417,32 @@ class OpenAi(BaseClient):
             client.beta._chat_completions_parse = client.beta.chat.completions.parse
             client.chat._completions_create = client.chat.completions.create
 
-            try:
-                asyncio.get_running_loop()
+            platform = _detect_platform(client)
+            if platform:
+                self.config.platform.provider = platform
 
-                if stream is True:
-                    client.beta.chat.completions.parse = (
-                        InvokeAsyncStream(
-                            self.config, client.beta._chat_completions_parse
-                        )
-                        .set_client(_provider, OPENAI_LLM_PROVIDER, client._version)
-                        .invoke
-                    )
-                    client.chat.completions.create = (
-                        InvokeAsyncStream(
-                            self.config,
-                            client.chat._completions_create,
-                        )
-                        .set_client(_provider, OPENAI_LLM_PROVIDER, client._version)
-                        .invoke
-                    )
-                else:
-                    client.beta.chat.completions.parse = (
-                        InvokeAsync(self.config, client.beta._chat_completions_parse)
-                        .set_client(_provider, OPENAI_LLM_PROVIDER, client._version)
-                        .invoke
-                    )
-                    client.chat.completions.create = (
-                        InvokeAsync(
-                            self.config,
-                            client.chat._completions_create,
-                        )
-                        .set_client(_provider, OPENAI_LLM_PROVIDER, client._version)
-                        .invoke
-                    )
-            except RuntimeError:
-                if stream is True:
-                    client.beta.chat.completions.parse = (
-                        InvokeStream(self.config, client.beta._chat_completions_parse)
-                        .set_client(_provider, OPENAI_LLM_PROVIDER, client._version)
-                        .invoke
-                    )
-                    client.chat.completions.create = (
-                        InvokeStream(
-                            self.config,
-                            client.chat._completions_create,
-                        )
-                        .set_client(_provider, OPENAI_LLM_PROVIDER, client._version)
-                        .invoke
-                    )
-                else:
-                    client.beta.chat.completions.parse = (
-                        Invoke(self.config, client.beta._chat_completions_parse)
-                        .set_client(_provider, OPENAI_LLM_PROVIDER, client._version)
-                        .invoke
-                    )
-                    client.chat.completions.create = (
-                        Invoke(
-                            self.config,
-                            client.chat._completions_create,
-                        )
-                        .set_client(_provider, OPENAI_LLM_PROVIDER, client._version)
-                        .invoke
-                    )
+            self.config.llm.provider_sdk_version = client._version
+
+            self._wrap_method(
+                client.beta.chat.completions,
+                "parse",
+                client.beta,
+                "_chat_completions_parse",
+                _provider,
+                OPENAI_LLM_PROVIDER,
+                client._version,
+                stream,
+            )
+            self._wrap_method(
+                client.chat.completions,
+                "create",
+                client.chat,
+                "_completions_create",
+                _provider,
+                OPENAI_LLM_PROVIDER,
+                client._version,
+                stream,
+            )
 
             client._memori_installed = True
 
@@ -465,9 +450,7 @@ class OpenAi(BaseClient):
 
 
 @Registry.register_client(
-    lambda client: hasattr(client, "chat")
-    and hasattr(client.chat, "completions")
-    and not hasattr(client, "_version")
+    lambda client: type(client).__module__.startswith("pydantic_ai")
 )
 class PydanticAi(BaseClient):
     def register(self, client):
@@ -514,96 +497,56 @@ class XAi(BaseClient):
         if not hasattr(client, "chat"):
             raise RuntimeError("client provided is not instance of xAI")
 
+        try:
+            import xai_sdk
+
+            client_version = xai_sdk.__version__
+        except (ImportError, AttributeError):
+            client_version = None
+
         if not hasattr(client, "_memori_installed"):
             if hasattr(client.chat, "completions"):
                 client.beta._chat_completions_parse = client.beta.chat.completions.parse
                 client.chat._completions_create = client.chat.completions.create
-                client_version = getattr(client, "_version", None)
 
                 self.config.framework.provider = _provider
                 self.config.llm.provider = XAI_LLM_PROVIDER
-                self.config.llm.version = client_version
+                self.config.llm.provider_sdk_version = client_version
 
-                try:
-                    asyncio.get_running_loop()
-
-                    if stream is True:
-                        client.beta.chat.completions.parse = (
-                            InvokeAsyncStream(
-                                self.config, client.beta._chat_completions_parse
-                            )
-                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
-                            .invoke
-                        )
-                        client.chat.completions.create = (
-                            InvokeAsyncStream(
-                                self.config,
-                                client.chat._completions_create,
-                            )
-                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
-                            .invoke
-                        )
-                    else:
-                        client.beta.chat.completions.parse = (
-                            InvokeAsync(
-                                self.config, client.beta._chat_completions_parse
-                            )
-                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
-                            .invoke
-                        )
-                        client.chat.completions.create = (
-                            InvokeAsync(
-                                self.config,
-                                client.chat._completions_create,
-                            )
-                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
-                            .invoke
-                        )
-                except RuntimeError:
-                    if stream is True:
-                        client.beta.chat.completions.parse = (
-                            InvokeStream(
-                                self.config, client.beta._chat_completions_parse
-                            )
-                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
-                            .invoke
-                        )
-                        client.chat.completions.create = (
-                            InvokeStream(
-                                self.config,
-                                client.chat._completions_create,
-                            )
-                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
-                            .invoke
-                        )
-                    else:
-                        client.beta.chat.completions.parse = (
-                            Invoke(self.config, client.beta._chat_completions_parse)
-                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
-                            .invoke
-                        )
-                        client.chat.completions.create = (
-                            Invoke(
-                                self.config,
-                                client.chat._completions_create,
-                            )
-                            .set_client(_provider, XAI_LLM_PROVIDER, client_version)
-                            .invoke
-                        )
+                self._wrap_method(
+                    client.beta.chat.completions,
+                    "parse",
+                    client.beta,
+                    "_chat_completions_parse",
+                    _provider,
+                    XAI_LLM_PROVIDER,
+                    client_version,
+                    stream,
+                )
+                self._wrap_method(
+                    client.chat.completions,
+                    "create",
+                    client.chat,
+                    "_completions_create",
+                    _provider,
+                    XAI_LLM_PROVIDER,
+                    client_version,
+                    stream,
+                )
             else:
                 client.chat._create = client.chat.create
-                client_version = getattr(client, "_version", None)
 
                 self.config.framework.provider = _provider
                 self.config.llm.provider = XAI_LLM_PROVIDER
-                self.config.llm.version = client_version
+                self.config.llm.provider_sdk_version = client_version
 
                 wrappers = XAiWrappers(self.config)
 
                 def wrapped_create(*args, **kwargs):
+                    model = kwargs.get("model")
                     kwargs = wrappers.inject_conversation_history(kwargs)
                     chat_obj = client.chat._create(*args, **kwargs)
-                    wrappers.wrap_chat_methods(chat_obj, client_version)
+                    wrappers.wrap_chat_methods(chat_obj, client_version, model)
                     return chat_obj
 
                 client.chat.create = wrapped_create

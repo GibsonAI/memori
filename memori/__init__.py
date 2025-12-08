@@ -31,6 +31,38 @@ from memori.storage import Manager as StorageManager
 __all__ = ["Memori", "QuotaExceededError"]
 
 
+class LlmRegistry:
+    def __init__(self, memori):
+        self.memori = memori
+
+    def register(
+        self,
+        client=None,
+        openai_chat=None,
+        claude=None,
+        gemini=None,
+        xai=None,
+        chatbedrock=None,
+        chatgooglegenai=None,
+        chatopenai=None,
+        chatvertexai=None,
+    ):
+        from memori.llm._registry import register_llm
+
+        return register_llm(
+            self.memori,
+            client=client,
+            openai_chat=openai_chat,
+            claude=claude,
+            gemini=gemini,
+            xai=xai,
+            chatbedrock=chatbedrock,
+            chatgooglegenai=chatgooglegenai,
+            chatopenai=chatopenai,
+            chatvertexai=chatvertexai,
+        )
+
+
 class Memori:
     def __init__(self, conn: Callable[[], Any] | Any | None = None):
         self.config = Config()
@@ -44,6 +76,7 @@ class Memori:
         self.config.storage = StorageManager(self.config).start(conn)
         self.config.augmentation = AugmentationManager(self.config).start(conn)
 
+        self.llm = LlmRegistry(self)
         self.agno = LlmProviderAgno(self)
         self.anthropic = LlmProviderAnthropic(self)
         self.google = LlmProviderGoogle(self)

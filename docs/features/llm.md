@@ -27,7 +27,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 client = OpenAI()
 
-mem = Memori(conn=SessionLocal).openai.register(client)
+mem = Memori(conn=SessionLocal).llm.register(client)
 mem.attribution(entity_id="user_123", process_id="my_agent")
 
 response = client.chat.completions.create(
@@ -49,7 +49,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 client = Anthropic()
 
-mem = Memori(conn=SessionLocal).anthropic.register(client)
+mem = Memori(conn=SessionLocal).llm.register(client)
 mem.attribution(entity_id="user_123", process_id="claude_assistant")
 
 response = client.messages.create(
@@ -75,7 +75,7 @@ SessionLocal = sessionmaker(bind=engine)
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 client = genai.GenerativeModel("gemini-2.0-flash-exp")
 
-mem = Memori(conn=SessionLocal).google.register(client)
+mem = Memori(conn=SessionLocal).llm.register(client)
 mem.attribution(entity_id="user_123", process_id="gemini_assistant")
 
 response = client.generate_content("Hello")
@@ -94,7 +94,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 client = ChatOpenAI(model="gpt-4o-mini")
 
-mem = Memori(conn=SessionLocal).langchain.register(client)
+mem = Memori(conn=SessionLocal).llm.register(client)
 mem.attribution(entity_id="user_123", process_id="langchain_agent")
 
 response = client.invoke("Hello")
@@ -113,7 +113,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 agent = Agent("openai:gpt-4o-mini")
 
-mem = Memori(conn=SessionLocal).pydantic_ai.register(agent)
+mem = Memori(conn=SessionLocal).llm.register(agent)
 mem.attribution(entity_id="user_123", process_id="pydantic_agent")
 
 result = agent.run_sync("Hello")

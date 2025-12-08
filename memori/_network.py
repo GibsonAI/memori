@@ -33,6 +33,7 @@ class Api:
     async def augmentation_async(self, payload: dict) -> dict:
         url = self.url("sdk/augmentation")
         headers = self.headers()
+        print(payload)
 
         async with aiohttp.ClientSession() as session:
             async with session.post(

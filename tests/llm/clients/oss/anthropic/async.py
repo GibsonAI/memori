@@ -18,10 +18,10 @@ async def run():
     session = TestDBSession
     client = anthropic.AsyncAnthropic()
 
-    mem = Memori(conn=session).anthropic.register(client)
+    mem = Memori(conn=session).llm.register(client)
 
     # Multiple registrations should not cause an issue.
-    mem.anthropic.register(client)
+    mem.llm.register(client)
 
     mem.attribution(entity_id="123", process_id="456")
 

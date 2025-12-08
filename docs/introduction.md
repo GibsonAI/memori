@@ -17,7 +17,7 @@ from memori import Memori
 from openai import OpenAI
 
 client = OpenAI()
-mem = Memori(conn=db_session_factory).openai.register(client)
+mem = Memori(conn=db_session_factory).llm.register(client)
 
 # Track conversations by user and process
 mem.attribution(entity_id="user_123", process_id="support_agent")

@@ -21,7 +21,7 @@ from openai import OpenAI
 from memori import Memori
 
 client = OpenAI(...)
-mem = Memori().openai.register(client)
+mem = Memori().llm.register(client)
 ```
 
 ## Conversations

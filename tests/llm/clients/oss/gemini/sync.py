@@ -15,10 +15,10 @@ os.environ["MEMORI_TEST_MODE"] = "1"
 session = TestDBSession
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-mem = Memori(conn=session).google.register(client)
+mem = Memori(conn=session).llm.register(client)
 
 # Multiple registrations should not cause an issue.
-mem.google.register(client)
+mem.llm.register(client)
 
 mem.attribution(entity_id="123", process_id="456")
 

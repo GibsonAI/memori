@@ -66,7 +66,7 @@ from openai import OpenAI
 from memori import Memori
 
 client = OpenAI(...)
-mem = Memori().openai.register(client)
+mem = Memori().llm.register(client)
 ```
 
 ## Attribution
@@ -124,7 +124,7 @@ This step is not necessary but will prep your environment for faster execution. 
     from memori import Memori
 
     client = OpenAI(...)
-    mem = Memori(conn=db_session_factory).openai.register(client)
+    mem = Memori(conn=db_session_factory).llm.register(client)
     ```
 
 ## Quickstart Example
@@ -145,7 +145,7 @@ engine = create_engine("sqlite:///memori.db")
 Session = sessionmaker(bind=engine)
 
 # Setup Memori - that's it!
-mem = Memori(conn=Session).openai.register(client)
+mem = Memori(conn=Session).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 mem.config.storage.build()
 
@@ -170,6 +170,7 @@ print(response2.choices[0].message.content)  # AI remembers: "blue"!
 - Bedrock
 - Gemini
 - Grok (xAI)
+- Nebius AI Studio
 - OpenAI
 
 _(unstreamed, streamed, synchronous and asynchronous)_
