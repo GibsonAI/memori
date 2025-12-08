@@ -13,13 +13,16 @@ from memori.llm._embeddings import embed_texts_async
 from memori.memory._struct import Memories
 from memori.memory.augmentation._base import AugmentationContext, BaseAugmentation
 from memori.memory.augmentation._models import (
+    AttributionData,
     AugmentationPayload,
     ConversationData,
+    EntityData,
     FrameworkData,
     LlmData,
     MetaData,
     ModelData,
     PlatformData,
+    ProcessData,
     SdkData,
     SdkVersionData,
     StorageData,
@@ -58,8 +61,10 @@ class AdvancedAugmentation(BaseAugmentation):
         )
 
         meta = MetaData(
-            entity_id=hash_id(entity_id),
-            process_id=hash_id(process_id),
+            attribution=AttributionData(
+                entity=EntityData(id=hash_id(entity_id)),
+                process=ProcessData(id=hash_id(process_id)),
+            ),
             framework=FrameworkData(provider=self.config.framework.provider),
             llm=LlmData(
                 model=ModelData(

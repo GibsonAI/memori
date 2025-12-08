@@ -101,8 +101,8 @@ async def test_build_api_payload_with_system_prompt(augmentation):
     assert payload["conversation"]["summary"] == summary
     assert "system_prompt" not in payload["conversation"]
     assert payload["meta"]["storage"]["dialect"] == dialect
-    assert payload["meta"]["entity_id"] is not None
-    assert payload["meta"]["process_id"] is not None
+    assert payload["meta"]["attribution"]["entity"]["id"] is not None
+    assert payload["meta"]["attribution"]["process"]["id"] is not None
 
 
 @pytest.mark.asyncio
@@ -122,8 +122,8 @@ async def test_build_api_payload_without_system_prompt(augmentation):
     assert payload["conversation"]["summary"] == summary
     assert "system_prompt" not in payload["conversation"]
     assert payload["meta"]["storage"]["dialect"] == dialect
-    assert payload["meta"]["entity_id"] is None
-    assert payload["meta"]["process_id"] is None
+    assert payload["meta"]["attribution"]["entity"]["id"] is None
+    assert payload["meta"]["attribution"]["process"]["id"] is None
 
 
 @pytest.mark.asyncio
@@ -142,12 +142,18 @@ async def test_build_api_payload_hashes_ids_consistently(augmentation):
         messages, summary, system_prompt, dialect, entity_id, process_id
     )
 
-    assert payload1["meta"]["entity_id"] == payload2["meta"]["entity_id"]
-    assert payload1["meta"]["process_id"] == payload2["meta"]["process_id"]
-    assert payload1["meta"]["entity_id"] != entity_id
-    assert payload1["meta"]["process_id"] != process_id
-    assert len(payload1["meta"]["entity_id"]) == 64
-    assert len(payload1["meta"]["process_id"]) == 64
+    assert (
+        payload1["meta"]["attribution"]["entity"]["id"]
+        == payload2["meta"]["attribution"]["entity"]["id"]
+    )
+    assert (
+        payload1["meta"]["attribution"]["process"]["id"]
+        == payload2["meta"]["attribution"]["process"]["id"]
+    )
+    assert payload1["meta"]["attribution"]["entity"]["id"] != entity_id
+    assert payload1["meta"]["attribution"]["process"]["id"] != process_id
+    assert len(payload1["meta"]["attribution"]["entity"]["id"]) == 64
+    assert len(payload1["meta"]["attribution"]["process"]["id"]) == 64
 
 
 @pytest.mark.asyncio

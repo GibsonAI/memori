@@ -80,6 +80,28 @@ class StorageData:
 
 
 @dataclass
+class EntityData:
+    """Entity metadata structure."""
+
+    id: str | None = None
+
+
+@dataclass
+class ProcessData:
+    """Process metadata structure."""
+
+    id: str | None = None
+
+
+@dataclass
+class AttributionData:
+    """Attribution metadata structure."""
+
+    entity: EntityData = field(default_factory=EntityData)
+    process: ProcessData = field(default_factory=ProcessData)
+
+
+@dataclass
 class MetaData:
     """Meta information structure for augmentation payload."""
 
@@ -88,8 +110,7 @@ class MetaData:
     platform: PlatformData = field(default_factory=PlatformData)
     sdk: SdkData = field(default_factory=SdkData)
     storage: StorageData = field(default_factory=StorageData)
-    entity_id: str | None = None
-    process_id: str | None = None
+    attribution: AttributionData = field(default_factory=AttributionData)
 
 
 @dataclass
@@ -107,8 +128,14 @@ class AugmentationPayload:
                 "summary": self.conversation.summary,
             },
             "meta": {
-                "entity_id": self.meta.entity_id,
-                "process_id": self.meta.process_id,
+                "attribution": {
+                    "entity": {
+                        "id": self.meta.attribution.entity.id,
+                    },
+                    "process": {
+                        "id": self.meta.attribution.process.id,
+                    },
+                },
                 "framework": {
                     "provider": self.meta.framework.provider,
                 },

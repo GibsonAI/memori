@@ -190,26 +190,42 @@ def test_hash_id_empty_string():
 
 
 def test_meta_data_with_hashed_ids():
-    """Test MetaData includes entity_id and process_id fields."""
-    meta = MetaData(
-        entity_id="hashed_entity",
-        process_id="hashed_process",
+    """Test MetaData includes entity and process IDs in attribution."""
+    from memori.memory.augmentation._models import (
+        AttributionData,
+        EntityData,
+        ProcessData,
     )
 
-    assert meta.entity_id == "hashed_entity"
-    assert meta.process_id == "hashed_process"
+    meta = MetaData(
+        attribution=AttributionData(
+            entity=EntityData(id="hashed_entity"),
+            process=ProcessData(id="hashed_process"),
+        ),
+    )
+
+    assert meta.attribution.entity.id == "hashed_entity"
+    assert meta.attribution.process.id == "hashed_process"
 
 
 def test_augmentation_payload_includes_hashed_ids():
     """Test AugmentationPayload.to_dict() includes hashed entity and process IDs."""
+    from memori.memory.augmentation._models import (
+        AttributionData,
+        EntityData,
+        ProcessData,
+    )
+
     conversation = ConversationData(messages=[], summary=None)
     meta = MetaData(
-        entity_id="abc123",
-        process_id="xyz789",
+        attribution=AttributionData(
+            entity=EntityData(id="abc123"),
+            process=ProcessData(id="xyz789"),
+        ),
     )
 
     payload = AugmentationPayload(conversation=conversation, meta=meta)
     result = payload.to_dict()
 
-    assert result["meta"]["entity_id"] == "abc123"
-    assert result["meta"]["process_id"] == "xyz789"
+    assert result["meta"]["attribution"]["entity"]["id"] == "abc123"
+    assert result["meta"]["attribution"]["process"]["id"] == "xyz789"
