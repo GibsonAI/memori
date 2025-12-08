@@ -23,6 +23,7 @@ from memori.memory.augmentation._models import (
     SdkData,
     SdkVersionData,
     StorageData,
+    hash_id,
 )
 from memori.memory.augmentation._registry import Registry
 
@@ -42,7 +43,13 @@ class AdvancedAugmentation(BaseAugmentation):
         return ""
 
     def _build_api_payload(
-        self, messages: list, summary: str, system_prompt: str | None, dialect: str
+        self,
+        messages: list,
+        summary: str,
+        system_prompt: str | None,
+        dialect: str,
+        entity_id: str | None,
+        process_id: str | None,
     ) -> dict:
         """Build API payload using structured dataclasses."""
         conversation = ConversationData(
@@ -51,6 +58,8 @@ class AdvancedAugmentation(BaseAugmentation):
         )
 
         meta = MetaData(
+            entity_id=hash_id(entity_id),
+            process_id=hash_id(process_id),
             framework=FrameworkData(provider=self.config.framework.provider),
             llm=LlmData(
                 model=ModelData(
@@ -87,6 +96,8 @@ class AdvancedAugmentation(BaseAugmentation):
             summary,
             ctx.payload.system_prompt,
             dialect,
+            ctx.payload.entity_id,
+            ctx.payload.process_id,
         )
 
         try:

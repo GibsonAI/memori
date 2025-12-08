@@ -8,7 +8,14 @@ r"""
                       memorilabs.ai
 """
 
+import hashlib
 from dataclasses import dataclass, field
+
+
+def hash_id(value: str | None) -> str | None:
+    if not value:
+        return None
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 @dataclass
@@ -81,6 +88,8 @@ class MetaData:
     platform: PlatformData = field(default_factory=PlatformData)
     sdk: SdkData = field(default_factory=SdkData)
     storage: StorageData = field(default_factory=StorageData)
+    entity_id: str | None = None
+    process_id: str | None = None
 
 
 @dataclass
@@ -98,6 +107,8 @@ class AugmentationPayload:
                 "summary": self.conversation.summary,
             },
             "meta": {
+                "entity_id": self.meta.entity_id,
+                "process_id": self.meta.process_id,
                 "framework": {
                     "provider": self.meta.framework.provider,
                 },

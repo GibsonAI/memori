@@ -9,6 +9,7 @@ from memori.memory.augmentation._models import (
     SdkData,
     SdkVersionData,
     StorageData,
+    hash_id,
 )
 
 
@@ -145,3 +146,70 @@ def test_storage_data_defaults():
 
     assert storage.cockroachdb is False
     assert storage.dialect is None
+
+
+def test_hash_id_returns_sha256():
+    """Test hash_id returns SHA-256 hex digest."""
+    result = hash_id("user_123")
+
+    assert result is not None
+    assert len(result) == 64
+    assert all(c in "0123456789abcdef" for c in result)
+
+
+def test_hash_id_is_consistent():
+    """Test hash_id returns same hash for same input."""
+    input_value = "user_123"
+
+    hash1 = hash_id(input_value)
+    hash2 = hash_id(input_value)
+
+    assert hash1 == hash2
+
+
+def test_hash_id_different_inputs():
+    """Test hash_id returns different hashes for different inputs."""
+    hash1 = hash_id("user_123")
+    hash2 = hash_id("user_456")
+
+    assert hash1 != hash2
+
+
+def test_hash_id_none_input():
+    """Test hash_id returns None for None input."""
+    result = hash_id(None)
+
+    assert result is None
+
+
+def test_hash_id_empty_string():
+    """Test hash_id returns None for empty string."""
+    result = hash_id("")
+
+    assert result is None
+
+
+def test_meta_data_with_hashed_ids():
+    """Test MetaData includes entity_id and process_id fields."""
+    meta = MetaData(
+        entity_id="hashed_entity",
+        process_id="hashed_process",
+    )
+
+    assert meta.entity_id == "hashed_entity"
+    assert meta.process_id == "hashed_process"
+
+
+def test_augmentation_payload_includes_hashed_ids():
+    """Test AugmentationPayload.to_dict() includes hashed entity and process IDs."""
+    conversation = ConversationData(messages=[], summary=None)
+    meta = MetaData(
+        entity_id="abc123",
+        process_id="xyz789",
+    )
+
+    payload = AugmentationPayload(conversation=conversation, meta=meta)
+    result = payload.to_dict()
+
+    assert result["meta"]["entity_id"] == "abc123"
+    assert result["meta"]["process_id"] == "xyz789"
