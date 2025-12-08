@@ -76,7 +76,7 @@ class Anthropic(BaseClient):
 
 @Registry.register_client(
     lambda client: type(client).__module__.startswith(
-        ("google.generativeai", "google.ai.generativelanguage")
+        ("google.generativeai", "google.ai.generativelanguage", "google.genai")
     )
 )
 class Google(BaseClient):

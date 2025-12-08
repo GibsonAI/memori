@@ -16,7 +16,7 @@ os.environ["MEMORI_TEST_MODE"] = "1"
 session = TestDBSession
 model = OpenAIChat(id="gpt-4o-mini")
 
-mem = Memori(conn=session).agno.register(openai_chat=model)
+mem = Memori(conn=session).llm.register(openai_chat=model)
 
 mem.attribution(entity_id="123", process_id="456")
 

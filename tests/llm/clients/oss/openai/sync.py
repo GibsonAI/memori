@@ -15,7 +15,7 @@ os.environ["MEMORI_TEST_MODE"] = "1"
 session = TestDBSession
 client = OpenAI()
 
-mem = Memori(conn=session).openai.register(client)
+mem = Memori(conn=session).llm.register(client)
 
 # Multiple registrations should not cause an issue.
 mem.llm.register(client)
