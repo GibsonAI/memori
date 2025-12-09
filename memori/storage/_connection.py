@@ -27,7 +27,7 @@ def connection_context(
         return
 
     conn = conn_factory()
-    adapter = Registry().adapter(conn)
+    adapter = Registry().adapter(lambda: conn)
     driver = Registry().driver(adapter)
 
     try:
