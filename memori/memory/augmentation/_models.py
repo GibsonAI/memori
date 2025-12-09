@@ -8,7 +8,14 @@ r"""
                       memorilabs.ai
 """
 
+import hashlib
 from dataclasses import dataclass, field
+
+
+def hash_id(value: str | None) -> str | None:
+    if not value:
+        return None
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 @dataclass
@@ -73,6 +80,28 @@ class StorageData:
 
 
 @dataclass
+class EntityData:
+    """Entity metadata structure."""
+
+    id: str | None = None
+
+
+@dataclass
+class ProcessData:
+    """Process metadata structure."""
+
+    id: str | None = None
+
+
+@dataclass
+class AttributionData:
+    """Attribution metadata structure."""
+
+    entity: EntityData = field(default_factory=EntityData)
+    process: ProcessData = field(default_factory=ProcessData)
+
+
+@dataclass
 class MetaData:
     """Meta information structure for augmentation payload."""
 
@@ -81,6 +110,7 @@ class MetaData:
     platform: PlatformData = field(default_factory=PlatformData)
     sdk: SdkData = field(default_factory=SdkData)
     storage: StorageData = field(default_factory=StorageData)
+    attribution: AttributionData = field(default_factory=AttributionData)
 
 
 @dataclass
@@ -98,6 +128,14 @@ class AugmentationPayload:
                 "summary": self.conversation.summary,
             },
             "meta": {
+                "attribution": {
+                    "entity": {
+                        "id": self.meta.attribution.entity.id,
+                    },
+                    "process": {
+                        "id": self.meta.attribution.process.id,
+                    },
+                },
                 "framework": {
                     "provider": self.meta.framework.provider,
                 },

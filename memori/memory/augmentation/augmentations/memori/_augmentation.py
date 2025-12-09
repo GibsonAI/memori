@@ -13,16 +13,20 @@ from memori.llm._embeddings import embed_texts_async
 from memori.memory._struct import Memories
 from memori.memory.augmentation._base import AugmentationContext, BaseAugmentation
 from memori.memory.augmentation._models import (
+    AttributionData,
     AugmentationPayload,
     ConversationData,
+    EntityData,
     FrameworkData,
     LlmData,
     MetaData,
     ModelData,
     PlatformData,
+    ProcessData,
     SdkData,
     SdkVersionData,
     StorageData,
+    hash_id,
 )
 from memori.memory.augmentation._registry import Registry
 
@@ -42,7 +46,13 @@ class AdvancedAugmentation(BaseAugmentation):
         return ""
 
     def _build_api_payload(
-        self, messages: list, summary: str, system_prompt: str | None, dialect: str
+        self,
+        messages: list,
+        summary: str,
+        system_prompt: str | None,
+        dialect: str,
+        entity_id: str | None,
+        process_id: str | None,
     ) -> dict:
         """Build API payload using structured dataclasses."""
         conversation = ConversationData(
@@ -51,6 +61,10 @@ class AdvancedAugmentation(BaseAugmentation):
         )
 
         meta = MetaData(
+            attribution=AttributionData(
+                entity=EntityData(id=hash_id(entity_id)),
+                process=ProcessData(id=hash_id(process_id)),
+            ),
             framework=FrameworkData(provider=self.config.framework.provider),
             llm=LlmData(
                 model=ModelData(
@@ -87,6 +101,8 @@ class AdvancedAugmentation(BaseAugmentation):
             summary,
             ctx.payload.system_prompt,
             dialect,
+            ctx.payload.entity_id,
+            ctx.payload.process_id,
         )
 
         try:
