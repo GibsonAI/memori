@@ -155,17 +155,45 @@ class Manager:
             db_writer.enqueue_write(task)
 
     def wait(self, timeout: float | None = None) -> bool:
-        if not self._pending_futures:
+        import concurrent.futures
+        import time
+
+        start_time = time.time()
+
+        # Wait for pending futures to complete
+        if self._pending_futures:
+            try:
+                concurrent.futures.wait(
+                    self._pending_futures,
+                    timeout=timeout,
+                    return_when=concurrent.futures.ALL_COMPLETED,
+                )
+            except Exception:
+                return False
+
+            if self._pending_futures:
+                return False
+
+        # Wait for db_writer queue to drain and batch to process
+        db_writer = get_db_writer()
+        if db_writer.queue is None:
             return True
 
-        import concurrent.futures
+        deadline = None if timeout is None else start_time + timeout
+        poll_interval = 0.01
 
-        try:
-            concurrent.futures.wait(
-                self._pending_futures,
-                timeout=timeout,
-                return_when=concurrent.futures.ALL_COMPLETED,
-            )
-            return len(self._pending_futures) == 0
-        except Exception:
-            return False
+        # Wait for queue to be empty
+        while not db_writer.queue.empty():
+            if deadline and time.time() >= deadline:
+                return False
+            time.sleep(poll_interval)
+
+        # Wait for final batch processing (2x batch_timeout)
+        extra_wait = db_writer.batch_timeout * 2
+        if deadline:
+            extra_wait = min(extra_wait, deadline - time.time())
+
+        if extra_wait > 0:
+            time.sleep(extra_wait)
+
+        return True

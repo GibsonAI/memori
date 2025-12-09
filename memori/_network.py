@@ -22,11 +22,22 @@ from memori._exceptions import QuotaExceededError
 
 class Api:
     def __init__(self, config: Config):
-        self.__x_api_key = "c18b1022-7fe2-42af-ab01-b1f9139184f0"
+        test_mode = os.environ.get("MEMORI_TEST_MODE") == "1"
+
         self.__base = os.environ.get("MEMORI_API_URL_BASE")
+
         if self.__base is None:
-            self.__x_api_key = "96a7ea3e-11c2-428c-b9ae-5a168363dc80"
-            self.__base = "https://api.memorilabs.ai"
+            if test_mode:
+                # Use staging for test mode
+                self.__x_api_key = "c18b1022-7fe2-42af-ab01-b1f9139184f0"
+                self.__base = "https://staging-api.memorilabs.ai"
+            else:
+                # Use production
+                self.__x_api_key = "96a7ea3e-11c2-428c-b9ae-5a168363dc80"
+                self.__base = "https://api.memorilabs.ai"
+        else:
+            # Custom URL provided, use staging key as default
+            self.__x_api_key = "c18b1022-7fe2-42af-ab01-b1f9139184f0"
 
         self.config = config
 
@@ -113,6 +124,7 @@ class Api:
         attempts = 0
         max_retries = 5
         backoff_factor = 1
+        print(url)
 
         while True:
             try:
