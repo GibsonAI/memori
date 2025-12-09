@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import time
 from unittest.mock import Mock
 
@@ -126,3 +127,42 @@ async def test_manager_process_augmentations_no_augmentations():
         await manager._process_augmentations(payload)
     finally:
         runtime.semaphore = original_semaphore
+
+
+def test_manager_wait_no_pending_futures():
+    config = Config()
+    manager = Manager(config)
+
+    result = manager.wait()
+
+    assert result is True
+
+
+def test_manager_wait_with_completed_futures():
+    config = Config()
+    manager = Manager(config)
+    mock_conn = Mock()
+    manager.start(mock_conn)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(lambda: None)
+        manager._pending_futures.append(future)
+        future.add_done_callback(lambda f: manager._handle_augmentation_result(f))
+        time.sleep(0.1)
+
+        result = manager.wait(timeout=1.0)
+
+        assert result is True
+
+
+def test_manager_wait_with_timeout():
+    config = Config()
+    manager = Manager(config)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(time.sleep, 2)
+        manager._pending_futures.append(future)
+
+        result = manager.wait(timeout=0.1)
+
+        assert result is False
