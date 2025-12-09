@@ -76,6 +76,7 @@ class Memori:
         self.config.storage = StorageManager(self.config).start(conn)
         self.config.augmentation = AugmentationManager(self.config).start(conn)
 
+        self.augmentation = self.config.augmentation
         self.llm = LlmRegistry(self)
         self.agno = LlmProviderAgno(self)
         self.anthropic = LlmProviderAnthropic(self)

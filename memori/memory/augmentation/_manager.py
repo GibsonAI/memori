@@ -11,6 +11,7 @@ r"""
 import asyncio
 import logging
 from collections.abc import Callable
+from concurrent.futures import Future
 from typing import Any
 
 from memori._config import Config
@@ -41,6 +42,7 @@ class Manager:
         self.db_writer_batch_timeout = DB_WRITER_BATCH_TIMEOUT
         self.db_writer_queue_size = DB_WRITER_QUEUE_SIZE
         self._quota_error: Exception | None = None
+        self._pending_futures: list[Future[Any]] = []
 
     def start(self, conn: Callable | Any) -> "Manager":
         """Start the augmentation manager with a database connection.
@@ -86,10 +88,11 @@ class Manager:
         future = asyncio.run_coroutine_threadsafe(
             self._process_augmentations(input_data), runtime.loop
         )
+        self._pending_futures.append(future)
         future.add_done_callback(lambda f: self._handle_augmentation_result(f))
         return self
 
-    def _handle_augmentation_result(self, future: asyncio.Future[None]) -> None:
+    def _handle_augmentation_result(self, future: Future[Any]) -> None:
         from memori._exceptions import QuotaExceededError
 
         try:
@@ -100,6 +103,9 @@ class Manager:
             logger.error(f"Quota exceeded, disabling augmentation: {e}")
         except Exception as e:
             logger.error(f"Augmentation task failed: {e}", exc_info=True)
+        finally:
+            if future in self._pending_futures:
+                self._pending_futures.remove(future)
 
     async def _process_augmentations(self, input_data: AugmentationInput) -> None:
         if not self.augmentations:
@@ -147,3 +153,19 @@ class Manager:
                 kwargs=write_op["kwargs"],
             )
             db_writer.enqueue_write(task)
+
+    def wait(self, timeout: float | None = None) -> bool:
+        if not self._pending_futures:
+            return True
+
+        import concurrent.futures
+
+        try:
+            concurrent.futures.wait(
+                self._pending_futures,
+                timeout=timeout,
+                return_when=concurrent.futures.ALL_COMPLETED,
+            )
+            return len(self._pending_futures) == 0
+        except Exception:
+            return False
