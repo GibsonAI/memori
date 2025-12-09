@@ -21,7 +21,7 @@ This guide covers the most common issues developers face when using Memori and h
 
 **Symptoms:**
 - Error during `pip install memori`
-- Missing dependencies errors
+- Missing dependency errors
 
 **Solutions:**
 
@@ -153,7 +153,7 @@ mem = Memori(conn=Session).openai.register(client)
 mem.config.storage.build()  # This creates all required tables
 ```
 
-2. For MongoDB, ensure the database exists and build schema:
+2. For MongoDB, ensure the database exists and build the schema:
 ```python
 client = MongoClient("mongodb://host:27017/")
 db = client["memori"]  # Database will be created automatically
@@ -256,13 +256,11 @@ OperationalError: restart transaction
 
 **Solutions:**
 
-This is handled automatically with retries. If it persists:
+Memori automatically retries failed transactions up to 3 times with exponential backoff. If the error persists:
 
-1. Increase retry attempts in your application code
-2. Reduce concurrent write operations
-3. Check CockroachDB cluster health
-
-The system automatically retries up to 3 times with exponential backoff.
+1. Increase retry attempts in your application code.
+2. Reduce concurrent write operations.
+3. Check CockroachDB cluster health.
 
 ### Problem: Session management confusion
 
@@ -340,7 +338,7 @@ QuotaExceededError: your IP address is over quota; register for an API key now: 
 
 **Solutions:**
 
-1. Sign up for a free API key at [https://app.memorilabs.ai/signup](https://app.memorilabs.ai/signup)
+1. Sign up for a free API key at [https://app.memorilabs.ai/signup](https://app.memorilabs.ai/signup).
 
 2. Set your API key:
 ```bash
@@ -379,7 +377,7 @@ mem.config.request_num_backoff = 10  # Default is 5 retries
 mem.config.request_backoff_factor = 2  # Default is 1
 ```
 
-3. Check your network connection and firewall settings
+3. Check your network connection and firewall settings.
 
 ---
 
@@ -397,6 +395,7 @@ mem.config.request_backoff_factor = 2  # Default is 1
 
 **OpenAI:**
 ```python
+import os
 from openai import OpenAI
 from memori import Memori
 
@@ -407,6 +406,7 @@ mem.attribution(entity_id="user-123", process_id="my-app")
 
 **Anthropic:**
 ```python
+import os
 import anthropic
 from memori import Memori
 
@@ -417,6 +417,7 @@ mem.attribution(entity_id="user-123", process_id="my-app")
 
 **Google:**
 ```python
+import os
 import google.generativeai as genai
 from memori import Memori
 
@@ -492,7 +493,7 @@ mem.config.recall_embeddings_limit = 500  # Default is 1000
 # Lower values may reduce memory but slow down processing
 ```
 
-3. Use a smaller embedding model if needed (requires custom configuration)
+3. Use a smaller embedding model if needed (requires custom configuration).
 
 ### Problem: Slow database writes
 
@@ -511,9 +512,9 @@ engine = create_engine(
 )
 ```
 
-2. Database indexes are optimized automatically by Memori
+2. Database indexes are optimized automatically by Memori.
 
-3. Use PostgreSQL instead of SQLite for production workloads
+3. Use PostgreSQL instead of SQLite for production workloads.
 
 ---
 
@@ -548,9 +549,9 @@ mem.config.reset_cache()
 rm memori.db
 ```
 
-4. For other databases, drop and recreate tables:
+4. For other databases, drop tables using your database tooling, then recreate the schema:
 ```python
-mem.config.storage.build()  # This will create/update schema
+mem.config.storage.build()  # This will create/update the schema
 ```
 
 ---
@@ -618,14 +619,14 @@ except Exception as e:
 
 If you are still having issues after trying these solutions:
 
-1. Check the [GitHub Issues](https://github.com/MemoriLabs/Memori/issues)
-2. Join the [Discord community](https://discord.gg/abD4eGym6v)
-3. Review the [documentation](https://memorilabs.ai/docs/)
-4. Check the [examples folder](https://github.com/MemoriLabs/Memori/tree/main/examples) for working code
+1. Check the [GitHub Issues](https://github.com/MemoriLabs/Memori/issues).
+2. Join the [Discord community](https://discord.gg/abD4eGym6v).
+3. Review the [documentation](https://memorilabs.ai/docs/).
+4. Check the [examples folder](https://github.com/MemoriLabs/Memori/tree/main/examples) for working code.
 
 When asking for help, include:
-- Your Python version
-- Your Memori version (`pip show memori`)
-- Database type you are using
-- Complete error message and stack trace
-- Minimal code example that reproduces the issue
+- Your Python version.
+- Your Memori version (`pip show memori`).
+- Database type you are using.
+- Complete error message and stack trace.
+- Minimal code example that reproduces the issue.
