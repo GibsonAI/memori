@@ -11,7 +11,7 @@ Memori is LLM, database and framework agnostic and works with the tools you alre
 
 ## Prerequisites
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - An OpenAI API key
 
 ## Step 1: Install Libraries

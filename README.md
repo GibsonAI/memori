@@ -184,7 +184,6 @@ print(response.choices[0].message.content + "\n")
 - Bedrock
 - Gemini
 - Grok (xAI)
-- Nebius AI Studio
 - OpenAI
 
 _(unstreamed, streamed, synchronous and asynchronous)_
@@ -193,6 +192,10 @@ _(unstreamed, streamed, synchronous and asynchronous)_
 
 - Agno
 - LangChain
+
+## Supported Platforms
+
+- Nebius AI Studio
 
 ## Supported Database Integrations
 

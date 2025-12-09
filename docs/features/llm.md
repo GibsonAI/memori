@@ -11,6 +11,7 @@
 | **Bedrock**       | Via LangChain                    | LangChain ChatBedrock     |
 | **LangChain**     | All LangChain chat models        | Native framework support  |
 | **Pydantic AI**   | All providers                    | Native framework support  |
+| **Nebius AI Studio**   | All providers                    | Native Platform support  |
 
 ## Quick Start Examples
 
@@ -117,4 +118,29 @@ mem = Memori(conn=SessionLocal).llm.register(agent)
 mem.attribution(entity_id="user_123", process_id="pydantic_agent")
 
 result = agent.run_sync("Hello")
+```
+
+### Nebius AI Studio
+
+```python
+from memori import Memori
+from openai import OpenAI
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+engine = create_engine("sqlite:///memori.db")
+SessionLocal = sessionmaker(bind=engine)
+
+client = OpenAI(
+    base_url="https://api.studio.nebius.com/v1/",
+    api_key=os.getenv("NEBIUS_API_KEY"),
+)
+
+mem = Memori(conn=SessionLocal).llm.register(client)
+mem.attribution(entity_id="user_123", process_id="my_agent")
+
+response = client.chat.completions.create(
+    model="meta-llama/Llama-3.3-70B-Instruct",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
 ```
