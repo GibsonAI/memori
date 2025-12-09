@@ -25,12 +25,12 @@ pip install memori
 For this example, you may also need to install:
 
 ```bash
-pip install openai sqlalchemy
+pip install openai
 ```
 
-## Step 2: Set Your OpenAI API Key
+## Step 2: Set environment variables
 
-Export your OpenAI API key as an environment variable:
+Set your OpenAI API key in an environment variable:
 
 ```bash
 export OPENAI_API_KEY="your-api-key-here"
@@ -42,37 +42,51 @@ Create a new Python file `quickstart.py` and add the following code:
 
 ```python
 import os
+import sqlite3
 
 from memori import Memori
 from openai import OpenAI
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-# Setup OpenAI
+
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Setup SQLite
-engine = create_engine("sqlite:///memori.db")
-Session = sessionmaker(bind=engine)
+memori = Memori(conn=get_sqlite_connection).llm.register(client)
+memori.attribution(entity_id="123456", process_id="test-ai-agent")
+memori.config.storage.build()
 
-# Setup Memori - that's it!
-mem = Memori(conn=Session).llm.register(client)
-mem.attribution(entity_id="user-123", process_id="my-app")
-mem.config.storage.build()
-
-# First conversation - establish facts
-response1 = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "My favorite color is blue"}],
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=[
+        {"role": "user", "content": "My favorite color is blue."}
+    ]
 )
-print(response1.choices[0].message.content)
+print(response.choices[0].message.content + "\n")
 
-# Second conversation - Memori recalls context automatically
-response2 = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "What's my favorite color?"}],
+# Advanced Augmentation runs asynchronously to efficiently
+# create memories. For this example, a short lived command
+# line program, we need to wait for it to finish.
+
+memori.augmentation.wait()
+
+# Memori stored that your favorite color is blue in SQLite.
+# Now reset everything so there's no prior context.
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+memori = Memori(conn=get_sqlite_connection).llm.register(client)
+memori.attribution(entity_id="123456", process_id="test-ai-agent")
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=[
+        {"role": "user", "content": "What's my favorite color?"}
+    ]
 )
-print(response2.choices[0].message.content)  # AI remembers: "blue"!
+print(response.choices[0].message.content + "\n")
 ```
 
 ## Step 4: Run the Application
@@ -81,6 +95,12 @@ Execute your Python file:
 
 ```bash
 python quickstart.py
+```
+
+## Step 5: Check the memories created
+
+```bash
+/bin/echo "select * from memori_entity_fact" | /usr/bin/sqlite3 memori.db
 ```
 
 You should see the AI respond to both questions, with the second response correctly recalling that your favorite color is blue!
