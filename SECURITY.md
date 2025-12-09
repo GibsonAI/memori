@@ -1,3 +1,5 @@
+[![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
+
 ## Security Policy
 
 If you believe you have discovered a security vulnerability in Memori, please **do not** open a public GitHub issue.
