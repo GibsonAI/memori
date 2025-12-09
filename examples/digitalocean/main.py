@@ -58,3 +58,8 @@ if __name__ == "__main__":
         messages=[{"role": "user", "content": "What city do I live in?"}],
     )
     print(f"AI: {response3.choices[0].message.content}")
+
+    # Advanced Augmentation runs asynchronously to efficiently
+    # create memories. For this example, a short lived command
+    # line program, we need to wait for it to finish.
+    mem.augmentation.wait()
