@@ -16,7 +16,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 mongo_client = MongoClient(os.getenv("MONGODB_CONNECTION_STRING"))
 db = mongo_client["memori"]
 
-mem = Memori(conn=lambda: db).openai.register(client)
+mem = Memori(conn=lambda: db).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 mem.config.storage.build()
 
@@ -43,3 +43,8 @@ if __name__ == "__main__":
         messages=[{"role": "user", "content": "What city do I live in?"}],
     )
     print(f"AI: {response3.choices[0].message.content}")
+
+    # Advanced Augmentation runs asynchronously to efficiently
+    # create memories. For this example, a short lived command
+    # line program, we need to wait for it to finish.
+    mem.augmentation.wait()

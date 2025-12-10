@@ -40,16 +40,44 @@ class TestApiInitialization:
     def test_init_uses_default_api_key_and_base_url(self):
         if "MEMORI_API_URL_BASE" in os.environ:
             del os.environ["MEMORI_API_URL_BASE"]
+        if "MEMORI_TEST_MODE" in os.environ:
+            del os.environ["MEMORI_TEST_MODE"]
 
         api = Api(Config())
         assert api._Api__x_api_key == "96a7ea3e-11c2-428c-b9ae-5a168363dc80"  # type: ignore[attr-defined]
         assert api._Api__base == "https://api.memorilabs.ai"  # type: ignore[attr-defined]
 
     def test_init_uses_custom_base_url(self):
+        if "MEMORI_TEST_MODE" in os.environ:
+            del os.environ["MEMORI_TEST_MODE"]
         os.environ["MEMORI_API_URL_BASE"] = "https://custom.api.com"
         api = Api(Config())
         assert api._Api__x_api_key == "c18b1022-7fe2-42af-ab01-b1f9139184f0"  # type: ignore[attr-defined]
         assert api._Api__base == "https://custom.api.com"  # type: ignore[attr-defined]
+
+    def test_init_uses_staging_when_test_mode_enabled(self):
+        if "MEMORI_API_URL_BASE" in os.environ:
+            del os.environ["MEMORI_API_URL_BASE"]
+        os.environ["MEMORI_TEST_MODE"] = "1"
+
+        try:
+            api = Api(Config())
+            assert api._Api__x_api_key == "c18b1022-7fe2-42af-ab01-b1f9139184f0"  # type: ignore[attr-defined]
+            assert api._Api__base == "https://staging-api.memorilabs.ai"  # type: ignore[attr-defined]
+        finally:
+            del os.environ["MEMORI_TEST_MODE"]
+
+    def test_init_uses_production_when_test_mode_disabled(self):
+        if "MEMORI_API_URL_BASE" in os.environ:
+            del os.environ["MEMORI_API_URL_BASE"]
+        os.environ["MEMORI_TEST_MODE"] = "0"
+
+        try:
+            api = Api(Config())
+            assert api._Api__x_api_key == "96a7ea3e-11c2-428c-b9ae-5a168363dc80"  # type: ignore[attr-defined]
+            assert api._Api__base == "https://api.memorilabs.ai"  # type: ignore[attr-defined]
+        finally:
+            del os.environ["MEMORI_TEST_MODE"]
 
 
 class TestApiUrl:

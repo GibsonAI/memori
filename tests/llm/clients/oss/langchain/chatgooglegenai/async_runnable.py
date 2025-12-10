@@ -28,10 +28,10 @@ async def main():
     )
     chain = prompt | client | StrOutputParser()
 
-    mem = Memori(conn=session).langchain.register(chatgooglegenai=client)
+    mem = Memori(conn=session).llm.register(chatgooglegenai=client)
 
     # Multiple registrations should not cause an issue.
-    mem.langchain.register(chatgooglegenai=client)
+    mem.llm.register(chatgooglegenai=client)
 
     mem.attribution(entity_id="123", process_id="456")
 

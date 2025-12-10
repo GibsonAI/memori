@@ -17,7 +17,7 @@ from memori import Memori
 from openai import OpenAI
 
 client = OpenAI()
-mem = Memori(conn=db_session_factory).openai.register(client)
+mem = Memori(conn=db_session_factory).llm.register(client)
 
 # Track conversations by user and process
 mem.attribution(entity_id="user_123", process_id="support_agent")
@@ -37,6 +37,7 @@ facts = mem.recall("Mars color")
 
 - **LLM Provider Support**: OpenAI, Anthropic, Bedrock, Gemini, Grok (xAI) - all modes (streamed, unstreamed, sync, async)
 - **Framework Integration**: Native support for LangChain and Pydantic AI
+- **Platform Support**: Nebius AI Studio
 - **Universal Database Support**: DB API 2.0, SQLAlchemy, Django ORM
 - **Multiple Datastores**: PostgreSQL, MySQL/MariaDB, SQLite, MongoDB, CockroachDB, Neon, Supabase, Oracle, and more
 - **Attribution System**: Track memories by entity (user), process (agent), and session

@@ -11,6 +11,7 @@
 | **Bedrock**       | Via LangChain                    | LangChain ChatBedrock     |
 | **LangChain**     | All LangChain chat models        | Native framework support  |
 | **Pydantic AI**   | All providers                    | Native framework support  |
+| **Nebius AI Studio**   | All providers                    | Native Platform support  |
 
 ## Quick Start Examples
 
@@ -27,7 +28,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 client = OpenAI()
 
-mem = Memori(conn=SessionLocal).openai.register(client)
+mem = Memori(conn=SessionLocal).llm.register(client)
 mem.attribution(entity_id="user_123", process_id="my_agent")
 
 response = client.chat.completions.create(
@@ -49,7 +50,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 client = Anthropic()
 
-mem = Memori(conn=SessionLocal).anthropic.register(client)
+mem = Memori(conn=SessionLocal).llm.register(client)
 mem.attribution(entity_id="user_123", process_id="claude_assistant")
 
 response = client.messages.create(
@@ -75,7 +76,7 @@ SessionLocal = sessionmaker(bind=engine)
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 client = genai.GenerativeModel("gemini-2.0-flash-exp")
 
-mem = Memori(conn=SessionLocal).google.register(client)
+mem = Memori(conn=SessionLocal).llm.register(client)
 mem.attribution(entity_id="user_123", process_id="gemini_assistant")
 
 response = client.generate_content("Hello")
@@ -94,7 +95,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 client = ChatOpenAI(model="gpt-4o-mini")
 
-mem = Memori(conn=SessionLocal).langchain.register(client)
+mem = Memori(conn=SessionLocal).llm.register(client)
 mem.attribution(entity_id="user_123", process_id="langchain_agent")
 
 response = client.invoke("Hello")
@@ -113,8 +114,33 @@ SessionLocal = sessionmaker(bind=engine)
 
 agent = Agent("openai:gpt-4o-mini")
 
-mem = Memori(conn=SessionLocal).pydantic_ai.register(agent)
+mem = Memori(conn=SessionLocal).llm.register(agent)
 mem.attribution(entity_id="user_123", process_id="pydantic_agent")
 
 result = agent.run_sync("Hello")
+```
+
+### Nebius AI Studio
+
+```python
+from memori import Memori
+from openai import OpenAI
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+engine = create_engine("sqlite:///memori.db")
+SessionLocal = sessionmaker(bind=engine)
+
+client = OpenAI(
+    base_url="https://api.studio.nebius.com/v1/",
+    api_key=os.getenv("NEBIUS_API_KEY"),
+)
+
+mem = Memori(conn=SessionLocal).llm.register(client)
+mem.attribution(entity_id="user_123", process_id="my_agent")
+
+response = client.chat.completions.create(
+    model="meta-llama/Llama-3.3-70B-Instruct",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
 ```

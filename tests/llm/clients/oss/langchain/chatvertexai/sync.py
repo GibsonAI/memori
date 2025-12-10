@@ -19,10 +19,10 @@ client = ChatVertexAI(
     seed=42,
 )
 
-mem = Memori(conn=session).langchain.register(chatvertexai=client)
+mem = Memori(conn=session).llm.register(chatvertexai=client)
 
 # Multiple registrations should not cause an issue.
-mem.langchain.register(chatvertexai=client)
+mem.llm.register(chatvertexai=client)
 
 mem.attribution(entity_id="123", process_id="456")
 

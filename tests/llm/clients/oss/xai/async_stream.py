@@ -39,11 +39,11 @@ async def run(db_backend: str = "default"):
 
     client = AsyncClient(api_key=os.environ.get("XAI_API_KEY"))
 
-    mem = Memori(conn=session).xai.register(client, stream=True)
+    mem = Memori(conn=session).llm.register(client, stream=True)
 
     mem.config.storage.build()
 
-    mem.xai.register(client, stream=True)
+    mem.llm.register(client, stream=True)
 
     mem.attribution(entity_id="123", process_id="456")
 
