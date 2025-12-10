@@ -1,3 +1,5 @@
+[![Memori Labs](https://s3.us-east-1.amazonaws.com/images.memorilabs.ai/banner.png)](https://memorilabs.ai/)
+
 # Memori Troubleshooting Guide
 
 This guide covers the most common issues developers face when using Memori and how to fix them.
