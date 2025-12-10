@@ -48,6 +48,8 @@ google-credentials.json
 *.pem
 *.key
 
+AGENTS.md
+
 tests/examples/*
 
 # Integration test files (contain credentials/connection strings)
