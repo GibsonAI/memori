@@ -64,7 +64,7 @@ from sqlalchemy.orm import sessionmaker
 engine = create_engine("sqlite:///memori.db")
 Session = sessionmaker(bind=engine)
 
-mem = Memori(conn=Session)
+mem = Memori(conn=lambda: Session())
 ```
 
 2. Or set the environment variable:
@@ -149,7 +149,7 @@ Note: SQLAlchemy's `create_engine` also supports `pool_size` and `max_overflow` 
 
 1. Build the database schema after initialization:
 ```python
-mem = Memori(conn=Session).openai.register(client)
+mem = Memori(conn=lambda: Session())
 mem.config.storage.build()  # This creates all required tables
 ```
 
@@ -169,14 +169,21 @@ mem.config.storage.build()  # Build the schema
 
 **Solutions:**
 
-1. Create a `.env` file in your project root:
+1. Export environment variables directly:
+```bash
+export OPENAI_API_KEY="your-key-here"
+export MEMORI_API_KEY="your-memori-key"
+export DATABASE_CONNECTION_STRING="postgresql://user:pass@host:5432/db"
+```
+
+2. Or create a `.env` file and use `python-dotenv` (requires installing `python-dotenv`):
 ```
 OPENAI_API_KEY=your-key-here
 MEMORI_API_KEY=your-memori-key
 DATABASE_CONNECTION_STRING=postgresql://user:pass@host:5432/db
 ```
 
-2. Load environment variables explicitly:
+Then load it in your code:
 ```python
 import os
 from dotenv import load_dotenv
@@ -187,6 +194,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 3. Set variables directly in code (not recommended for production):
 ```python
+import os
 os.environ["MEMORI_API_KEY"] = "your-key-here"
 ```
 
@@ -205,7 +213,8 @@ os.environ["MEMORI_API_KEY"] = "your-key-here"
 
 1. Set attribution before using the LLM:
 ```python
-mem = Memori(conn=Session).openai.register(client)
+mem = Memori(conn=lambda: Session())
+mem.llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 ```
 
@@ -216,6 +225,13 @@ mem.attribution(
     entity_id="user-123",  # Required
     process_id="my-app"    # Required
 )
+```
+
+3. For short-lived scripts that terminate quickly, wait for background augmentation to complete:
+```python
+# Advanced augmentation runs asynchronously in the background
+# Short-lived scripts need to wait for completion before exiting
+mem.augmentation.wait()  # Available in Memori 3.1.0+
 ```
 
 **Important:** If you do not provide attribution, Memori cannot make memories for you.
@@ -230,18 +246,16 @@ RuntimeError: process_id cannot be greater than 100 characters
 
 **Solutions:**
 
-Use shorter IDs or hash long identifiers:
+Use shorter IDs that are 100 characters or less:
 ```python
-import hashlib
-
-def hash_id(long_id):
-    return hashlib.sha256(long_id.encode()).hexdigest()[:32]
-
+# Keep your IDs concise
 mem.attribution(
-    entity_id=hash_id("very-long-user-identifier"),
-    process_id="my-app"
+    entity_id="user-123",  # Max 100 characters
+    process_id="my-app"    # Max 100 characters
 )
 ```
+
+**Note:** Avoid using hashed IDs as they make the data in your database more difficult to use and debug since hashing cannot be reversed.
 
 ---
 
@@ -473,6 +487,8 @@ python -m memori setup
 
 This is a one-time download. Subsequent runs will be fast.
 
+**Tip:** If you have automated CI/CD pipelines, include this setup command in your build process to ensure the model is pre-downloaded in your deployment environment.
+
 ### Problem: High memory usage
 
 **Symptoms:**
@@ -520,15 +536,17 @@ engine = create_engine(
 
 ## Testing and Development
 
-### Problem: Want to test without making API calls
+### Problem: Want to test without making production API calls
 
 **Solutions:**
 
-Enable test mode:
+Enable test mode (routes to staging API):
 ```python
 import os
 os.environ["MEMORI_TEST_MODE"] = "1"
 ```
+
+**Note:** Test mode routes requests to the staging API environment. Memories will still be created and saved. If you need to completely disable advanced augmentation and memory creation, you would need to configure this separately.
 
 ### Problem: Need to reset everything and start fresh
 
@@ -561,11 +579,11 @@ mem.config.storage.build()  # This will create/update the schema
 ### Proper initialization flow
 
 ```python
+import os
 from openai import OpenAI
 from memori import Memori
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import os
 
 # 1. Set up database connection
 engine = create_engine(
@@ -578,10 +596,10 @@ Session = sessionmaker(bind=engine)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # 3. Initialize Memori with connection
-mem = Memori(conn=Session)
+mem = Memori(conn=lambda: Session())
 
 # 4. Register LLM provider
-mem.openai.register(client)
+mem.llm.register(client)
 
 # 5. Set attribution
 mem.attribution(entity_id="user-123", process_id="my-app")
@@ -602,8 +620,8 @@ response = client.chat.completions.create(
 from memori import Memori, QuotaExceededError
 
 try:
-    mem = Memori(conn=Session)
-    mem.openai.register(client)
+    mem = Memori(conn=lambda: Session())
+    mem.llm.register(client)
     mem.attribution(entity_id="user-123", process_id="my-app")
 except QuotaExceededError:
     print("Quota exceeded. Get an API key at https://app.memorilabs.ai/signup")
