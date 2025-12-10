@@ -55,16 +55,15 @@ RuntimeError: No connection factory provided. Either pass 'conn' parameter or se
 
 **Solutions:**
 
-1. Pass a connection when initializing Memori:
+1. Pass a connection factory when initializing Memori:
 ```python
+import sqlite3
 from memori import Memori
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-engine = create_engine("sqlite:///memori.db")
-Session = sessionmaker(bind=engine)
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
 
-mem = Memori(conn=lambda: Session())
+mem = Memori(conn=get_sqlite_connection)
 ```
 
 2. Or set the environment variable:
@@ -103,8 +102,11 @@ Use the correct format for your database:
 ```python
 from pymongo import MongoClient
 
-client = MongoClient("mongodb://host:27017/")
-mem = Memori(conn=lambda: client["memori"])
+def get_mongo_db():
+    client = MongoClient("mongodb://host:27017/")
+    return client["memori"]
+
+mem = Memori(conn=get_mongo_db)
 ```
 
 ### Problem: Database connection pool errors
@@ -149,15 +151,26 @@ Note: SQLAlchemy's `create_engine` also supports `pool_size` and `max_overflow` 
 
 1. Build the database schema after initialization:
 ```python
-mem = Memori(conn=lambda: Session())
+import sqlite3
+from memori import Memori
+
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
+mem = Memori(conn=get_sqlite_connection)
 mem.config.storage.build()  # This creates all required tables
 ```
 
 2. For MongoDB, ensure the database exists and build the schema:
 ```python
-client = MongoClient("mongodb://host:27017/")
-db = client["memori"]  # Database will be created automatically
-mem = Memori(conn=lambda: db)
+from pymongo import MongoClient
+from memori import Memori
+
+def get_mongo_db():
+    client = MongoClient("mongodb://host:27017/")
+    return client["memori"]  # Database will be created automatically
+
+mem = Memori(conn=get_mongo_db)
 mem.config.storage.build()  # Build the schema
 ```
 
@@ -213,8 +226,15 @@ os.environ["MEMORI_API_KEY"] = "your-key-here"
 
 1. Set attribution before using the LLM:
 ```python
-mem = Memori(conn=lambda: Session())
-mem.llm.register(client)
+import sqlite3
+from memori import Memori
+from openai import OpenAI
+
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
+client = OpenAI(...)
+mem = Memori(conn=get_sqlite_connection).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 ```
 
@@ -410,44 +430,60 @@ mem.config.request_backoff_factor = 2  # Default is 1
 **OpenAI:**
 ```python
 import os
+import sqlite3
 from openai import OpenAI
 from memori import Memori
 
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-mem = Memori(conn=Session).openai.register(client)
+mem = Memori(conn=get_sqlite_connection).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 ```
 
 **Anthropic:**
 ```python
 import os
+import sqlite3
 import anthropic
 from memori import Memori
 
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-mem = Memori(conn=Session).anthropic.register(client)
+mem = Memori(conn=get_sqlite_connection).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 ```
 
 **Google:**
 ```python
 import os
+import sqlite3
 import google.generativeai as genai
 from memori import Memori
 
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 client = genai.GenerativeModel("gemini-pro")
-mem = Memori(conn=Session).google.register(client)
+mem = Memori(conn=get_sqlite_connection).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 ```
 
 **LangChain:**
 ```python
+import sqlite3
 from langchain_openai import ChatOpenAI
 from memori import Memori
 
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
 chat = ChatOpenAI()
-mem = Memori(conn=Session).langchain.register(chatopenai=chat)
+mem = Memori(conn=get_sqlite_connection).llm.register(chat)
 mem.attribution(entity_id="user-123", process_id="my-app")
 ```
 
@@ -463,7 +499,15 @@ mem.attribution(entity_id="user-123", process_id="my-app")
 
 Enable streaming when registering:
 ```python
-mem = Memori(conn=Session).openai.register(client, stream=True)
+import sqlite3
+from openai import OpenAI
+from memori import Memori
+
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
+client = OpenAI(...)
+mem = Memori(conn=get_sqlite_connection).llm.register(client, stream=True)
 ```
 
 ---
@@ -580,34 +624,27 @@ mem.config.storage.build()  # This will create/update the schema
 
 ```python
 import os
+import sqlite3
 from openai import OpenAI
 from memori import Memori
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-# 1. Set up database connection
-engine = create_engine(
-    os.getenv("DATABASE_CONNECTION_STRING"),
-    pool_pre_ping=True
-)
-Session = sessionmaker(bind=engine)
+# 1. Define connection factory
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
 
 # 2. Initialize LLM client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# 3. Initialize Memori with connection
-mem = Memori(conn=lambda: Session())
+# 3. Initialize Memori with connection factory and register LLM
+mem = Memori(conn=get_sqlite_connection).llm.register(client)
 
-# 4. Register LLM provider
-mem.llm.register(client)
-
-# 5. Set attribution
+# 4. Set attribution
 mem.attribution(entity_id="user-123", process_id="my-app")
 
-# 6. Build database schema (first time only)
+# 5. Build database schema (run once, or via CI/CD)
 mem.config.storage.build()
 
-# 7. Use normally
+# 6. Use normally
 response = client.chat.completions.create(
     model="gpt-4o-mini",
     messages=[{"role": "user", "content": "Hello!"}]
@@ -617,11 +654,16 @@ response = client.chat.completions.create(
 ### Error handling
 
 ```python
+import sqlite3
 from memori import Memori, QuotaExceededError
+from openai import OpenAI
+
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
 
 try:
-    mem = Memori(conn=lambda: Session())
-    mem.llm.register(client)
+    client = OpenAI(...)
+    mem = Memori(conn=get_sqlite_connection).llm.register(client)
     mem.attribution(entity_id="user-123", process_id="my-app")
 except QuotaExceededError:
     print("Quota exceeded. Get an API key at https://app.memorilabs.ai/signup")
