@@ -16,7 +16,10 @@ from uuid import uuid4
 import psycopg
 
 from memori._config import Config
-from memori._exceptions import QuotaExceededError
+from memori._exceptions import (
+    QuotaExceededError,
+    warn_if_legacy_memorisdk_installed,
+)
 from memori.llm._providers import Agno as LlmProviderAgno
 from memori.llm._providers import Anthropic as LlmProviderAnthropic
 from memori.llm._providers import Google as LlmProviderGoogle
@@ -29,6 +32,8 @@ from memori.memory.recall import Recall
 from memori.storage import Manager as StorageManager
 
 __all__ = ["Memori", "QuotaExceededError"]
+
+warn_if_legacy_memorisdk_installed()
 
 
 class LlmRegistry:
