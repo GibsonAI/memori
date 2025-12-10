@@ -15,6 +15,7 @@ from memori.llm._constants import (
     AGNO_OPENAI_LLM_PROVIDER,
     AGNO_XAI_LLM_PROVIDER,
     ATHROPIC_LLM_PROVIDER,
+    DEEPSEEK_LLM_PROVIDER,
     GOOGLE_LLM_PROVIDER,
     LANGCHAIN_CHATBEDROCK_LLM_PROVIDER,
     LANGCHAIN_CHATGOOGLEGENAI_LLM_PROVIDER,
@@ -42,6 +43,10 @@ def llm_is_bedrock(provider, title):
     )
 
 
+def llm_is_deepseek(provider, title):
+    return title == DEEPSEEK_LLM_PROVIDER
+
+
 def llm_is_google(provider, title):
     return title == GOOGLE_LLM_PROVIDER or (
         provider_is_langchain(provider)
@@ -62,6 +67,10 @@ def llm_is_xai(provider, title):
 
 def agno_is_anthropic(provider, title):
     return provider_is_agno(provider) and title == AGNO_ANTHROPIC_LLM_PROVIDER
+
+
+def agno_is_deepseek(provider, title):
+    return provider_is_agno(provider) and title == DEEPSEEK_LLM_PROVIDER
 
 
 def agno_is_google(provider, title):

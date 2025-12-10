@@ -18,6 +18,7 @@ from memori.llm._clients import LangChain as LangChainMemoriClient
 from memori.llm._clients import OpenAi as OpenAiMemoriClient
 from memori.llm._clients import PydanticAi as PydanticAiMemoriClient
 from memori.llm._clients import XAi as XAiMemoriClient
+from memori.llm._clients import DeepSeek as DeepSeekMemoriClient
 
 
 class Agno(BaseProvider):
@@ -47,6 +48,14 @@ class Anthropic(BaseProvider):
         )
         if self.client is None:
             self.client = AnthropicMemoriClient(self.config).register(client)
+
+        return self.entity
+
+
+class DeepSeek(BaseProvider):
+    def register(self, client):
+        if self.client is None:
+            self.client = DeepSeekMemoriClient(self.config).register(client)
 
         return self.entity
 

@@ -27,6 +27,7 @@ from memori.llm._utils import (
     agno_is_xai,
     llm_is_anthropic,
     llm_is_bedrock,
+    llm_is_deepseek,
     llm_is_google,
     llm_is_openai,
     llm_is_xai,
@@ -322,6 +323,7 @@ class BaseInvoke:
             llm_is_openai(self.config.framework.provider, self.config.llm.provider)
             or agno_is_openai(self.config.framework.provider, self.config.llm.provider)
             or agno_is_xai(self.config.framework.provider, self.config.llm.provider)
+            or llm_is_deepseek(self.config.framework.provider, self.config.llm.provider)
         ):
             kwargs["messages"] = messages + kwargs["messages"]
         elif (
