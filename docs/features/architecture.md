@@ -131,7 +131,7 @@ sequenceDiagram
     Recall->>App: Return facts
 ```
 
-### 4. Background Augmentation
+### 4. Advanced Augmentation
 
 ```mermaid
 sequenceDiagram

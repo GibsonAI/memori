@@ -42,7 +42,7 @@ facts = mem.recall("Mars color")
 - **Multiple Datastores**: PostgreSQL, MySQL/MariaDB, SQLite, MongoDB, CockroachDB, Neon, Supabase, Oracle, and more
 - **Attribution System**: Track memories by entity (user), process (agent), and session
 - **Recall API**: Semantic search across facts using embeddings
-- **Background Augmentation**: AI-powered memory augmentation with no latency impact
+- **Advanced Augmentation**: AI-powered memory augmentation with no latency impact
 - **Production-Ready**: Type-safe, comprehensive error handling, and battle-tested
 
 ## Core Concepts
