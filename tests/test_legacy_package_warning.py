@@ -82,3 +82,26 @@ def test_warn_function_imported_in_init():
     assert "warn_if_legacy_memorisdk_installed" in source, (
         "warn_if_legacy_memorisdk_installed should be imported in __init__.py"
     )
+
+
+def test_no_warning_when_only_memori_installed():
+    """Test that importing memori package doesn't emit warning when memorisdk is not installed."""
+
+    def mock_distribution(pkg):
+        if pkg == "memorisdk":
+            raise PackageNotFoundError()
+        return None
+
+    with patch("memori._exceptions.distribution", side_effect=mock_distribution):
+        with warnings.catch_warnings(record=True) as warning_list:
+            warnings.simplefilter("always")
+            warn_if_legacy_memorisdk_installed()
+
+            legacy_warnings = [
+                w
+                for w in warning_list
+                if issubclass(w.category, MemoriLegacyPackageWarning)
+            ]
+            assert len(legacy_warnings) == 0, (
+                "Should not emit warning when only memori is installed"
+            )
