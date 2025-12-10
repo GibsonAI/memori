@@ -1,0 +1,9 @@
+[project]
+name = "deepseek-example"
+version = "0.1.0"
+description = "Memori + DeepSeek example"
+dependencies = [
+    "memori",
+    "openai>=1.0.0",
+    "sqlalchemy>=2.0.0",
+]
