@@ -306,7 +306,7 @@ Memori automatically retries failed transactions up to 3 times with exponential 
 
 1. Use automatic session management (default):
 ```python
-mem = Memori(conn=Session).openai.register(client)
+mem = Memori(conn=Session).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="my-app")
 # Memori handles sessions automatically
 ```
