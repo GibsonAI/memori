@@ -10,6 +10,7 @@ r"""
 
 import os
 from concurrent.futures import ThreadPoolExecutor
+from importlib.metadata import version
 
 
 class Cache:
@@ -33,6 +34,7 @@ class Config:
         self.enterprise = False
         self.llm = Llm()
         self.framework = Framework()
+        self.platform = Platform()
         self.entity_id = None
         self.process_id = None
         self.raise_final_request_attempt = True
@@ -47,7 +49,7 @@ class Config:
         self.storage = None
         self.storage_config = Storage()
         self.thread_pool_executor = ThreadPoolExecutor(max_workers=15)
-        self.version = "3.0.3"
+        self.version = version("memori")
 
     def is_test_mode(self):
         return os.environ.get("MEMORI_TEST_MODE", None) is not None
@@ -62,7 +64,13 @@ class Framework:
         self.provider = None
 
 
+class Platform:
+    def __init__(self):
+        self.provider = None
+
+
 class Llm:
     def __init__(self):
         self.provider = None
+        self.provider_sdk_version = None
         self.version = None

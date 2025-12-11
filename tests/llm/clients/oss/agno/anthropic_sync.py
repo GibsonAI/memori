@@ -16,9 +16,9 @@ os.environ["MEMORI_TEST_MODE"] = "1"
 session = TestDBSession
 model = Claude(id="claude-sonnet-4-20250514")
 
-mem = Memori(conn=session).agno.register(claude=model)
+mem = Memori(conn=session).llm.register(claude=model)
 
-mem.agno.register(claude=model)
+mem.llm.register(claude=model)
 
 mem.attribution(entity_id="123", process_id="456")
 

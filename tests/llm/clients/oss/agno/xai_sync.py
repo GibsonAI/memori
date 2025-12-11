@@ -16,7 +16,7 @@ os.environ["MEMORI_TEST_MODE"] = "1"
 session = TestDBSession
 model = xAI(id="grok-3")
 
-mem = Memori(conn=session).agno.register(xai=model)
+mem = Memori(conn=session).llm.register(xai=model)
 
 mem.attribution(entity_id="123", process_id="456")
 

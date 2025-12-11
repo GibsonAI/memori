@@ -11,6 +11,7 @@ r"""
 import asyncio
 import logging
 from collections.abc import Callable
+from concurrent.futures import Future
 from typing import Any
 
 from memori._config import Config
@@ -41,6 +42,7 @@ class Manager:
         self.db_writer_batch_timeout = DB_WRITER_BATCH_TIMEOUT
         self.db_writer_queue_size = DB_WRITER_QUEUE_SIZE
         self._quota_error: Exception | None = None
+        self._pending_futures: list[Future[Any]] = []
 
     def start(self, conn: Callable | Any) -> "Manager":
         """Start the augmentation manager with a database connection.
@@ -86,10 +88,11 @@ class Manager:
         future = asyncio.run_coroutine_threadsafe(
             self._process_augmentations(input_data), runtime.loop
         )
+        self._pending_futures.append(future)
         future.add_done_callback(lambda f: self._handle_augmentation_result(f))
         return self
 
-    def _handle_augmentation_result(self, future: asyncio.Future[None]) -> None:
+    def _handle_augmentation_result(self, future: Future[Any]) -> None:
         from memori._exceptions import QuotaExceededError
 
         try:
@@ -100,6 +103,9 @@ class Manager:
             logger.error(f"Quota exceeded, disabling augmentation: {e}")
         except Exception as e:
             logger.error(f"Augmentation task failed: {e}", exc_info=True)
+        finally:
+            if future in self._pending_futures:
+                self._pending_futures.remove(future)
 
     async def _process_augmentations(self, input_data: AugmentationInput) -> None:
         if not self.augmentations:
@@ -147,3 +153,47 @@ class Manager:
                 kwargs=write_op["kwargs"],
             )
             db_writer.enqueue_write(task)
+
+    def wait(self, timeout: float | None = None) -> bool:
+        import concurrent.futures
+        import time
+
+        start_time = time.time()
+
+        # Wait for pending futures to complete
+        if self._pending_futures:
+            try:
+                concurrent.futures.wait(
+                    self._pending_futures,
+                    timeout=timeout,
+                    return_when=concurrent.futures.ALL_COMPLETED,
+                )
+            except Exception:
+                return False
+
+            if self._pending_futures:
+                return False
+
+        # Wait for db_writer queue to drain and batch to process
+        db_writer = get_db_writer()
+        if db_writer.queue is None:
+            return True
+
+        deadline = None if timeout is None else start_time + timeout
+        poll_interval = 0.01
+
+        # Wait for queue to be empty
+        while not db_writer.queue.empty():
+            if deadline and time.time() >= deadline:
+                return False
+            time.sleep(poll_interval)
+
+        # Wait for final batch processing (2x batch_timeout)
+        extra_wait = db_writer.batch_timeout * 2
+        if deadline:
+            extra_wait = min(extra_wait, deadline - time.time())
+
+        if extra_wait > 0:
+            time.sleep(extra_wait)
+
+        return True

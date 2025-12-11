@@ -19,7 +19,7 @@ async def main():
     session = TestDBSession
     model = Gemini(id="gemini-2.0-flash")
 
-    mem = Memori(conn=session).agno.register(gemini=model)
+    mem = Memori(conn=session).llm.register(gemini=model)
 
     mem.attribution(entity_id="123", process_id="456")
 

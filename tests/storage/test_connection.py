@@ -30,7 +30,14 @@ def test_connection_context_success():
             assert driver == mock_driver
 
         conn_factory.assert_called_once()
-        mock_registry.adapter.assert_called_once_with(mock_conn)
+
+        # Verify adapter was called with a callable
+        assert mock_registry.adapter.call_count == 1
+        adapter_arg = mock_registry.adapter.call_args[0][0]
+        assert callable(adapter_arg)
+        # Verify the callable returns the same connection instance
+        assert adapter_arg() == mock_conn
+
         mock_registry.driver.assert_called_once_with(mock_adapter)
         mock_adapter.commit.assert_called_once()
         mock_adapter.close.assert_called_once()

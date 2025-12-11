@@ -90,13 +90,19 @@ async def test_build_api_payload_with_system_prompt(augmentation):
     summary = "Test summary"
     system_prompt = "You are helpful"
     dialect = "postgresql"
+    entity_id = "entity-123"
+    process_id = "process-456"
 
-    payload = augmentation._build_api_payload(messages, summary, system_prompt, dialect)
+    payload = augmentation._build_api_payload(
+        messages, summary, system_prompt, dialect, entity_id, process_id
+    )
 
     assert payload["conversation"]["messages"] == messages
     assert payload["conversation"]["summary"] == summary
     assert "system_prompt" not in payload["conversation"]
     assert payload["meta"]["storage"]["dialect"] == dialect
+    assert payload["meta"]["attribution"]["entity"]["id"] is not None
+    assert payload["meta"]["attribution"]["process"]["id"] is not None
 
 
 @pytest.mark.asyncio
@@ -105,13 +111,49 @@ async def test_build_api_payload_without_system_prompt(augmentation):
     summary = "Test summary"
     system_prompt = None
     dialect = "mysql"
+    entity_id = None
+    process_id = None
 
-    payload = augmentation._build_api_payload(messages, summary, system_prompt, dialect)
+    payload = augmentation._build_api_payload(
+        messages, summary, system_prompt, dialect, entity_id, process_id
+    )
 
     assert payload["conversation"]["messages"] == messages
     assert payload["conversation"]["summary"] == summary
     assert "system_prompt" not in payload["conversation"]
     assert payload["meta"]["storage"]["dialect"] == dialect
+    assert payload["meta"]["attribution"]["entity"]["id"] is None
+    assert payload["meta"]["attribution"]["process"]["id"] is None
+
+
+@pytest.mark.asyncio
+async def test_build_api_payload_hashes_ids_consistently(augmentation):
+    messages = [{"role": "user", "content": "Test"}]
+    summary = "Test summary"
+    system_prompt = None
+    dialect = "postgresql"
+    entity_id = "user_123"
+    process_id = "checkout_flow"
+
+    payload1 = augmentation._build_api_payload(
+        messages, summary, system_prompt, dialect, entity_id, process_id
+    )
+    payload2 = augmentation._build_api_payload(
+        messages, summary, system_prompt, dialect, entity_id, process_id
+    )
+
+    assert (
+        payload1["meta"]["attribution"]["entity"]["id"]
+        == payload2["meta"]["attribution"]["entity"]["id"]
+    )
+    assert (
+        payload1["meta"]["attribution"]["process"]["id"]
+        == payload2["meta"]["attribution"]["process"]["id"]
+    )
+    assert payload1["meta"]["attribution"]["entity"]["id"] != entity_id
+    assert payload1["meta"]["attribution"]["process"]["id"] != process_id
+    assert len(payload1["meta"]["attribution"]["entity"]["id"]) == 64
+    assert len(payload1["meta"]["attribution"]["process"]["id"]) == 64
 
 
 @pytest.mark.asyncio

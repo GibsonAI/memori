@@ -19,7 +19,7 @@ async def main():
     session = TestDBSession
     model = Claude(id="claude-3-5-haiku-20241022")
 
-    mem = Memori(conn=session).agno.register(claude=model)
+    mem = Memori(conn=session).llm.register(claude=model)
     mem.attribution(entity_id="123", process_id="456")
 
     agent = Agent(

@@ -16,7 +16,10 @@ from uuid import uuid4
 import psycopg
 
 from memori._config import Config
-from memori._exceptions import QuotaExceededError
+from memori._exceptions import (
+    QuotaExceededError,
+    warn_if_legacy_memorisdk_installed,
+)
 from memori.llm._providers import Agno as LlmProviderAgno
 from memori.llm._providers import Anthropic as LlmProviderAnthropic
 from memori.llm._providers import Google as LlmProviderGoogle
@@ -29,6 +32,40 @@ from memori.memory.recall import Recall
 from memori.storage import Manager as StorageManager
 
 __all__ = ["Memori", "QuotaExceededError"]
+
+warn_if_legacy_memorisdk_installed()
+
+
+class LlmRegistry:
+    def __init__(self, memori):
+        self.memori = memori
+
+    def register(
+        self,
+        client=None,
+        openai_chat=None,
+        claude=None,
+        gemini=None,
+        xai=None,
+        chatbedrock=None,
+        chatgooglegenai=None,
+        chatopenai=None,
+        chatvertexai=None,
+    ):
+        from memori.llm._registry import register_llm
+
+        return register_llm(
+            self.memori,
+            client=client,
+            openai_chat=openai_chat,
+            claude=claude,
+            gemini=gemini,
+            xai=xai,
+            chatbedrock=chatbedrock,
+            chatgooglegenai=chatgooglegenai,
+            chatopenai=chatopenai,
+            chatvertexai=chatvertexai,
+        )
 
 
 class Memori:
@@ -44,6 +81,8 @@ class Memori:
         self.config.storage = StorageManager(self.config).start(conn)
         self.config.augmentation = AugmentationManager(self.config).start(conn)
 
+        self.augmentation = self.config.augmentation
+        self.llm = LlmRegistry(self)
         self.agno = LlmProviderAgno(self)
         self.anthropic = LlmProviderAnthropic(self)
         self.google = LlmProviderGoogle(self)

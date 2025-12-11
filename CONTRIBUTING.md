@@ -22,8 +22,8 @@ We use `uv` for fast dependency management and Docker for integration testing. Y
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone the repository
-git clone https://github.com/MemoriLabs/python-sdk.git
-cd python-sdk
+git clone https://github.com/MemoriLabs/Memori.git
+cd Memori
 
 # Install dependencies
 uv sync

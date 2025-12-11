@@ -22,7 +22,7 @@ Session = sessionmaker(bind=engine)
 
 model = OpenAIChat(id="gpt-4o-mini")
 
-mem = Memori(conn=Session).agno.register(openai_chat=model)
+mem = Memori(conn=Session).llm.register(openai_chat=model)
 mem.attribution(entity_id="customer-456", process_id="support-agent")
 mem.config.storage.build()
 
@@ -49,3 +49,8 @@ if __name__ == "__main__":
     print("Customer: Perfect! And what size was that again?")
     response3 = agent.run("Perfect! And what size was that again?")
     print(f"Agent: {response3.content}")
+
+    # Advanced Augmentation runs asynchronously to efficiently
+    # create memories. For this example, a short lived command
+    # line program, we need to wait for it to finish.
+    mem.augmentation.wait()

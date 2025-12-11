@@ -12,6 +12,22 @@ from memori._network import Api
 from memori.llm._embeddings import embed_texts_async
 from memori.memory._struct import Memories
 from memori.memory.augmentation._base import AugmentationContext, BaseAugmentation
+from memori.memory.augmentation._models import (
+    AttributionData,
+    AugmentationPayload,
+    ConversationData,
+    EntityData,
+    FrameworkData,
+    LlmData,
+    MetaData,
+    ModelData,
+    PlatformData,
+    ProcessData,
+    SdkData,
+    SdkVersionData,
+    StorageData,
+    hash_id,
+)
 from memori.memory.augmentation._registry import Registry
 
 
@@ -30,32 +46,43 @@ class AdvancedAugmentation(BaseAugmentation):
         return ""
 
     def _build_api_payload(
-        self, messages: list, summary: str, system_prompt: str | None, dialect: str
+        self,
+        messages: list,
+        summary: str,
+        system_prompt: str | None,
+        dialect: str,
+        entity_id: str | None,
+        process_id: str | None,
     ) -> dict:
-        conversation_data = {
-            "messages": messages,
-            "summary": summary if summary else None,
-        }
+        """Build API payload using structured dataclasses."""
+        conversation = ConversationData(
+            messages=messages,
+            summary=summary if summary else None,
+        )
 
-        return {
-            "conversation": conversation_data,
-            "meta": {
-                "framework": {
-                    "provider": self.config.framework.provider,
-                },
-                "llm": {
-                    "model": {
-                        "provider": self.config.llm.provider,
-                        "version": self.config.llm.version,
-                    }
-                },
-                "sdk": {"lang": "python", "version": self.config.version},
-                "storage": {
-                    "cockroachdb": self.config.storage_config.cockroachdb,
-                    "dialect": dialect,
-                },
-            },
-        }
+        meta = MetaData(
+            attribution=AttributionData(
+                entity=EntityData(id=hash_id(entity_id)),
+                process=ProcessData(id=hash_id(process_id)),
+            ),
+            framework=FrameworkData(provider=self.config.framework.provider),
+            llm=LlmData(
+                model=ModelData(
+                    provider=self.config.llm.provider,
+                    sdk=SdkVersionData(version=self.config.llm.provider_sdk_version),
+                    version=self.config.llm.version,
+                )
+            ),
+            platform=PlatformData(provider=self.config.platform.provider),
+            sdk=SdkData(lang="python", version=self.config.version),
+            storage=StorageData(
+                cockroachdb=self.config.storage_config.cockroachdb,
+                dialect=dialect,
+            ),
+        )
+
+        payload = AugmentationPayload(conversation=conversation, meta=meta)
+        return payload.to_dict()
 
     async def process(self, ctx: AugmentationContext, driver) -> AugmentationContext:
         if not ctx.payload.entity_id:
@@ -74,6 +101,8 @@ class AdvancedAugmentation(BaseAugmentation):
             summary,
             ctx.payload.system_prompt,
             dialect,
+            ctx.payload.entity_id,
+            ctx.payload.process_id,
         )
 
         try:
