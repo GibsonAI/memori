@@ -234,6 +234,33 @@ class BaseInvoke:
 
         return raw_response
 
+    def _extract_text_from_parts(self, parts: list) -> str:
+        """Extract text from a list of parts (Google format)."""
+        text_parts = []
+        for part in parts:
+            if isinstance(part, str):
+                text_parts.append(part)
+            elif isinstance(part, dict) and "text" in part:
+                text_parts.append(part["text"])
+            elif hasattr(part, "text") and part.text:
+                text_parts.append(part.text)
+        return " ".join(text_parts) if text_parts else ""
+
+    def _extract_from_contents(self, contents) -> str:
+        """Extract user query from Google's contents format."""
+        if isinstance(contents, str):
+            return contents
+
+        if isinstance(contents, list):
+            for content in reversed(contents):
+                if isinstance(content, str):
+                    return content
+                elif isinstance(content, dict) and content.get("role") == "user":
+                    text = self._extract_text_from_parts(content.get("parts", []))
+                    if text:
+                        return text
+        return ""
+
     def _extract_user_query(self, kwargs: dict) -> str:
         """Extract the most recent user message from kwargs."""
         if "messages" in kwargs and kwargs["messages"]:
@@ -242,27 +269,9 @@ class BaseInvoke:
                     return msg.get("content", "")
 
         if "contents" in kwargs:
-            contents = kwargs["contents"]
-
-            if isinstance(contents, str):
-                return contents
-
-            if isinstance(contents, list):
-                for content in reversed(contents):
-                    if isinstance(content, str):
-                        return content
-                    elif isinstance(content, dict):
-                        if content.get("role") == "user":
-                            parts = content.get("parts", [])
-                            if parts:
-                                text_parts = []
-                                for part in parts:
-                                    if isinstance(part, str):
-                                        text_parts.append(part)
-                                    elif isinstance(part, dict) and "text" in part:
-                                        text_parts.append(part["text"])
-                                if text_parts:
-                                    return " ".join(text_parts)
+            result = self._extract_from_contents(kwargs["contents"])
+            if result:
+                return result
 
         if "request" in kwargs:
             try:
@@ -270,13 +279,130 @@ class BaseInvoke:
                     json_format.MessageToJson(kwargs["request"].__dict__["_pb"])
                 )
                 if "contents" in formatted_kwargs:
-                    return self._extract_user_query(
-                        {"contents": formatted_kwargs["contents"]}
-                    )
+                    return self._extract_from_contents(formatted_kwargs["contents"])
             except Exception:
                 pass
 
         return ""
+
+    def _append_to_google_system_instruction_dict(self, config: dict, context: str):
+        """Append context to system_instruction in a dict config."""
+        if "system_instruction" not in config or not config["system_instruction"]:
+            config["system_instruction"] = context.lstrip("\n")
+            return
+
+        existing = config["system_instruction"]
+
+        if isinstance(existing, str):
+            config["system_instruction"] = existing + context
+        elif isinstance(existing, list):
+            self._append_to_list(existing, context, config, "system_instruction")
+        elif isinstance(existing, dict):
+            self._append_to_content_dict(
+                existing, context, config, "system_instruction"
+            )
+        else:
+            config["system_instruction"] = context.lstrip("\n")
+
+    def _append_to_google_system_instruction_obj(self, config, context: str):
+        """Append context to system_instruction in a config object."""
+        if not hasattr(config, "system_instruction"):
+            return
+
+        if config.system_instruction is None:
+            config.system_instruction = context.lstrip("\n")
+        elif isinstance(config.system_instruction, str):
+            config.system_instruction = config.system_instruction + context
+        elif isinstance(config.system_instruction, list):
+            self._append_to_list_obj(config, context)
+        elif hasattr(config.system_instruction, "text"):
+            self._append_to_part_obj(config.system_instruction, context)
+        elif hasattr(config.system_instruction, "parts"):
+            self._append_to_content_obj(config.system_instruction, context)
+        else:
+            config.system_instruction = context.lstrip("\n")
+
+    def _append_to_list(self, lst: list, context: str, parent: dict, key: str):
+        """Append context to a list (handles list[str], list[dict], empty list)."""
+        if not lst:
+            parent[key] = [{"text": context.lstrip("\n")}]
+        elif isinstance(lst[0], dict) and "text" in lst[0]:
+            lst[0]["text"] += context
+        elif isinstance(lst[0], str):
+            lst[0] += context
+        else:
+            lst.insert(0, {"text": context.lstrip("\n")})
+
+    def _append_to_list_obj(self, config, context: str):
+        """Append context to a list in config object."""
+        lst = config.system_instruction
+        if not lst:
+            config.system_instruction = context.lstrip("\n")
+        elif hasattr(lst[0], "text"):
+            lst[0].text += context
+        elif isinstance(lst[0], str):
+            lst[0] += context
+        else:
+            config.system_instruction = context.lstrip("\n")
+
+    def _append_to_content_dict(
+        self, content: dict, context: str, parent: dict, key: str
+    ):
+        """Append context to a Content dict (has 'parts') or Part dict (has 'text')."""
+        if "parts" in content:
+            parts = content.get("parts", [])
+            if parts and isinstance(parts[0], dict) and "text" in parts[0]:
+                parts[0]["text"] += context
+            else:
+                if not content.get("parts"):
+                    content["parts"] = []
+                content["parts"].insert(0, {"text": context.lstrip("\n")})
+        elif "text" in content:
+            content["text"] += context
+        else:
+            parent[key] = context.lstrip("\n")
+
+    def _append_to_part_obj(self, part, context: str):
+        """Append context to a Part object."""
+        if part.text:
+            part.text += context
+        else:
+            part.text = context.lstrip("\n")
+
+    def _append_to_content_obj(self, content, context: str):
+        """Append context to a Content object."""
+        if (
+            content.parts
+            and len(content.parts) > 0
+            and hasattr(content.parts[0], "text")
+        ):
+            if content.parts[0].text:
+                content.parts[0].text += context
+            else:
+                content.parts[0].text = context.lstrip("\n")
+
+    def _inject_google_system_instruction(self, kwargs: dict, context: str):
+        """Inject recall context into Google/Gemini system_instruction."""
+        if "request" in kwargs:
+            formatted_kwargs = json.loads(
+                json_format.MessageToJson(kwargs["request"].__dict__["_pb"])
+            )
+            system_instruction = formatted_kwargs.get("systemInstruction", {})
+            parts = system_instruction.get("parts", [])
+            if parts and isinstance(parts[0], dict) and "text" in parts[0]:
+                parts[0]["text"] += context
+            else:
+                system_instruction["parts"] = [{"text": context.lstrip("\n")}]
+            formatted_kwargs["systemInstruction"] = system_instruction
+            json_format.ParseDict(formatted_kwargs, kwargs["request"].__dict__["_pb"])
+        else:
+            config = kwargs.get("config", None)
+            if config is None:
+                kwargs["config"] = {"system_instruction": context.lstrip("\n")}
+            elif isinstance(config, dict):
+                self._append_to_google_system_instruction_dict(config, context)
+            else:
+                self._append_to_google_system_instruction_obj(config, context)
 
     def inject_recalled_facts(self, kwargs: dict) -> dict:
         if self.config.storage is None or self.config.storage.driver is None:
@@ -326,115 +452,7 @@ class BaseInvoke:
         elif llm_is_google(
             self.config.framework.provider, self.config.llm.provider
         ) or agno_is_google(self.config.framework.provider, self.config.llm.provider):
-            if "request" in kwargs:
-                formatted_kwargs = json.loads(
-                    json_format.MessageToJson(kwargs["request"].__dict__["_pb"])
-                )
-                system_instruction = formatted_kwargs.get("systemInstruction", {})
-                parts = system_instruction.get("parts", [])
-                if parts and isinstance(parts[0], dict) and "text" in parts[0]:
-                    parts[0]["text"] += recall_context
-                else:
-                    system_instruction["parts"] = [
-                        {"text": recall_context.lstrip("\n")}
-                    ]
-                formatted_kwargs["systemInstruction"] = system_instruction
-                json_format.ParseDict(
-                    formatted_kwargs, kwargs["request"].__dict__["_pb"]
-                )
-            else:
-                config = kwargs.get("config", None)
-
-                if config is None:
-                    kwargs["config"] = {
-                        "system_instruction": recall_context.lstrip("\n")
-                    }
-                elif isinstance(config, dict):
-                    if "system_instruction" in config and config["system_instruction"]:
-                        existing = config["system_instruction"]
-                        if isinstance(existing, str):
-                            config["system_instruction"] = existing + recall_context
-                        elif isinstance(existing, list):
-                            if not existing:
-                                config["system_instruction"] = [
-                                    {"text": recall_context.lstrip("\n")}
-                                ]
-                            elif (
-                                isinstance(existing[0], dict) and "text" in existing[0]
-                            ):
-                                existing[0]["text"] += recall_context
-                            elif isinstance(existing[0], str):
-                                existing[0] += recall_context
-                            else:
-                                existing.insert(
-                                    0, {"text": recall_context.lstrip("\n")}
-                                )
-                        elif isinstance(existing, dict):
-                            if "parts" in existing:
-                                if (
-                                    existing["parts"]
-                                    and isinstance(existing["parts"][0], dict)
-                                    and "text" in existing["parts"][0]
-                                ):
-                                    existing["parts"][0]["text"] += recall_context
-                                else:
-                                    if not existing.get("parts"):
-                                        existing["parts"] = []
-                                    existing["parts"].insert(
-                                        0, {"text": recall_context.lstrip("\n")}
-                                    )
-                            elif "text" in existing:
-                                existing["text"] += recall_context
-                            else:
-                                config["system_instruction"] = recall_context.lstrip(
-                                    "\n"
-                                )
-                        else:
-                            config["system_instruction"] = recall_context.lstrip("\n")
-                    else:
-                        config["system_instruction"] = recall_context.lstrip("\n")
-                else:
-                    if hasattr(config, "system_instruction"):
-                        if config.system_instruction is None:
-                            config.system_instruction = recall_context.lstrip("\n")
-                        elif isinstance(config.system_instruction, str):
-                            config.system_instruction = (
-                                config.system_instruction + recall_context
-                            )
-                        elif isinstance(config.system_instruction, list):
-                            if not config.system_instruction:
-                                config.system_instruction = recall_context.lstrip("\n")
-                            elif hasattr(config.system_instruction[0], "text"):
-                                config.system_instruction[0].text += recall_context
-                            elif isinstance(config.system_instruction[0], str):
-                                config.system_instruction[0] += recall_context
-                            else:
-                                config.system_instruction = recall_context.lstrip("\n")
-                        elif hasattr(config.system_instruction, "text"):
-                            if config.system_instruction.text:
-                                config.system_instruction.text += recall_context
-                            else:
-                                config.system_instruction.text = recall_context.lstrip(
-                                    "\n"
-                                )
-                        elif hasattr(config.system_instruction, "parts"):
-                            if (
-                                config.system_instruction.parts
-                                and len(config.system_instruction.parts) > 0
-                                and hasattr(config.system_instruction.parts[0], "text")
-                            ):
-                                if config.system_instruction.parts[0].text:
-                                    config.system_instruction.parts[
-                                        0
-                                    ].text += recall_context
-                                else:
-                                    config.system_instruction.parts[
-                                        0
-                                    ].text = recall_context.lstrip("\n")
-                            else:
-                                config.system_instruction = recall_context.lstrip("\n")
-                        else:
-                            config.system_instruction = recall_context.lstrip("\n")
+            self._inject_google_system_instruction(kwargs, recall_context)
         else:
             messages = kwargs.get("messages", [])
             if messages and messages[0].get("role") == "system":
