@@ -236,12 +236,45 @@ class BaseInvoke:
 
     def _extract_user_query(self, kwargs: dict) -> str:
         """Extract the most recent user message from kwargs."""
-        if "messages" not in kwargs or not kwargs["messages"]:
-            return ""
+        if "messages" in kwargs and kwargs["messages"]:
+            for msg in reversed(kwargs["messages"]):
+                if msg.get("role") == "user":
+                    return msg.get("content", "")
 
-        for msg in reversed(kwargs["messages"]):
-            if msg.get("role") == "user":
-                return msg.get("content", "")
+        if "contents" in kwargs:
+            contents = kwargs["contents"]
+
+            if isinstance(contents, str):
+                return contents
+
+            if isinstance(contents, list):
+                for content in reversed(contents):
+                    if isinstance(content, str):
+                        return content
+                    elif isinstance(content, dict):
+                        if content.get("role") == "user":
+                            parts = content.get("parts", [])
+                            if parts:
+                                text_parts = []
+                                for part in parts:
+                                    if isinstance(part, str):
+                                        text_parts.append(part)
+                                    elif isinstance(part, dict) and "text" in part:
+                                        text_parts.append(part["text"])
+                                if text_parts:
+                                    return " ".join(text_parts)
+
+        if "request" in kwargs:
+            try:
+                formatted_kwargs = json.loads(
+                    json_format.MessageToJson(kwargs["request"].__dict__["_pb"])
+                )
+                if "contents" in formatted_kwargs:
+                    return self._extract_user_query(
+                        {"contents": formatted_kwargs["contents"]}
+                    )
+            except Exception:
+                pass
 
         return ""
 
@@ -290,6 +323,118 @@ class BaseInvoke:
         ) or llm_is_bedrock(self.config.framework.provider, self.config.llm.provider):
             existing_system = kwargs.get("system", "")
             kwargs["system"] = existing_system + recall_context
+        elif llm_is_google(
+            self.config.framework.provider, self.config.llm.provider
+        ) or agno_is_google(self.config.framework.provider, self.config.llm.provider):
+            if "request" in kwargs:
+                formatted_kwargs = json.loads(
+                    json_format.MessageToJson(kwargs["request"].__dict__["_pb"])
+                )
+                system_instruction = formatted_kwargs.get("systemInstruction", {})
+                parts = system_instruction.get("parts", [])
+                if parts and isinstance(parts[0], dict) and "text" in parts[0]:
+                    parts[0]["text"] += recall_context
+                else:
+                    system_instruction["parts"] = [
+                        {"text": recall_context.lstrip("\n")}
+                    ]
+                formatted_kwargs["systemInstruction"] = system_instruction
+                json_format.ParseDict(
+                    formatted_kwargs, kwargs["request"].__dict__["_pb"]
+                )
+            else:
+                config = kwargs.get("config", None)
+
+                if config is None:
+                    kwargs["config"] = {
+                        "system_instruction": recall_context.lstrip("\n")
+                    }
+                elif isinstance(config, dict):
+                    if "system_instruction" in config and config["system_instruction"]:
+                        existing = config["system_instruction"]
+                        if isinstance(existing, str):
+                            config["system_instruction"] = existing + recall_context
+                        elif isinstance(existing, list):
+                            if not existing:
+                                config["system_instruction"] = [
+                                    {"text": recall_context.lstrip("\n")}
+                                ]
+                            elif (
+                                isinstance(existing[0], dict) and "text" in existing[0]
+                            ):
+                                existing[0]["text"] += recall_context
+                            elif isinstance(existing[0], str):
+                                existing[0] += recall_context
+                            else:
+                                existing.insert(
+                                    0, {"text": recall_context.lstrip("\n")}
+                                )
+                        elif isinstance(existing, dict):
+                            if "parts" in existing:
+                                if (
+                                    existing["parts"]
+                                    and isinstance(existing["parts"][0], dict)
+                                    and "text" in existing["parts"][0]
+                                ):
+                                    existing["parts"][0]["text"] += recall_context
+                                else:
+                                    if not existing.get("parts"):
+                                        existing["parts"] = []
+                                    existing["parts"].insert(
+                                        0, {"text": recall_context.lstrip("\n")}
+                                    )
+                            elif "text" in existing:
+                                existing["text"] += recall_context
+                            else:
+                                config["system_instruction"] = recall_context.lstrip(
+                                    "\n"
+                                )
+                        else:
+                            config["system_instruction"] = recall_context.lstrip("\n")
+                    else:
+                        config["system_instruction"] = recall_context.lstrip("\n")
+                else:
+                    if hasattr(config, "system_instruction"):
+                        if config.system_instruction is None:
+                            config.system_instruction = recall_context.lstrip("\n")
+                        elif isinstance(config.system_instruction, str):
+                            config.system_instruction = (
+                                config.system_instruction + recall_context
+                            )
+                        elif isinstance(config.system_instruction, list):
+                            if not config.system_instruction:
+                                config.system_instruction = recall_context.lstrip("\n")
+                            elif hasattr(config.system_instruction[0], "text"):
+                                config.system_instruction[0].text += recall_context
+                            elif isinstance(config.system_instruction[0], str):
+                                config.system_instruction[0] += recall_context
+                            else:
+                                config.system_instruction = recall_context.lstrip("\n")
+                        elif hasattr(config.system_instruction, "text"):
+                            if config.system_instruction.text:
+                                config.system_instruction.text += recall_context
+                            else:
+                                config.system_instruction.text = recall_context.lstrip(
+                                    "\n"
+                                )
+                        elif hasattr(config.system_instruction, "parts"):
+                            if (
+                                config.system_instruction.parts
+                                and len(config.system_instruction.parts) > 0
+                                and hasattr(config.system_instruction.parts[0], "text")
+                            ):
+                                if config.system_instruction.parts[0].text:
+                                    config.system_instruction.parts[
+                                        0
+                                    ].text += recall_context
+                                else:
+                                    config.system_instruction.parts[
+                                        0
+                                    ].text = recall_context.lstrip("\n")
+                            else:
+                                config.system_instruction = recall_context.lstrip("\n")
+                        else:
+                            config.system_instruction = recall_context.lstrip("\n")
         else:
             messages = kwargs.get("messages", [])
             if messages and messages[0].get("role") == "system":
