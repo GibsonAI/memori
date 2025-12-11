@@ -236,6 +236,30 @@ class BaseInvoke:
 
     def _extract_user_query(self, kwargs: dict) -> str:
         """Extract the most recent user message from kwargs."""
+        # Handle Google GenAI's contents parameter
+        if llm_is_google(
+            self.config.framework.provider, self.config.llm.provider
+        ) or agno_is_google(self.config.framework.provider, self.config.llm.provider):
+            contents = kwargs.get("contents", [])
+            if isinstance(contents, str):
+                return contents
+            elif isinstance(contents, list):
+                for item in reversed(contents):
+                    if isinstance(item, str):
+                        return item
+                    elif isinstance(item, dict):
+                        role = item.get("role", "user")
+                        if role == "user":
+                            parts = item.get("parts", [])
+                            if parts:
+                                first_part = parts[0]
+                                if isinstance(first_part, str):
+                                    return first_part
+                                elif isinstance(first_part, dict):
+                                    return first_part.get("text", "")
+            return ""
+
+        # Handle standard messages parameter (OpenAI, Anthropic, etc.)
         if "messages" not in kwargs or not kwargs["messages"]:
             return ""
 
@@ -290,6 +314,51 @@ class BaseInvoke:
         ) or llm_is_bedrock(self.config.framework.provider, self.config.llm.provider):
             existing_system = kwargs.get("system", "")
             kwargs["system"] = existing_system + recall_context
+        elif llm_is_google(
+            self.config.framework.provider, self.config.llm.provider
+        ) or agno_is_google(self.config.framework.provider, self.config.llm.provider):
+            # Google GenAI uses 'contents' instead of 'messages'
+            # Inject context as a system instruction via config or prepend to contents
+            if "config" in kwargs and hasattr(kwargs["config"], "system_instruction"):
+                # If using GenerateContentConfig with system_instruction
+                existing_instruction = kwargs["config"].system_instruction or ""
+                kwargs["config"].system_instruction = (
+                    existing_instruction + recall_context
+                )
+            else:
+                # Prepend context as the first user message in contents
+                existing_contents = kwargs.get("contents", [])
+                if isinstance(existing_contents, str):
+                    existing_contents = [
+                        {"parts": [{"text": existing_contents}], "role": "user"}
+                    ]
+                elif isinstance(existing_contents, list):
+                    normalized = []
+                    for item in existing_contents:
+                        if isinstance(item, str):
+                            normalized.append(
+                                {"parts": [{"text": item}], "role": "user"}
+                            )
+                        else:
+                            normalized.append(item)
+                    existing_contents = normalized
+
+                # Prepend context to the first user message's content
+                if existing_contents and existing_contents[0].get("role") == "user":
+                    # Prepend context to existing first user message
+                    first_msg = existing_contents[0]
+                    original_text = first_msg["parts"][0].get("text", "")
+                    first_msg["parts"][0]["text"] = (
+                        recall_context.lstrip("\n") + "\n\n" + original_text
+                    )
+                    kwargs["contents"] = existing_contents
+                else:
+                    # Insert context as a user message at the beginning
+                    context_message = {
+                        "parts": [{"text": recall_context.lstrip("\n")}],
+                        "role": "user",
+                    }
+                    kwargs["contents"] = [context_message] + existing_contents
         else:
             messages = kwargs.get("messages", [])
             if messages and messages[0].get("role") == "system":
@@ -300,6 +369,7 @@ class BaseInvoke:
                     "content": recall_context.lstrip("\n"),
                 }
                 messages.insert(0, context_message)
+            kwargs["messages"] = messages
 
         return kwargs
 
