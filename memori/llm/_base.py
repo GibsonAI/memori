@@ -629,10 +629,14 @@ class BaseInvoke:
         MemoryManager(self.config).execute(payload)
 
         if self.config.augmentation is not None:
+            from memori.llm._registry import Registry as LlmRegistry
             from memori.memory.augmentation.input import AugmentationInput
 
-            messages = payload["conversation"]["query"].get("messages", [])
-            messages_for_aug = list(messages) if isinstance(messages, list) else []
+            llm_adapter = LlmRegistry().adapter(
+                self.config.framework.provider,
+                self.config.llm.provider,
+            )
+            messages_for_aug = llm_adapter.get_formatted_query(payload)
 
             if isinstance(raw_response, dict):
                 choices = raw_response.get("choices", [])

@@ -227,13 +227,20 @@ def test_handle_post_response_with_augmentation_no_conversation():
         mock_manager_instance = Mock()
         mock_memory_manager.return_value = mock_manager_instance
 
-        invoke.handle_post_response(kwargs, start_time, raw_response)
+        with patch("memori.llm._registry.Registry") as mock_registry:
+            mock_adapter = Mock()
+            mock_adapter.get_formatted_query.return_value = [
+                {"role": "user", "content": "Hello"}
+            ]
+            mock_registry.return_value.adapter.return_value = mock_adapter
 
-        mock_memory_manager.assert_called_once_with(config)
-        mock_manager_instance.execute.assert_called_once()
-        config.augmentation.enqueue.assert_called_once()
-        call_args = config.augmentation.enqueue.call_args[0][0]
-        assert call_args.conversation_id is None
+            invoke.handle_post_response(kwargs, start_time, raw_response)
+
+            mock_memory_manager.assert_called_once_with(config)
+            mock_manager_instance.execute.assert_called_once()
+            config.augmentation.enqueue.assert_called_once()
+            call_args = config.augmentation.enqueue.call_args[0][0]
+            assert call_args.conversation_id is None
 
 
 def test_handle_post_response_with_augmentation_and_conversation():
@@ -252,13 +259,20 @@ def test_handle_post_response_with_augmentation_and_conversation():
         mock_manager_instance = Mock()
         mock_memory_manager.return_value = mock_manager_instance
 
-        invoke.handle_post_response(kwargs, start_time, raw_response)
+        with patch("memori.llm._registry.Registry") as mock_registry:
+            mock_adapter = Mock()
+            mock_adapter.get_formatted_query.return_value = [
+                {"role": "user", "content": "Hello"}
+            ]
+            mock_registry.return_value.adapter.return_value = mock_adapter
 
-        mock_memory_manager.assert_called_once_with(config)
-        mock_manager_instance.execute.assert_called_once()
-        config.augmentation.enqueue.assert_called_once()
-        call_args = config.augmentation.enqueue.call_args[0][0]
-        assert call_args.conversation_id == 123
+            invoke.handle_post_response(kwargs, start_time, raw_response)
+
+            mock_memory_manager.assert_called_once_with(config)
+            mock_manager_instance.execute.assert_called_once()
+            config.augmentation.enqueue.assert_called_once()
+            call_args = config.augmentation.enqueue.call_args[0][0]
+            assert call_args.conversation_id == 123
 
 
 def test_extract_user_query_with_user_message():
