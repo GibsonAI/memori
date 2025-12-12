@@ -449,6 +449,63 @@ class OpenAi(BaseClient):
         return self
 
 
+@Registry.register_client(lambda client: "deepseek" in str(type(client).__module__).lower())
+class DeepSeek(BaseClient):
+    def register(self, client, _provider=None, stream=False):
+        from memori.llm._constants import DEEPSEEK_LLM_PROVIDER
+
+        if not hasattr(client, "chat"):
+            raise RuntimeError("client provided is not instance of DeepSeek")
+
+        if not hasattr(client, "_memori_installed"):
+            client.chat._completions_create = client.chat.completions.create
+
+            try:
+                asyncio.get_running_loop()
+
+                if stream is True:
+                    client.chat.completions.create = (
+                        InvokeAsyncStream(
+                            self.config,
+                            client.chat._completions_create,
+                        )
+                        .set_client(_provider, DEEPSEEK_LLM_PROVIDER, getattr(client, "_version", None))
+                        .invoke
+                    )
+                else:
+                    client.chat.completions.create = (
+                        InvokeAsync(
+                            self.config,
+                            client.chat._completions_create,
+                        )
+                        .set_client(_provider, DEEPSEEK_LLM_PROVIDER, getattr(client, "_version", None))
+                        .invoke
+                    )
+            except RuntimeError:
+                if stream is True:
+                    client.chat.completions.create = (
+                        InvokeStream(
+                            self.config,
+                            client.chat._completions_create,
+                        )
+                        .set_client(_provider, DEEPSEEK_LLM_PROVIDER, getattr(client, "_version", None))
+                        .invoke
+                    )
+                else:
+                    client.chat.completions.create = (
+                        Invoke(
+                            self.config,
+                            client.chat._completions_create,
+                        )
+                        .set_client(_provider, DEEPSEEK_LLM_PROVIDER, getattr(client, "_version", None))
+                        .invoke
+                    )
+
+            client._memori_installed = True
+
+        return self
+
+
 @Registry.register_client(
     lambda client: type(client).__module__.startswith("pydantic_ai")
 )
