@@ -234,40 +234,175 @@ class BaseInvoke:
 
         return raw_response
 
+    def _extract_text_from_parts(self, parts: list) -> str:
+        """Extract text from a list of parts (Google format)."""
+        text_parts = []
+        for part in parts:
+            if isinstance(part, str):
+                text_parts.append(part)
+            elif isinstance(part, dict) and "text" in part:
+                text_parts.append(part["text"])
+            elif hasattr(part, "text") and part.text:
+                text_parts.append(part.text)
+        return " ".join(text_parts) if text_parts else ""
+
+    def _extract_from_contents(self, contents) -> str:
+        """Extract user query from Google's contents format."""
+        if isinstance(contents, str):
+            return contents
+
+        if isinstance(contents, list):
+            for content in reversed(contents):
+                if isinstance(content, str):
+                    return content
+                elif isinstance(content, dict) and content.get("role") == "user":
+                    text = self._extract_text_from_parts(content.get("parts", []))
+                    if text:
+                        return text
+        return ""
+
     def _extract_user_query(self, kwargs: dict) -> str:
         """Extract the most recent user message from kwargs."""
-        # Handle Google GenAI's contents parameter
-        if llm_is_google(
-            self.config.framework.provider, self.config.llm.provider
-        ) or agno_is_google(self.config.framework.provider, self.config.llm.provider):
-            contents = kwargs.get("contents", [])
-            if isinstance(contents, str):
-                return contents
-            elif isinstance(contents, list):
-                for item in reversed(contents):
-                    if isinstance(item, str):
-                        return item
-                    elif isinstance(item, dict):
-                        role = item.get("role", "user")
-                        if role == "user":
-                            parts = item.get("parts", [])
-                            if parts:
-                                first_part = parts[0]
-                                if isinstance(first_part, str):
-                                    return first_part
-                                elif isinstance(first_part, dict):
-                                    return first_part.get("text", "")
-            return ""
+        if "messages" in kwargs and kwargs["messages"]:
+            for msg in reversed(kwargs["messages"]):
+                if msg.get("role") == "user":
+                    return msg.get("content", "")
 
-        # Handle standard messages parameter (OpenAI, Anthropic, etc.)
-        if "messages" not in kwargs or not kwargs["messages"]:
-            return ""
+        if "contents" in kwargs:
+            result = self._extract_from_contents(kwargs["contents"])
+            if result:
+                return result
 
-        for msg in reversed(kwargs["messages"]):
-            if msg.get("role") == "user":
-                return msg.get("content", "")
+        if "request" in kwargs:
+            try:
+                formatted_kwargs = json.loads(
+                    json_format.MessageToJson(kwargs["request"].__dict__["_pb"])
+                )
+                if "contents" in formatted_kwargs:
+                    return self._extract_from_contents(formatted_kwargs["contents"])
+            except Exception:
+                pass
 
         return ""
+
+    def _append_to_google_system_instruction_dict(self, config: dict, context: str):
+        """Append context to system_instruction in a dict config."""
+        if "system_instruction" not in config or not config["system_instruction"]:
+            config["system_instruction"] = context.lstrip("\n")
+            return
+
+        existing = config["system_instruction"]
+
+        if isinstance(existing, str):
+            config["system_instruction"] = existing + context
+        elif isinstance(existing, list):
+            self._append_to_list(existing, context, config, "system_instruction")
+        elif isinstance(existing, dict):
+            self._append_to_content_dict(
+                existing, context, config, "system_instruction"
+            )
+        else:
+            config["system_instruction"] = context.lstrip("\n")
+
+    def _append_to_google_system_instruction_obj(self, config, context: str):
+        """Append context to system_instruction in a config object."""
+        if not hasattr(config, "system_instruction"):
+            return
+
+        if config.system_instruction is None:
+            config.system_instruction = context.lstrip("\n")
+        elif isinstance(config.system_instruction, str):
+            config.system_instruction = config.system_instruction + context
+        elif isinstance(config.system_instruction, list):
+            self._append_to_list_obj(config, context)
+        elif hasattr(config.system_instruction, "text"):
+            self._append_to_part_obj(config.system_instruction, context)
+        elif hasattr(config.system_instruction, "parts"):
+            self._append_to_content_obj(config.system_instruction, context)
+        else:
+            config.system_instruction = context.lstrip("\n")
+
+    def _append_to_list(self, lst: list, context: str, parent: dict, key: str):
+        """Append context to a list (handles list[str], list[dict], empty list)."""
+        if not lst:
+            parent[key] = [{"text": context.lstrip("\n")}]
+        elif isinstance(lst[0], dict) and "text" in lst[0]:
+            lst[0]["text"] += context
+        elif isinstance(lst[0], str):
+            lst[0] += context
+        else:
+            lst.insert(0, {"text": context.lstrip("\n")})
+
+    def _append_to_list_obj(self, config, context: str):
+        """Append context to a list in config object."""
+        lst = config.system_instruction
+        if not lst:
+            config.system_instruction = context.lstrip("\n")
+        elif hasattr(lst[0], "text"):
+            lst[0].text += context
+        elif isinstance(lst[0], str):
+            lst[0] += context
+        else:
+            config.system_instruction = context.lstrip("\n")
+
+    def _append_to_content_dict(
+        self, content: dict, context: str, parent: dict, key: str
+    ):
+        """Append context to a Content dict (has 'parts') or Part dict (has 'text')."""
+        if "parts" in content:
+            parts = content.get("parts", [])
+            if parts and isinstance(parts[0], dict) and "text" in parts[0]:
+                parts[0]["text"] += context
+            else:
+                if not content.get("parts"):
+                    content["parts"] = []
+                content["parts"].insert(0, {"text": context.lstrip("\n")})
+        elif "text" in content:
+            content["text"] += context
+        else:
+            parent[key] = context.lstrip("\n")
+
+    def _append_to_part_obj(self, part, context: str):
+        """Append context to a Part object."""
+        if part.text:
+            part.text += context
+        else:
+            part.text = context.lstrip("\n")
+
+    def _append_to_content_obj(self, content, context: str):
+        """Append context to a Content object."""
+        if (
+            content.parts
+            and len(content.parts) > 0
+            and hasattr(content.parts[0], "text")
+        ):
+            if content.parts[0].text:
+                content.parts[0].text += context
+            else:
+                content.parts[0].text = context.lstrip("\n")
+
+    def _inject_google_system_instruction(self, kwargs: dict, context: str):
+        """Inject recall context into Google/Gemini system_instruction."""
+        if "request" in kwargs:
+            formatted_kwargs = json.loads(
+                json_format.MessageToJson(kwargs["request"].__dict__["_pb"])
+            )
+            system_instruction = formatted_kwargs.get("systemInstruction", {})
+            parts = system_instruction.get("parts", [])
+            if parts and isinstance(parts[0], dict) and "text" in parts[0]:
+                parts[0]["text"] += context
+            else:
+                system_instruction["parts"] = [{"text": context.lstrip("\n")}]
+            formatted_kwargs["systemInstruction"] = system_instruction
+            json_format.ParseDict(formatted_kwargs, kwargs["request"].__dict__["_pb"])
+        else:
+            config = kwargs.get("config", None)
+            if config is None:
+                kwargs["config"] = {"system_instruction": context.lstrip("\n")}
+            elif isinstance(config, dict):
+                self._append_to_google_system_instruction_dict(config, context)
+            else:
+                self._append_to_google_system_instruction_obj(config, context)
 
     def inject_recalled_facts(self, kwargs: dict) -> dict:
         if self.config.storage is None or self.config.storage.driver is None:
@@ -317,48 +452,7 @@ class BaseInvoke:
         elif llm_is_google(
             self.config.framework.provider, self.config.llm.provider
         ) or agno_is_google(self.config.framework.provider, self.config.llm.provider):
-            # Google GenAI uses 'contents' instead of 'messages'
-            # Inject context as a system instruction via config or prepend to contents
-            if "config" in kwargs and hasattr(kwargs["config"], "system_instruction"):
-                # If using GenerateContentConfig with system_instruction
-                existing_instruction = kwargs["config"].system_instruction or ""
-                kwargs["config"].system_instruction = (
-                    existing_instruction + recall_context
-                )
-            else:
-                # Prepend context as the first user message in contents
-                existing_contents = kwargs.get("contents", [])
-                if isinstance(existing_contents, str):
-                    existing_contents = [
-                        {"parts": [{"text": existing_contents}], "role": "user"}
-                    ]
-                elif isinstance(existing_contents, list):
-                    normalized = []
-                    for item in existing_contents:
-                        if isinstance(item, str):
-                            normalized.append(
-                                {"parts": [{"text": item}], "role": "user"}
-                            )
-                        else:
-                            normalized.append(item)
-                    existing_contents = normalized
-
-                # Prepend context to the first user message's content
-                if existing_contents and existing_contents[0].get("role") == "user":
-                    # Prepend context to existing first user message
-                    first_msg = existing_contents[0]
-                    original_text = first_msg["parts"][0].get("text", "")
-                    first_msg["parts"][0]["text"] = (
-                        recall_context.lstrip("\n") + "\n\n" + original_text
-                    )
-                    kwargs["contents"] = existing_contents
-                else:
-                    # Insert context as a user message at the beginning
-                    context_message = {
-                        "parts": [{"text": recall_context.lstrip("\n")}],
-                        "role": "user",
-                    }
-                    kwargs["contents"] = [context_message] + existing_contents
+            self._inject_google_system_instruction(kwargs, recall_context)
         else:
             messages = kwargs.get("messages", [])
             if messages and messages[0].get("role") == "system":
@@ -369,7 +463,6 @@ class BaseInvoke:
                     "content": recall_context.lstrip("\n"),
                 }
                 messages.insert(0, context_message)
-            kwargs["messages"] = messages
 
         return kwargs
 
@@ -536,10 +629,14 @@ class BaseInvoke:
         MemoryManager(self.config).execute(payload)
 
         if self.config.augmentation is not None:
+            from memori.llm._registry import Registry as LlmRegistry
             from memori.memory.augmentation.input import AugmentationInput
 
-            messages = payload["conversation"]["query"].get("messages", [])
-            messages_for_aug = list(messages) if isinstance(messages, list) else []
+            llm_adapter = LlmRegistry().adapter(
+                self.config.framework.provider,
+                self.config.llm.provider,
+            )
+            messages_for_aug = llm_adapter.get_formatted_query(payload)
 
             if isinstance(raw_response, dict):
                 choices = raw_response.get("choices", [])
