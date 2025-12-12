@@ -9,6 +9,7 @@ r"""
 """
 
 import json
+import logging
 import time
 
 from sqlalchemy.exc import OperationalError
@@ -18,6 +19,8 @@ from memori.llm._registry import Registry as LlmRegistry
 
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 0.1
+
+logger = logging.getLogger(__name__)
 
 
 class Writer:
@@ -74,11 +77,20 @@ class Writer:
             self.config.cache.process_id,
         )
 
+        # Ensure conversation_id exists - may have been set earlier in
+        # inject_conversation_messages. If not, create/get it now.
+        # conversation.create is idempotent and returns existing conversation
+        # if within timeout, so it's safe to call multiple times.
         self._ensure_cached_id(
             "conversation_id",
             self.config.storage.driver.conversation.create,
             self.config.cache.session_id,
             self.config.session_timeout_minutes,
+        )
+
+        logger.debug(
+            f"Writing to conversation_id={self.config.cache.conversation_id}, "
+            f"session_id={self.config.cache.session_id}"
         )
 
         llm = LlmRegistry().adapter(
@@ -93,6 +105,11 @@ class Writer:
                     content = message["content"]
                     if isinstance(content, dict | list):
                         content = json.dumps(content)
+                    conv_id = self.config.cache.conversation_id
+                    logger.debug(
+                        f"Writing {message['role']} message to "
+                        f"conversation_id={conv_id}"
+                    )
                     self.config.storage.driver.conversation.message.create(
                         self.config.cache.conversation_id,
                         message["role"],
@@ -103,6 +120,11 @@ class Writer:
         responses = llm.get_formatted_response(payload)
         if responses:
             for response in responses:
+                conv_id = self.config.cache.conversation_id
+                logger.debug(
+                    f"Writing {response['role']} response to "
+                    f"conversation_id={conv_id}"
+                )
                 self.config.storage.driver.conversation.message.create(
                     self.config.cache.conversation_id,
                     response["role"],
