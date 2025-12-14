@@ -8,6 +8,9 @@ r"""
                       memorilabs.ai
 """
 
+import warnings
+from importlib.metadata import PackageNotFoundError, distribution
+
 
 class QuotaExceededError(Exception):
     def __init__(
@@ -19,3 +22,24 @@ class QuotaExceededError(Exception):
     ):
         self.message = message
         super().__init__(self.message)
+
+
+class MemoriLegacyPackageWarning(UserWarning):
+    """Warning emitted when the legacy `memorisdk` package is installed."""
+
+
+def warn_if_legacy_memorisdk_installed() -> None:
+    try:
+        distribution("memorisdk")
+    except PackageNotFoundError:
+        return
+
+    warnings.warn(
+        "You have Memori installed under the legacy package name 'memorisdk'. "
+        "That name is deprecated and will stop receiving updates. "
+        "Please switch to 'memori':\n\n"
+        "    pip uninstall memorisdk\n"
+        "    pip install memori\n",
+        MemoriLegacyPackageWarning,
+        stacklevel=3,
+    )
