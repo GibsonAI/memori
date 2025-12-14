@@ -21,7 +21,7 @@ from memori.llm._providers import Agno as LlmProviderAgno
 from memori.llm._providers import Anthropic as LlmProviderAnthropic
 from memori.llm._providers import Google as LlmProviderGoogle
 from memori.llm._providers import LangChain as LlmProviderLangChain
-from memori.llm._providers import DeepSeek as LlmProviderDeepSeek
+
 from memori.llm._providers import OpenAi as LlmProviderOpenAi
 from memori.llm._providers import PydanticAi as LlmProviderPydanticAi
 from memori.llm._providers import XAi as LlmProviderXAi
@@ -81,7 +81,7 @@ class Memori:
         self.llm = LlmRegistry(self)
         self.agno = LlmProviderAgno(self)
         self.anthropic = LlmProviderAnthropic(self)
-        self.deepseek = LlmProviderDeepSeek(self)
+        
         self.google = LlmProviderGoogle(self)
         self.langchain = LlmProviderLangChain(self)
         self.openai = LlmProviderOpenAi(self)

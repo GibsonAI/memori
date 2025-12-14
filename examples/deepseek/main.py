@@ -24,8 +24,8 @@ client = OpenAI(
 engine = create_engine("sqlite:///deepseek_memori.db")
 Session = sessionmaker(bind=engine)
 
-# Setup Memori with DeepSeek
-mem = Memori(conn=Session).deepseek.register(client)
+# Setup Memori with DeepSeek (uses OpenAI-compatible API)
+mem = Memori(conn=Session).llm.register(client)
 mem.attribution(entity_id="user-123", process_id="deepseek-app")
 mem.config.storage.build()
 
