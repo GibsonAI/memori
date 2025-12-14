@@ -227,13 +227,20 @@ def test_handle_post_response_with_augmentation_no_conversation():
         mock_manager_instance = Mock()
         mock_memory_manager.return_value = mock_manager_instance
 
-        invoke.handle_post_response(kwargs, start_time, raw_response)
+        with patch("memori.llm._registry.Registry") as mock_registry:
+            mock_adapter = Mock()
+            mock_adapter.get_formatted_query.return_value = [
+                {"role": "user", "content": "Hello"}
+            ]
+            mock_registry.return_value.adapter.return_value = mock_adapter
 
-        mock_memory_manager.assert_called_once_with(config)
-        mock_manager_instance.execute.assert_called_once()
-        config.augmentation.enqueue.assert_called_once()
-        call_args = config.augmentation.enqueue.call_args[0][0]
-        assert call_args.conversation_id is None
+            invoke.handle_post_response(kwargs, start_time, raw_response)
+
+            mock_memory_manager.assert_called_once_with(config)
+            mock_manager_instance.execute.assert_called_once()
+            config.augmentation.enqueue.assert_called_once()
+            call_args = config.augmentation.enqueue.call_args[0][0]
+            assert call_args.conversation_id is None
 
 
 def test_handle_post_response_with_augmentation_and_conversation():
@@ -252,13 +259,20 @@ def test_handle_post_response_with_augmentation_and_conversation():
         mock_manager_instance = Mock()
         mock_memory_manager.return_value = mock_manager_instance
 
-        invoke.handle_post_response(kwargs, start_time, raw_response)
+        with patch("memori.llm._registry.Registry") as mock_registry:
+            mock_adapter = Mock()
+            mock_adapter.get_formatted_query.return_value = [
+                {"role": "user", "content": "Hello"}
+            ]
+            mock_registry.return_value.adapter.return_value = mock_adapter
 
-        mock_memory_manager.assert_called_once_with(config)
-        mock_manager_instance.execute.assert_called_once()
-        config.augmentation.enqueue.assert_called_once()
-        call_args = config.augmentation.enqueue.call_args[0][0]
-        assert call_args.conversation_id == 123
+            invoke.handle_post_response(kwargs, start_time, raw_response)
+
+            mock_memory_manager.assert_called_once_with(config)
+            mock_manager_instance.execute.assert_called_once()
+            config.augmentation.enqueue.assert_called_once()
+            call_args = config.augmentation.enqueue.call_args[0][0]
+            assert call_args.conversation_id == 123
 
 
 def test_extract_user_query_with_user_message():
@@ -299,6 +313,87 @@ def test_extract_user_query_no_user_messages():
         ]
     }
     assert invoke._extract_user_query(kwargs) == ""
+
+
+def test_extract_user_query_google_contents_string():
+    invoke = BaseInvoke(Config(), "test_method")
+    kwargs = {"contents": "What is the weather?"}
+    assert invoke._extract_user_query(kwargs) == "What is the weather?"
+
+
+def test_extract_user_query_google_contents_list_of_strings():
+    invoke = BaseInvoke(Config(), "test_method")
+    kwargs = {"contents": ["First message", "Second message"]}
+    assert invoke._extract_user_query(kwargs) == "Second message"
+
+
+def test_extract_user_query_google_contents_list_of_dicts():
+    invoke = BaseInvoke(Config(), "test_method")
+    kwargs = {
+        "contents": [
+            {"role": "user", "parts": [{"text": "First question"}]},
+            {"role": "model", "parts": [{"text": "Answer"}]},
+            {"role": "user", "parts": [{"text": "Second question"}]},
+        ]
+    }
+    assert invoke._extract_user_query(kwargs) == "Second question"
+
+
+def test_extract_user_query_google_contents_with_string_parts():
+    invoke = BaseInvoke(Config(), "test_method")
+    kwargs = {
+        "contents": [
+            {"role": "user", "parts": ["Hello", "World"]},
+        ]
+    }
+    assert invoke._extract_user_query(kwargs) == "Hello World"
+
+
+def test_extract_user_query_google_contents_empty():
+    invoke = BaseInvoke(Config(), "test_method")
+    assert invoke._extract_user_query({"contents": []}) == ""
+    assert invoke._extract_user_query({"contents": ""}) == ""
+
+
+def test_extract_text_from_parts_with_strings():
+    invoke = BaseInvoke(Config(), "test_method")
+    parts = ["Hello", "World"]
+    assert invoke._extract_text_from_parts(parts) == "Hello World"
+
+
+def test_extract_text_from_parts_with_dicts():
+    invoke = BaseInvoke(Config(), "test_method")
+    parts = [{"text": "Hello"}, {"text": "World"}]
+    assert invoke._extract_text_from_parts(parts) == "Hello World"
+
+
+def test_extract_text_from_parts_mixed():
+    invoke = BaseInvoke(Config(), "test_method")
+    parts = ["Hello", {"text": "World"}]
+    assert invoke._extract_text_from_parts(parts) == "Hello World"
+
+
+def test_extract_text_from_parts_empty():
+    invoke = BaseInvoke(Config(), "test_method")
+    assert invoke._extract_text_from_parts([]) == ""
+
+
+def test_extract_from_contents_string():
+    invoke = BaseInvoke(Config(), "test_method")
+    assert invoke._extract_from_contents("Hello") == "Hello"
+
+
+def test_extract_from_contents_list_strings():
+    invoke = BaseInvoke(Config(), "test_method")
+    assert invoke._extract_from_contents(["First", "Second"]) == "Second"
+
+
+def test_extract_from_contents_list_dicts():
+    invoke = BaseInvoke(Config(), "test_method")
+    contents = [
+        {"role": "user", "parts": [{"text": "Question"}]},
+    ]
+    assert invoke._extract_from_contents(contents) == "Question"
 
 
 def test_inject_recalled_facts_no_storage():
@@ -490,6 +585,148 @@ def test_inject_recalled_facts_creates_system_message_when_none_exists():
     # System message should contain recalled facts
     assert "User likes pizza" in result["messages"][0]["content"]
     assert "Relevant context about the user" in result["messages"][0]["content"]
+
+
+def test_inject_recalled_facts_google_creates_config():
+    config = Config()
+    config.storage = Mock()
+    config.storage.driver = Mock()
+    config.storage.driver.entity.create.return_value = 1
+    config.entity_id = "test-entity"
+    config.framework.provider = "langchain"
+    config.llm.provider = "chatgooglegenai"
+    invoke = BaseInvoke(config, "test_method")
+
+    kwargs = {"contents": "What do I like?"}
+
+    with patch("memori.memory.recall.Recall") as mock_recall:
+        mock_recall.return_value.search_facts.return_value = [
+            {"content": "User likes pizza", "similarity": 0.9},
+        ]
+        result = invoke.inject_recalled_facts(kwargs)
+
+    assert "config" in result
+    assert "system_instruction" in result["config"]
+    assert "User likes pizza" in result["config"]["system_instruction"]
+
+
+def test_inject_recalled_facts_google_extends_existing_config():
+    config = Config()
+    config.storage = Mock()
+    config.storage.driver = Mock()
+    config.storage.driver.entity.create.return_value = 1
+    config.entity_id = "test-entity"
+    config.framework.provider = "langchain"
+    config.llm.provider = "chatgooglegenai"
+    invoke = BaseInvoke(config, "test_method")
+
+    kwargs = {
+        "contents": "What do I like?",
+        "config": {"system_instruction": "You are helpful."},
+    }
+
+    with patch("memori.memory.recall.Recall") as mock_recall:
+        mock_recall.return_value.search_facts.return_value = [
+            {"content": "User likes pizza", "similarity": 0.9},
+        ]
+        result = invoke.inject_recalled_facts(kwargs)
+
+    assert "You are helpful." in result["config"]["system_instruction"]
+    assert "User likes pizza" in result["config"]["system_instruction"]
+
+
+def test_inject_recalled_facts_google_with_contents_list():
+    config = Config()
+    config.storage = Mock()
+    config.storage.driver = Mock()
+    config.storage.driver.entity.create.return_value = 1
+    config.entity_id = "test-entity"
+    config.framework.provider = "langchain"
+    config.llm.provider = "chatgooglegenai"
+    invoke = BaseInvoke(config, "test_method")
+
+    kwargs = {
+        "contents": [
+            {"role": "user", "parts": [{"text": "What do I like?"}]},
+        ]
+    }
+
+    with patch("memori.memory.recall.Recall") as mock_recall:
+        mock_recall.return_value.search_facts.return_value = [
+            {"content": "User likes pizza", "similarity": 0.9},
+        ]
+        result = invoke.inject_recalled_facts(kwargs)
+
+    assert "config" in result
+    assert "system_instruction" in result["config"]
+    assert "User likes pizza" in result["config"]["system_instruction"]
+
+
+def test_append_to_google_system_instruction_dict_empty():
+    invoke = BaseInvoke(Config(), "test_method")
+    config = {}
+    invoke._append_to_google_system_instruction_dict(config, "\n\ntest context")
+    assert config["system_instruction"] == "test context"
+
+
+def test_append_to_google_system_instruction_dict_string():
+    invoke = BaseInvoke(Config(), "test_method")
+    config = {"system_instruction": "Existing."}
+    invoke._append_to_google_system_instruction_dict(config, "\n\ntest context")
+    assert config["system_instruction"] == "Existing.\n\ntest context"
+
+
+def test_append_to_google_system_instruction_dict_list_of_dicts():
+    invoke = BaseInvoke(Config(), "test_method")
+    config = {"system_instruction": [{"text": "Existing."}]}
+    invoke._append_to_google_system_instruction_dict(config, "\n\ntest context")
+    assert config["system_instruction"][0]["text"] == "Existing.\n\ntest context"
+
+
+def test_append_to_google_system_instruction_dict_list_of_strings():
+    invoke = BaseInvoke(Config(), "test_method")
+    config = {"system_instruction": ["Existing."]}
+    invoke._append_to_google_system_instruction_dict(config, "\n\ntest context")
+    assert config["system_instruction"][0] == "Existing.\n\ntest context"
+
+
+def test_append_to_list_empty():
+    invoke = BaseInvoke(Config(), "test_method")
+    parent = {"key": []}
+    invoke._append_to_list(parent["key"], "\n\ntest", parent, "key")
+    assert parent["key"] == [{"text": "test"}]
+
+
+def test_append_to_list_dict_with_text():
+    invoke = BaseInvoke(Config(), "test_method")
+    lst = [{"text": "Existing"}]
+    parent = {"key": lst}
+    invoke._append_to_list(lst, "\n\ntest", parent, "key")
+    assert lst[0]["text"] == "Existing\n\ntest"
+
+
+def test_append_to_list_strings():
+    invoke = BaseInvoke(Config(), "test_method")
+    lst = ["Existing"]
+    parent = {"key": lst}
+    invoke._append_to_list(lst, "\n\ntest", parent, "key")
+    assert lst[0] == "Existing\n\ntest"
+
+
+def test_append_to_content_dict_with_parts():
+    invoke = BaseInvoke(Config(), "test_method")
+    content = {"parts": [{"text": "Existing"}]}
+    parent = {"key": content}
+    invoke._append_to_content_dict(content, "\n\ntest", parent, "key")
+    assert content["parts"][0]["text"] == "Existing\n\ntest"
+
+
+def test_append_to_content_dict_with_text():
+    invoke = BaseInvoke(Config(), "test_method")
+    content = {"text": "Existing"}
+    parent = {"key": content}
+    invoke._append_to_content_dict(content, "\n\ntest", parent, "key")
+    assert content["text"] == "Existing\n\ntest"
 
 
 def test_inject_conversation_messages_no_conversation_id():

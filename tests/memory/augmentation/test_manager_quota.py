@@ -71,7 +71,6 @@ def test_quota_error_does_not_prevent_when_authenticated():
 
     try:
         config = Config()
-        manager = Manager(config)
 
         augmentation_input = AugmentationInput(
             entity_id="user123",
@@ -94,14 +93,19 @@ def test_quota_error_does_not_prevent_when_authenticated():
                 mock_driver.conversation.conn.get_dialect.return_value = "postgresql"
                 mock_driver.conversation.read.return_value = None
                 mock_driver.entity.create.return_value = 1
+                mock_driver.process.create.return_value = 1
                 mock_ctx.return_value.__enter__.return_value = (None, None, mock_driver)
 
+                manager = Manager(config)
                 manager.start(lambda: MagicMock())
 
                 manager.enqueue(augmentation_input)
                 time.sleep(0.5)
 
                 manager.enqueue(augmentation_input)
+                time.sleep(0.5)
+
+                assert mock_api_instance.augmentation_async.call_count >= 1
     finally:
         if "MEMORI_API_KEY" in os.environ:
             del os.environ["MEMORI_API_KEY"]
