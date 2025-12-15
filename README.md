@@ -215,6 +215,8 @@ _(unstreamed, streamed, synchronous and asynchronous)_
 - [SQLite](https://github.com/MemoriLabs/Memori/tree/main/examples/sqlite) - Full example with setup instructions
 - Supabase
 
+For more examples and recipes, check out the [Memori Cookbook](https://github.com/MemoriLabs/memori-cookbook).
+
 ## Memori Advanced Augmentation
 
 Memories are tracked at several different levels:
