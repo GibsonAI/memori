@@ -87,6 +87,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
     "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
+    "benchmark: marks tests as performance benchmarks",
 ]
 asyncio_mode = "auto"
 addopts = [
@@ -139,8 +140,10 @@ dev = [
     "pymysql>=1.1.2",
     "pytest>=8.4.2",
     "pytest-asyncio>=0.24.0",
+    "pytest-benchmark>=4.0.0",
     "pytest-cov>=6.0.0",
     "pytest-mock>=3.15.1",
+    "psutil>=5.9.0",
     "requests>=2.32.5",
     "ruff>=0.8.0",
     "sqlalchemy>=2.0.44",
