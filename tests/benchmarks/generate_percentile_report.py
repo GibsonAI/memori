@@ -191,9 +191,7 @@ def generate_report(benchmarks, output_format="table"):
         output = {}
         for key in sorted(benchmarks.keys()):
             stats = benchmarks[key]
-            output_key = (
-                f"{stats['benchmark_id']}_{stats['n']}_{stats['db_type']}_{stats['content_size']}"
-            )
+            output_key = f"{stats['benchmark_id']}_{stats['n']}_{stats['db_type']}_{stats['content_size']}"
             peak_rss_mb = (
                 (stats["peak_rss_bytes"] / (1024 * 1024))
                 if stats.get("peak_rss_bytes") is not None
