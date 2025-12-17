@@ -10,14 +10,22 @@ r"""
 
 import asyncio
 import os
+import ssl
 
 import aiohttp
+import certifi
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from memori._config import Config
-from memori._exceptions import QuotaExceededError
+from memori._exceptions import (
+    MemoriApiClientError,
+    MemoriApiError,
+    MemoriApiRequestRejectedError,
+    MemoriApiValidationError,
+    QuotaExceededError,
+)
 
 
 class Api:
@@ -44,30 +52,91 @@ class Api:
     async def augmentation_async(self, payload: dict) -> dict:
         url = self.url("sdk/augmentation")
         headers = self.headers()
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=30),
-            ) as r:
-                if r.status == 429:
-                    if self._is_anonymous():
-                        try:
-                            quota_response = await r.json()
-                            message = quota_response.get("message")
-                        except Exception:
-                            message = None
+        def _default_client_error_message(status_code: int) -> str:
+            if status_code == 422:
+                return (
+                    "Memori API rejected the request (422 validation error). "
+                    "Check your augmentation payload structure."
+                )
+            if status_code == 433:
+                return (
+                    "The request was rejected (433). "
+                    "This can sometimes be caused by certificate/SSL inspection or proxy issues. "
+                    "If this persists, contact Memori Labs support via email at support@memorilabs.ai."
+                )
+            return f"Memori API request failed with status {status_code}."
 
-                        if message:
-                            raise QuotaExceededError(message)
-                        raise QuotaExceededError()
-                    else:
-                        return {}
+        async def _read_error_payload(response: aiohttp.ClientResponse):
+            try:
+                data = await response.json()
+            except Exception:
+                return None, None
 
-                r.raise_for_status()
-                return await r.json()
+            if isinstance(data, dict):
+                return data.get("message") or data.get("detail"), data
+            return None, data
+
+        async with aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(ssl=ssl_context)
+        ) as session:
+            try:
+                async with session.post(
+                    url,
+                    headers=headers,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=30),
+                ) as r:
+                    if r.status == 429:
+                        if self._is_anonymous():
+                            message, _data = await _read_error_payload(r)
+
+                            if message:
+                                raise QuotaExceededError(message)
+                            raise QuotaExceededError()
+                        else:
+                            return {}
+
+                    if r.status == 422:
+                        message, data = await _read_error_payload(r)
+                        raise MemoriApiValidationError(
+                            status_code=422,
+                            message=message or _default_client_error_message(422),
+                            details=data,
+                        )
+
+                    if r.status == 433:
+                        message, data = await _read_error_payload(r)
+                        raise MemoriApiRequestRejectedError(
+                            status_code=433,
+                            message=message or _default_client_error_message(433),
+                            details=data,
+                        )
+
+                    if 400 <= r.status <= 499:
+                        message, data = await _read_error_payload(r)
+                        raise MemoriApiClientError(
+                            status_code=r.status,
+                            message=message or _default_client_error_message(r.status),
+                            details=data,
+                        )
+
+                    r.raise_for_status()
+                    return await r.json()
+            except aiohttp.ClientResponseError:
+                raise
+            except (ssl.SSLError, aiohttp.ClientSSLError) as e:
+                raise MemoriApiError(
+                    "Memori API request failed due to an SSL/TLS certificate error. "
+                    "This is often caused by corporate proxies/SSL inspection. "
+                    "Try updating your CA certificates and try again."
+                ) from e
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                raise MemoriApiError(
+                    "Memori API request failed (network/timeout). "
+                    "Check your connection and try again."
+                ) from e
 
     def delete(self, route):
         r = self.__session().delete(self.url(route), headers=self.headers())
