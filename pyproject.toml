@@ -87,11 +87,14 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
     "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
+    "benchmark: marks tests as performance benchmarks",
 ]
 asyncio_mode = "auto"
 addopts = [
     "-v",
     "--strict-markers",
+    "-m",
+    "not benchmark",
     "--cov=memori",
     "--cov-report=term-missing",
     "--cov-report=html",
@@ -116,7 +119,15 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 
-[tool.ty]
+[tool.ty.src]
+exclude = [
+    "tests/llm/clients/**/*.py",
+    "**/__pycache__/**",
+]
+
+[tool.ty.environment]
+python-version = "3.12"
+
 
 [dependency-groups]
 dev = [
@@ -139,8 +150,10 @@ dev = [
     "pymysql>=1.1.2",
     "pytest>=8.4.2",
     "pytest-asyncio>=0.24.0",
+    "pytest-benchmark>=4.0.0",
     "pytest-cov>=6.0.0",
     "pytest-mock>=3.15.1",
+    "psutil>=5.9.0",
     "requests>=2.32.5",
     "ruff>=0.8.0",
     "sqlalchemy>=2.0.44",

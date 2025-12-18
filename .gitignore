@@ -52,5 +52,11 @@ AGENTS.md
 
 tests/examples/*
 
-# Integration test files (contain credentials/connection strings)
-tests/llm/clients/oss/openai/async_integration.py
+# Benchmarking results
+tests/benchmarks/results/
+results/
+*.json
+*.csv
+!pyproject.toml
+!package.json
+!composer.json
