@@ -1,4 +1,5 @@
 import os
+import ssl
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -7,7 +8,13 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from memori._config import Config
-from memori._exceptions import QuotaExceededError
+from memori._exceptions import (
+    MemoriApiClientError,
+    MemoriApiError,
+    MemoriApiRequestRejectedError,
+    MemoriApiValidationError,
+    QuotaExceededError,
+)
 from memori._network import Api, _ApiRetryRecoverable
 
 
@@ -522,6 +529,105 @@ class TestApiQuotaEnforcement:
         with patch("aiohttp.ClientSession", return_value=mock_session):
             result = await api.augmentation_async({"test": "payload"})
             assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_augmentation_async_raises_validation_error_for_422(self, api):
+        if "MEMORI_API_KEY" in os.environ:
+            del os.environ["MEMORI_API_KEY"]
+
+        msg = "Invalid payload"
+
+        mock_response = MagicMock()
+        mock_response.status = 422
+        mock_response.json = AsyncMock(return_value={"message": msg})
+
+        mock_response_ctx = MagicMock()
+        mock_response_ctx.__aenter__.return_value = mock_response
+        mock_response_ctx.__aexit__.return_value = None
+
+        mock_session = MagicMock()
+        mock_session.post.return_value = mock_response_ctx
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            with pytest.raises(MemoriApiValidationError) as exc_info:
+                await api.augmentation_async({"test": "payload"})
+            assert str(exc_info.value) == msg
+            assert exc_info.value.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_augmentation_async_raises_request_rejected_error_for_433(self, api):
+        if "MEMORI_API_KEY" in os.environ:
+            del os.environ["MEMORI_API_KEY"]
+
+        msg = "Request rejected"
+
+        mock_response = MagicMock()
+        mock_response.status = 433
+        mock_response.json = AsyncMock(return_value={"message": msg})
+
+        mock_response_ctx = MagicMock()
+        mock_response_ctx.__aenter__.return_value = mock_response
+        mock_response_ctx.__aexit__.return_value = None
+
+        mock_session = MagicMock()
+        mock_session.post.return_value = mock_response_ctx
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            with pytest.raises(MemoriApiRequestRejectedError) as exc_info:
+                await api.augmentation_async({"test": "payload"})
+            assert str(exc_info.value) == msg
+            assert exc_info.value.status_code == 433
+
+    @pytest.mark.asyncio
+    async def test_augmentation_async_raises_client_error_for_other_4xx(self, api):
+        if "MEMORI_API_KEY" in os.environ:
+            del os.environ["MEMORI_API_KEY"]
+
+        msg = "Bad request"
+
+        mock_response = MagicMock()
+        mock_response.status = 400
+        mock_response.json = AsyncMock(return_value={"message": msg})
+
+        mock_response_ctx = MagicMock()
+        mock_response_ctx.__aenter__.return_value = mock_response
+        mock_response_ctx.__aexit__.return_value = None
+
+        mock_session = MagicMock()
+        mock_session.post.return_value = mock_response_ctx
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            with pytest.raises(MemoriApiClientError) as exc_info:
+                await api.augmentation_async({"test": "payload"})
+            assert str(exc_info.value) == msg
+            assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_augmentation_async_raises_helpful_message_on_ssl_error(self, api):
+        if "MEMORI_API_KEY" in os.environ:
+            del os.environ["MEMORI_API_KEY"]
+
+        mock_response_ctx = MagicMock()
+        mock_response_ctx.__aenter__.side_effect = ssl.SSLError(
+            "certificate verify failed"
+        )
+        mock_response_ctx.__aexit__.return_value = None
+
+        mock_session = MagicMock()
+        mock_session.post.return_value = mock_response_ctx
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            with pytest.raises(MemoriApiError) as exc_info:
+                await api.augmentation_async({"test": "payload"})
+            assert "SSL/TLS certificate error" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_augmentation_async_raises_other_errors_for_anonymous(self, api):

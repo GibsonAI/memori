@@ -24,6 +24,32 @@ class QuotaExceededError(Exception):
         super().__init__(self.message)
 
 
+class MemoriApiError(Exception):
+    pass
+
+
+class MemoriApiClientError(MemoriApiError):
+    def __init__(
+        self,
+        status_code: int,
+        message: str | None = None,
+        details: object | None = None,
+    ):
+        self.status_code = status_code
+        self.details = details
+        super().__init__(
+            message or f"Memori API request failed with status {status_code}"
+        )
+
+
+class MemoriApiValidationError(MemoriApiClientError):
+    pass
+
+
+class MemoriApiRequestRejectedError(MemoriApiClientError):
+    pass
+
+
 class MemoriLegacyPackageWarning(UserWarning):
     """Warning emitted when the legacy `memorisdk` package is installed."""
 
