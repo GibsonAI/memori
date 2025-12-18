@@ -83,16 +83,31 @@ class TestDatabaseEmbeddingRetrievalBenchmarks:
 
 @pytest.mark.benchmark
 class TestDatabaseFactContentRetrievalBenchmarks:
-    """Benchmarks for fetching fact content by ids (final recall DB step)."""
+    """Benchmarks for fetching fact content by ids (final recall DB step).
 
+    This benchmarks the final step after semantic search has already identified
+    the top-k most similar embeddings. We only retrieve content for those top results
+    (typically 5-10 facts), not all facts in the database.
+    """
+
+    @pytest.mark.parametrize("retrieval_limit", [5, 10], ids=["limit5", "limit10"])
     def test_benchmark_db_fact_content_retrieval(
-        self, benchmark, memori_instance, entity_with_n_facts
+        self, benchmark, memori_instance, entity_with_n_facts, retrieval_limit
     ):
+        """Benchmark retrieving content for top-k facts after semantic search.
+
+        Args:
+            retrieval_limit: Number of fact IDs to retrieve content for (after semantic
+                search has already filtered to top results). This should be small (5-10).
+        """
         entity_db_id = entity_with_n_facts["entity_db_id"]
         entity_fact_driver = memori_instance.config.storage.driver.entity_fact
 
-        # Pick ids once (outside benchmark) so we measure only content fetch.
-        seed_rows = entity_fact_driver.get_embeddings(entity_db_id, limit=5)
+        # Simulate semantic search returning top-k IDs (outside benchmark timing)
+        # In real flow: get_embeddings(embeddings_limit=1000) -> FAISS search -> top-k IDs
+        seed_rows = entity_fact_driver.get_embeddings(
+            entity_db_id, limit=retrieval_limit
+        )
         fact_ids = [row["id"] for row in seed_rows]
 
         def _retrieve():

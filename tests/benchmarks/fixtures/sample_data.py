@@ -93,61 +93,21 @@ def generate_facts(count: int) -> list[str]:
 
 
 def generate_facts_with_size(count: int, size: str = "small") -> list[str]:
-    """Generate facts with specified content size for benchmarking.
-
-    Facts in production are typically small (short text), but embeddings are always
-    768 dimensions (3072 bytes binary). This tests how text content size affects
-    database retrieval performance when combined with fixed-size embeddings.
+    """Generate facts for benchmarking.
 
     Args:
         count: Number of facts to generate
-        size: Content size - "small" (~30-60 chars, typical), "medium" (~60-100 chars, rare),
-              "large" (~100-150 chars, very rare edge case)
+        size: Content size
 
     Returns:
-        List of unique facts with specified content size
+        List of unique facts
     """
     base_facts = generate_facts(count)
 
     def with_id_suffix(text: str, idx: int, max_len: int) -> str:
-        # Preserve uniqueness after truncation by ensuring the id suffix survives.
         suffix = f" (id: {idx})"
         if max_len <= len(suffix):
             return suffix[-max_len:]
         return text[: max_len - len(suffix)] + suffix
 
-    if size == "small":
-        # Small facts: ~30-60 characters (typical production size)
-        # Facts from augmentation are usually short like "User likes pizza" or
-        # "John works at Tech Corp"
-        return [with_id_suffix(fact, i, 60) for i, fact in enumerate(base_facts)]
-    elif size == "medium":
-        # Medium facts: ~60-100 characters (rare in production)
-        # Some facts might have slightly more context
-        medium_facts: list[str] = []
-        padding = " with some additional context."
-        for i, fact in enumerate(base_facts):
-            medium_fact = fact
-            if len(medium_fact) < 60:
-                medium_fact = medium_fact + padding
-            medium_facts.append(with_id_suffix(medium_fact, i, 100))
-        return medium_facts
-    elif size == "large":
-        # Large facts: ~100-150 characters (very rare edge case)
-        # Testing edge case row size impact
-        large_facts: list[str] = []
-        padding_template = " with additional context and details about preferences."
-
-        for i, fact in enumerate(base_facts):
-            # Extend to ~120 chars
-            padding_needed = 120 - len(fact)
-            if padding_needed > 0:
-                padding_repeats = max(1, padding_needed // len(padding_template) + 1)
-                large_fact = fact + (padding_template * padding_repeats)
-                large_facts.append(with_id_suffix(large_fact, i, 150))
-            else:
-                large_facts.append(with_id_suffix(fact, i, 150))
-
-        return large_facts
-    else:
-        return base_facts
+    return [with_id_suffix(fact, i, 60) for i, fact in enumerate(base_facts)]

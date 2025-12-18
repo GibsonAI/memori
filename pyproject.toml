@@ -93,6 +93,8 @@ asyncio_mode = "auto"
 addopts = [
     "-v",
     "--strict-markers",
+    "-m",
+    "not benchmark",
     "--cov=memori",
     "--cov-report=term-missing",
     "--cov-report=html",

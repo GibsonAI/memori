@@ -39,13 +39,12 @@ def extract_db_type_from_test_name(test_name):
     """Extract database type from test name."""
     import re
 
-    # Look for database type in test name (sqlite, postgres, cockroachdb)
-    # Handle both [sqlite] and sqlite- formats
-    match = re.search(r"\[(sqlite|postgres|cockroachdb)[-\]]", test_name)
+    # Look for database type in test name (postgres, mysql)
+    match = re.search(r"\[(postgres|mysql)[-\]]", test_name)
     if not match:
-        match = re.search(r"-(sqlite|postgres|cockroachdb)[-\]]", test_name)
+        match = re.search(r"-(postgres|mysql)[-\]]", test_name)
     if not match:
-        match = re.search(r"(sqlite|postgres|cockroachdb)", test_name)
+        match = re.search(r"(postgres|mysql)", test_name)
     return match.group(1) if match else "unknown"
 
 
@@ -53,14 +52,12 @@ def extract_content_size_from_test_name(test_name):
     """Extract content size from test name."""
     import re
 
-    # Look for content size in test name (small, medium, large)
-    # Handle both [small] and -small- formats
-    match = re.search(r"\[(small|medium|large)[-\]]", test_name)
+    match = re.search(r"\[small[-\]]", test_name)
     if not match:
-        match = re.search(r"-(small|medium|large)[-\]]", test_name)
+        match = re.search(r"-small[-\]]", test_name)
     if not match:
-        match = re.search(r"(small|medium|large)", test_name)
-    return match.group(1) if match else "medium"
+        match = re.search(r"small", test_name)
+    return match.group(0) if match else "small"
 
 
 def extract_benchmark_id_from_test_name(test_name):
@@ -76,8 +73,13 @@ def extract_benchmark_id_from_test_name(test_name):
     return match.group(1) if match else test_name
 
 
-def generate_percentile_report(json_file_path):
-    """Generate p50/p95/p99 report from benchmark JSON."""
+def generate_percentile_report(json_file_path, max_n=None):
+    """Generate p50/p95/p99 report from benchmark JSON.
+
+    Args:
+        json_file_path: Path to pytest-benchmark JSON output
+        max_n: Optional maximum N value to include (filters out tests with N > max_n)
+    """
     with open(json_file_path) as f:
         data = json.load(f)
 
@@ -87,6 +89,13 @@ def generate_percentile_report(json_file_path):
         test_name = benchmark.get("name", "")
         benchmark_id = extract_benchmark_id_from_test_name(test_name)
         n = extract_n_from_test_name(test_name)
+
+        # Skip if N is None (couldn't extract) or exceeds max_n filter
+        if n is None:
+            continue
+        if max_n is not None and n > max_n:
+            continue
+
         db_type = extract_db_type_from_test_name(test_name)
         content_size = extract_content_size_from_test_name(test_name)
         extra_info = benchmark.get("extra_info", {}) or {}
@@ -223,10 +232,13 @@ def print_report(benchmarks, output_format="table"):
 def main():
     if len(sys.argv) < 2:
         print(
-            "Usage: python generate_percentile_report.py <benchmark.json> [format] [output_file]"
+            "Usage: python generate_percentile_report.py <benchmark.json> [format] [output_file] [max_n]"
         )
         print("  format: table (default), csv, or json")
         print("  output_file: optional file path to write report (default: stdout)")
+        print(
+            "  max_n: optional maximum N value to include (filters out tests with N > max_n)"
+        )
         sys.exit(1)
 
     json_file = Path(sys.argv[1])
@@ -241,11 +253,14 @@ def main():
         sys.exit(1)
 
     output_file = sys.argv[3] if len(sys.argv) > 3 else None
+    max_n = int(sys.argv[4]) if len(sys.argv) > 4 else None
 
-    benchmarks = generate_percentile_report(json_file)
+    benchmarks = generate_percentile_report(json_file, max_n=max_n)
 
     if not benchmarks:
         print("No benchmark data found with N values.")
+        if max_n:
+            print(f"(Filtered to N <= {max_n})")
         sys.exit(1)
 
     report = generate_report(benchmarks, output_format)
@@ -254,6 +269,8 @@ def main():
         output_path = Path(output_file)
         output_path.write_text(report)
         print(f"Report written to: {output_path}")
+        if max_n:
+            print(f"(Filtered to N <= {max_n})")
     else:
         print(report)
 

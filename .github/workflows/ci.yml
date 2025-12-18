@@ -84,7 +84,7 @@ jobs:
         run: uv sync --dev
 
       - name: Run pytest with coverage
-        run: uv run pytest
+        run: uv run pytest --ignore=tests/benchmarks
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
