@@ -119,7 +119,15 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 
-[tool.ty]
+[tool.ty.src]
+exclude = [
+    "tests/llm/clients/**/*.py",
+    "**/__pycache__/**",
+]
+
+[tool.ty.environment]
+python-version = "3.12"
+
 
 [dependency-groups]
 dev = [

@@ -108,7 +108,6 @@ def memori_instance(db_connection, request):
     mem = Memori(conn=db_connection)
     mem.config.storage.build()
 
-    # Store database type for later reference
     db_type_param = None
     for marker in request.node.iter_markers("parametrize"):
         if "db_connection" in marker.args[0]:
@@ -127,7 +126,7 @@ def memori_instance(db_connection, request):
         except Exception:
             db_type_param = "unknown"
 
-    mem._benchmark_db_type = db_type_param
+    mem._benchmark_db_type = db_type_param  # ty: ignore[unresolved-attribute]
     return mem
 
 
