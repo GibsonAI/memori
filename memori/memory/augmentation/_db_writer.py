@@ -8,12 +8,15 @@ r"""
                        memorilabs.ai
 """
 
+import logging
 import queue as queue_module
 import threading
 import time
 from collections.abc import Callable
 
 from memori.storage._connection import connection_context
+
+logger = logging.getLogger(__name__)
 
 
 class WriteTask:
@@ -85,6 +88,7 @@ class DbWriterRuntime:
         if self.conn_factory is None:
             return
 
+        logger.debug("AA DB writer thread started")
         while True:
             try:
                 with connection_context(self.conn_factory) as (conn, adapter, driver):
@@ -95,6 +99,9 @@ class DbWriterRuntime:
                             time.sleep(self.batch_timeout)
                             continue
 
+                        logger.debug(
+                            "AA DB writer batch started - %d writes", len(batch)
+                        )
                         try:
                             for task in batch:
                                 task.execute(driver)
@@ -102,9 +109,11 @@ class DbWriterRuntime:
                             if adapter:
                                 adapter.flush()
                                 adapter.commit()
+                            logger.debug("AA DB writer completing - batch committed")
                         except Exception:
                             import traceback
 
+                            logger.debug("AA DB writer batch failed - rolling back")
                             traceback.print_exc()
                             if adapter:
                                 try:

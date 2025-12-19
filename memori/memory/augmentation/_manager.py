@@ -6,6 +6,11 @@ r"""
 |_|  |_|\___|_| |_| |_|\___/|_|  |_|
                  perfectam memoriam
                       memorilabs.ai
+
+Augmentation Manager - Async processing of memory extraction.
+
+Debug logging: Set logging.getLogger("memori").setLevel(logging.DEBUG)
+Full content: Initialize with Memori(conn, debug_truncate=False)
 """
 
 import asyncio
@@ -75,6 +80,7 @@ class Manager:
             raise self._quota_error
 
         if not self._active or not self.conn_factory:
+            logger.debug("Augmentation enqueue skipped - not active or no connection")
             return self
 
         runtime = get_runtime()
@@ -85,6 +91,7 @@ class Manager:
         if runtime.loop is None:
             raise RuntimeError("Event loop is not available")
 
+        logger.debug("AA enqueued - scheduling augmentation processing")
         future = asyncio.run_coroutine_threadsafe(
             self._process_augmentations(input_data), runtime.loop
         )
@@ -109,12 +116,14 @@ class Manager:
 
     async def _process_augmentations(self, input_data: AugmentationInput) -> None:
         if not self.augmentations:
+            logger.debug("No augmentations configured")
             return
 
         runtime = get_runtime()
         if runtime.semaphore is None:
             return
 
+        logger.debug("AA processing started")
         async with runtime.semaphore:
             ctx = AugmentationContext(payload=input_data)
 
@@ -123,6 +132,9 @@ class Manager:
                     for aug in self.augmentations:
                         if aug.enabled:
                             try:
+                                logger.debug(
+                                    "Running augmentation: %s", aug.__class__.__name__
+                                )
                                 ctx = await aug.process(ctx, driver)
                             except Exception as e:
                                 from memori._exceptions import QuotaExceededError
@@ -135,6 +147,7 @@ class Manager:
                                 )
 
                     if ctx.writes:
+                        logger.debug("AA scheduling %d DB writes", len(ctx.writes))
                         self._enqueue_writes(ctx.writes)
             except Exception as e:
                 from memori._exceptions import QuotaExceededError

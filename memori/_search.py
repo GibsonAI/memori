@@ -9,10 +9,13 @@ r"""
 """
 
 import json
+import logging
 from typing import Any
 
 import faiss
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def parse_embedding(raw) -> np.ndarray:
@@ -52,6 +55,7 @@ def find_similar_embeddings(
         List of (id, similarity_score) tuples, sorted by similarity desc
     """
     if not embeddings:
+        logger.debug("find_similar_embeddings called with empty embeddings")
         return []
 
     query_dim = len(query_embedding)
@@ -72,8 +76,10 @@ def find_similar_embeddings(
             continue
 
     if not embeddings_list:
+        logger.debug("No valid embeddings after parsing")
         return []
 
+    logger.debug("Building FAISS index with %d embeddings", len(embeddings_list))
     try:
         embeddings_array = np.stack(embeddings_list, axis=0)
     except ValueError:
@@ -83,6 +89,11 @@ def find_similar_embeddings(
     query_array = np.asarray([query_embedding], dtype=np.float32)
 
     if embeddings_array.shape[1] != query_array.shape[1]:
+        logger.debug(
+            "Embedding dimension mismatch: db=%d, query=%d",
+            embeddings_array.shape[1],
+            query_array.shape[1],
+        )
         return []
 
     faiss.normalize_L2(query_array)
@@ -97,6 +108,14 @@ def find_similar_embeddings(
     for result_idx, embedding_idx in enumerate(indices[0]):
         if embedding_idx >= 0 and embedding_idx < len(id_list):
             results.append((id_list[embedding_idx], float(similarities[0][result_idx])))
+
+    if results:
+        scores = [round(score, 3) for _, score in results]
+        logger.debug(
+            "FAISS similarity search complete - top %d matches: %s",
+            len(results),
+            scores,
+        )
 
     return results
 
@@ -120,20 +139,29 @@ def search_entity_facts(
     Returns:
         List of dicts with keys: id, content, similarity
     """
+    logger.debug(
+        "Executing memori_entity_fact query - entity_id: %s, embeddings_limit: %s",
+        entity_id,
+        embeddings_limit,
+    )
     results = entity_fact_driver.get_embeddings(entity_id, embeddings_limit)
 
     if not results:
+        logger.debug("No embeddings found in database for entity_id: %s", entity_id)
         return []
 
+    logger.debug("Retrieved %d embeddings from database", len(results))
     embeddings = [(row["id"], row["content_embedding"]) for row in results]
     similar = find_similar_embeddings(embeddings, query_embedding, limit)
 
     if not similar:
+        logger.debug("No similar embeddings found")
         return []
 
     top_ids = [fact_id for fact_id, _ in similar]
     similarities_map = dict(similar)
 
+    logger.debug("Fetching content for %d fact IDs", len(top_ids))
     content_results = entity_fact_driver.get_facts_by_ids(top_ids)
     content_map = {row["id"]: row["content"] for row in content_results}
 
@@ -148,4 +176,7 @@ def search_entity_facts(
                 }
             )
 
+    logger.debug(
+        "Returning %d facts with similarity scores", len(facts_with_similarity)
+    )
     return facts_with_similarity

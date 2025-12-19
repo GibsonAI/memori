@@ -69,11 +69,41 @@ class LlmRegistry:
 
 
 class Memori:
-    def __init__(self, conn: Callable[[], Any] | Any | None = None):
+    """Memori SDK - Memory layer for LLM applications.
+
+    Args:
+        conn: Database connection factory or connection instance.
+        debug_truncate: If True (default), truncate long content in debug logs.
+            Set to False to see full prompts, responses, and embeddings in logs.
+
+    Example:
+        # Basic usage
+        memori = Memori(conn)
+
+        # With full debug content (no truncation)
+        memori = Memori(conn, debug_truncate=False)
+
+    To enable debug logging:
+        import logging
+        logging.getLogger("memori").setLevel(logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG)
+    """
+
+    def __init__(
+        self,
+        conn: Callable[[], Any] | Any | None = None,
+        debug_truncate: bool = True,
+    ):
+        from memori._logging import set_truncate_enabled
+
         self.config = Config()
         self.config.api_key = os.environ.get("MEMORI_API_KEY", None)
         self.config.enterprise = os.environ.get("MEMORI_ENTERPRISE", "0") == "1"
         self.config.session_id = uuid4()
+        self.config.debug_truncate = debug_truncate
+
+        # Configure logging truncation
+        set_truncate_enabled(debug_truncate)
 
         if conn is None:
             conn = self._get_default_connection()

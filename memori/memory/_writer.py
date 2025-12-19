@@ -9,12 +9,15 @@ r"""
 """
 
 import json
+import logging
 import time
 
 from sqlalchemy.exc import OperationalError
 
 from memori._config import Config
 from memori.llm._registry import Registry as LlmRegistry
+
+logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 0.1
@@ -26,14 +29,19 @@ class Writer:
 
     def execute(self, payload: dict, max_retries: int = MAX_RETRIES) -> "Writer":
         if self.config.storage is None or self.config.storage.driver is None:
+            logger.debug("Writer.execute skipped - storage not configured")
             return self
 
+        logger.debug("Writing response to memori DB")
         for attempt in range(max_retries):
             try:
                 self._execute_transaction(payload)
                 return self
             except OperationalError as e:
                 if "restart transaction" in str(e) and attempt < max_retries - 1:
+                    logger.debug(
+                        "Writer retry attempt %d due to OperationalError", attempt + 1
+                    )
                     if self.config.storage.adapter:
                         self.config.storage.adapter.rollback()
                     time.sleep(RETRY_BACKOFF_BASE * (2**attempt))
@@ -113,3 +121,7 @@ class Writer:
         if self.config.storage is not None and self.config.storage.adapter is not None:
             self.config.storage.adapter.flush()
             self.config.storage.adapter.commit()
+            logger.debug(
+                "Transaction committed - conversation_id: %s",
+                self.config.cache.conversation_id,
+            )
