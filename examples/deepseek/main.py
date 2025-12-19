@@ -31,20 +31,20 @@ mem.config.storage.build()
 
 if __name__ == "__main__":
     # First conversation - establish facts
-    print("背景信息：我叫berry peng，是一名agent开发工程师，目前住在上海")
+    print("")
     response1 = client.chat.completions.create(
         model="deepseek-chat",
         messages=[
             {
                 "role": "user",
-                "content": "我叫berry peng，是一名agent开发工程师，目前住在上海",
+                "content": "You: 我正在开发一个基于 Python 的开源项目，我更倾向于使用简洁的代码风格。",
             }
         ],
     )
     print(f"AI: {response1.choices[0].message.content}\n")
 
     # Second conversation - Memori recalls context automatically
-    print("You: 我住在哪？")
+    print("You: 我之前提到我正在开发什么类型的项目？")
     response2 = client.chat.completions.create(
         model="deepseek-chat",
         messages=[{"role": "user", "content": "我住在哪？"}],
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     print(f"AI: {response2.choices[0].message.content}\n")
 
     # Third conversation - context is maintained
-    print("You: 我的职业是什么")
+    print("You: 我对代码风格有什么要求？")
     response3 = client.chat.completions.create(
         model="deepseek-chat",
         messages=[{"role": "user", "content": "我的职业是什么"}],
