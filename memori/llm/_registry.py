@@ -39,6 +39,15 @@ class Registry:
             if matcher(client_obj):
                 return client_class(config)
 
+        module = type(client_obj).__module__
+        if module.startswith("langchain"):
+            class_name = type(client_obj).__name__
+            param_hint = class_name.lower()
+            raise RuntimeError(
+                f"LangChain models require named parameters. "
+                f"Use: llm.register({param_hint}=client) instead of llm.register(client)"
+            )
+
         raise RuntimeError(
             f"Unsupported LLM client type: {type(client_obj).__module__}.{type(client_obj).__name__}"
         )

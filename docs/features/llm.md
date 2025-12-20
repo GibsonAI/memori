@@ -95,7 +95,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 client = ChatOpenAI(model="gpt-4o-mini")
 
-mem = Memori(conn=SessionLocal).llm.register(client)
+mem = Memori(conn=SessionLocal).llm.register(chatopenai=client)
 mem.attribution(entity_id="user_123", process_id="langchain_agent")
 
 response = client.invoke("Hello")

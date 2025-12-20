@@ -49,3 +49,22 @@ def test_llm_adapter_raises_for_unsupported_provider():
 
     with pytest.raises(RuntimeError, match="Unsupported LLM provider"):
         Registry().adapter("mistral", "mistral")
+
+
+def test_llm_client_raises_helpful_error_for_langchain():
+    """Test that LangChain clients produce a helpful error message."""
+
+    class MockLangChainClient:
+        pass
+
+    MockLangChainClient.__module__ = "langchain_openai.chat_models.base"
+    MockLangChainClient.__name__ = "ChatOpenAI"
+
+    mock_client = MockLangChainClient()
+    mock_config = None
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"LangChain models require named parameters.*llm\.register\(chatopenai=client\)",
+    ):
+        Registry().client(mock_client, mock_config)
