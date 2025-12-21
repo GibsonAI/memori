@@ -41,7 +41,12 @@ class Recall:
         if limit is None:
             limit = self.config.recall_facts_limit
 
-        query_embedding = embed_texts(query)[0]
+        embeddings_config = self.config.embeddings
+        query_embedding = embed_texts(
+            query,
+            model=embeddings_config.model,
+            fallback_dimension=embeddings_config.fallback_dimension,
+        )[0]
 
         facts = []
         for attempt in range(MAX_RETRIES):

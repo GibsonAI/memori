@@ -54,12 +54,18 @@ def find_similar_embeddings(
     if not embeddings:
         return []
 
+    query_dim = len(query_embedding)
+    if query_dim == 0:
+        return []
+
     embeddings_list = []
     id_list = []
 
     for fact_id, raw in embeddings:
         try:
             parsed = parse_embedding(raw)
+            if parsed.ndim != 1 or parsed.shape[0] != query_dim:
+                continue
             embeddings_list.append(parsed)
             id_list.append(fact_id)
         except Exception:
@@ -68,7 +74,10 @@ def find_similar_embeddings(
     if not embeddings_list:
         return []
 
-    embeddings_array = np.stack(embeddings_list, axis=0)
+    try:
+        embeddings_array = np.stack(embeddings_list, axis=0)
+    except ValueError:
+        return []
 
     faiss.normalize_L2(embeddings_array)
     query_array = np.asarray([query_embedding], dtype=np.float32)

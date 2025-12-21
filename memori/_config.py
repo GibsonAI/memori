@@ -26,11 +26,18 @@ class Storage:
         self.cockroachdb = False
 
 
+class Embeddings:
+    def __init__(self):
+        self.model = "all-MiniLM-L6-v2"
+        self.fallback_dimension = 768
+
+
 class Config:
     def __init__(self):
         self.api_key = None
         self.augmentation = None
         self.cache = Cache()
+        self.embeddings = Embeddings()
         self.enterprise = False
         self.llm = Llm()
         self.framework = Framework()

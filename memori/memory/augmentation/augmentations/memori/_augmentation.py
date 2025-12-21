@@ -140,7 +140,12 @@ class AdvancedAugmentation(BaseAugmentation):
             ]
 
         if facts:
-            fact_embeddings = await embed_texts_async(facts)
+            embeddings_config = self.config.embeddings
+            fact_embeddings = await embed_texts_async(
+                facts,
+                model=embeddings_config.model,
+                fallback_dimension=embeddings_config.fallback_dimension,
+            )
             api_response["entity"]["fact_embeddings"] = fact_embeddings
 
         return Memories().configure_from_advanced_augmentation(api_response)
@@ -167,7 +172,12 @@ class AdvancedAugmentation(BaseAugmentation):
             ]
 
             if facts_from_triples:
-                embeddings_from_triples = await embed_texts_async(facts_from_triples)
+                embeddings_config = self.config.embeddings
+                embeddings_from_triples = await embed_texts_async(
+                    facts_from_triples,
+                    model=embeddings_config.model,
+                    fallback_dimension=embeddings_config.fallback_dimension,
+                )
                 facts_to_write = (facts_to_write or []) + facts_from_triples
                 embeddings_to_write = (
                     embeddings_to_write or []
