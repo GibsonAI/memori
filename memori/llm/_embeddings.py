@@ -11,6 +11,7 @@ r"""
 import asyncio
 import os
 import struct
+from collections.abc import Iterable
 from typing import Any
 
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
@@ -18,7 +19,6 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 from sentence_transformers import SentenceTransformer
 
 _MODEL_CACHE: dict[str, SentenceTransformer] = {}
-_DEFAULT_DIMENSION = 768
 
 
 def _get_model(model_name: str) -> SentenceTransformer:
@@ -27,18 +27,25 @@ def _get_model(model_name: str) -> SentenceTransformer:
     return _MODEL_CACHE[model_name]
 
 
+def _prepare_text_inputs(texts: str | Iterable[str]) -> list[str]:
+    if isinstance(texts, str):
+        return [texts]
+    return [t for t in texts if t]
+
+
+def _embedding_dimension(model: Any, default: int) -> int:
+    try:
+        dim_value = model.get_sentence_embedding_dimension()
+        return int(dim_value) if dim_value is not None else default
+    except (RuntimeError, ValueError, AttributeError, TypeError):
+        return default
+
+
+def _zero_vectors(count: int, dim: int) -> list[list[float]]:
+    return [[0.0] * dim for _ in range(count)]
+
+
 def format_embedding_for_db(embedding: list[float], dialect: str) -> Any:
-    """Format embedding for database storage.
-
-    Args:
-        embedding: List of floats representing the embedding vector
-        dialect: Database dialect (postgresql, mysql, sqlite, mongodb)
-
-    Returns:
-        Formatted embedding optimized for the target database:
-        - PostgreSQL/CockroachDB/MySQL/SQLite: Binary (BYTEA/BLOB) - compact & fast
-        - MongoDB: Binary (BinData) - compact & fast
-    """
     binary_data = struct.pack(f"<{len(embedding)}f", *embedding)
 
     if dialect == "mongodb":
@@ -48,36 +55,57 @@ def format_embedding_for_db(embedding: list[float], dialect: str) -> Any:
             return bson.Binary(binary_data)
         except ImportError:
             return binary_data
-    else:
-        return binary_data
+    return binary_data
 
 
 def embed_texts(
-    texts: str | list[str], model: str = "all-mpnet-base-v2"
+    texts: str | list[str],
+    model: str,
+    fallback_dimension: int,
 ) -> list[list[float]]:
-    inputs = [texts] if isinstance(texts, str) else [t for t in texts if t]
+    inputs = _prepare_text_inputs(texts)
     if not inputs:
         return []
 
     try:
         encoder = _get_model(model)
     except (OSError, RuntimeError, ValueError):
-        return [[0.0] * _DEFAULT_DIMENSION for _ in inputs]
+        return _zero_vectors(len(inputs), fallback_dimension)
 
     try:
         embeddings = encoder.encode(inputs, convert_to_numpy=True)
         return embeddings.tolist()
-    except (RuntimeError, ValueError):
+    except ValueError as e:
+        # Some models can raise "all input arrays must have the same shape" when
+        # encoding batches. Retry one-by-one to avoid internal stacking.
+        if "same shape" not in str(e):
+            raise
+
         try:
-            dim_value = encoder.get_sentence_embedding_dimension()
-            dim = int(dim_value) if dim_value is not None else _DEFAULT_DIMENSION
-        except (RuntimeError, ValueError, AttributeError, TypeError):
-            dim = _DEFAULT_DIMENSION
-        return [[0.0] * dim for _ in inputs]
+            vectors: list[list[float]] = []
+            for text in inputs:
+                single = encoder.encode([text], convert_to_numpy=True)
+                vectors.append(single[0].tolist())
+
+            dim_set = {len(v) for v in vectors}
+            if len(dim_set) != 1:
+                raise ValueError("all input arrays must have the same shape") from e
+
+            return vectors
+        except Exception:
+            dim = _embedding_dimension(encoder, default=fallback_dimension)
+            return _zero_vectors(len(inputs), dim)
+    except RuntimeError:
+        dim = _embedding_dimension(encoder, default=fallback_dimension)
+        return _zero_vectors(len(inputs), dim)
 
 
 async def embed_texts_async(
-    texts: str | list[str], model: str = "all-mpnet-base-v2"
+    texts: str | list[str],
+    model: str,
+    fallback_dimension: int,
 ) -> list[list[float]]:
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, embed_texts, texts, model)
+    return await loop.run_in_executor(
+        None, embed_texts, texts, model, fallback_dimension
+    )

@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
+from memori._config import Config
 from memori.llm._embeddings import (
     _get_model,
     embed_texts,
@@ -131,13 +132,18 @@ def test_get_model_different_models():
 
 
 def test_embed_texts_single_string():
+    cfg = Config()
     with patch("memori.llm._embeddings._get_model") as mock_get_model:
         mock_model = Mock()
         mock_embeddings = np.array([[0.1, 0.2, 0.3]])
         mock_model.encode.return_value = mock_embeddings
         mock_get_model.return_value = mock_model
 
-        result = embed_texts("Hello world")
+        result = embed_texts(
+            "Hello world",
+            model=cfg.embeddings.model,
+            fallback_dimension=cfg.embeddings.fallback_dimension,
+        )
 
         assert len(result) == 1
         assert result[0] == pytest.approx([0.1, 0.2, 0.3])
@@ -145,13 +151,18 @@ def test_embed_texts_single_string():
 
 
 def test_embed_texts_list_of_strings():
+    cfg = Config()
     with patch("memori.llm._embeddings._get_model") as mock_get_model:
         mock_model = Mock()
         mock_embeddings = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
         mock_model.encode.return_value = mock_embeddings
         mock_get_model.return_value = mock_model
 
-        result = embed_texts(["Hello", "World"])
+        result = embed_texts(
+            ["Hello", "World"],
+            model=cfg.embeddings.model,
+            fallback_dimension=cfg.embeddings.fallback_dimension,
+        )
 
         assert len(result) == 2
         assert result[0] == pytest.approx([0.1, 0.2, 0.3])
@@ -159,31 +170,46 @@ def test_embed_texts_list_of_strings():
 
 
 def test_embed_texts_empty_list():
-    result = embed_texts([])
+    cfg = Config()
+    result = embed_texts(
+        [],
+        model=cfg.embeddings.model,
+        fallback_dimension=cfg.embeddings.fallback_dimension,
+    )
     assert result == []
 
 
 def test_embed_texts_empty_string():
+    cfg = Config()
     with patch("memori.llm._embeddings._get_model") as mock_get_model:
         mock_model = Mock()
         mock_embeddings = np.array([[0.1, 0.2, 0.3]])
         mock_model.encode.return_value = mock_embeddings
         mock_get_model.return_value = mock_model
 
-        result = embed_texts("")
+        result = embed_texts(
+            "",
+            model=cfg.embeddings.model,
+            fallback_dimension=cfg.embeddings.fallback_dimension,
+        )
 
         assert len(result) == 1
         mock_model.encode.assert_called_once_with([""], convert_to_numpy=True)
 
 
 def test_embed_texts_filters_empty_strings():
+    cfg = Config()
     with patch("memori.llm._embeddings._get_model") as mock_get_model:
         mock_model = Mock()
         mock_embeddings = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
         mock_model.encode.return_value = mock_embeddings
         mock_get_model.return_value = mock_model
 
-        result = embed_texts(["Hello", "", "World", ""])
+        result = embed_texts(
+            ["Hello", "", "World", ""],
+            model=cfg.embeddings.model,
+            fallback_dimension=cfg.embeddings.fallback_dimension,
+        )
 
         assert len(result) == 2
         mock_model.encode.assert_called_once_with(
@@ -198,7 +224,7 @@ def test_embed_texts_custom_model():
         mock_model.encode.return_value = mock_embeddings
         mock_get_model.return_value = mock_model
 
-        result = embed_texts("test", model="custom-model")
+        result = embed_texts("test", model="custom-model", fallback_dimension=1024)
 
         mock_get_model.assert_called_once_with("custom-model")
         assert len(result) == 1
@@ -208,11 +234,13 @@ def test_embed_texts_model_load_failure():
     with patch("memori.llm._embeddings._get_model") as mock_get_model:
         mock_get_model.side_effect = OSError("Model not found")
 
-        result = embed_texts(["Hello", "World"])
+        result = embed_texts(
+            ["Hello", "World"], model="missing-model", fallback_dimension=7
+        )
 
         assert len(result) == 2
-        assert result[0] == [0.0] * 768
-        assert result[1] == [0.0] * 768
+        assert result[0] == [0.0] * 7
+        assert result[1] == [0.0] * 7
 
 
 def test_embed_texts_encode_failure():
@@ -222,10 +250,28 @@ def test_embed_texts_encode_failure():
         mock_model.get_sentence_embedding_dimension.return_value = 384
         mock_get_model.return_value = mock_model
 
-        result = embed_texts(["Hello"])
+        result = embed_texts(["Hello"], model="test-model", fallback_dimension=1024)
 
         assert len(result) == 1
         assert result[0] == [0.0] * 384
+
+
+def test_embed_texts_shape_error_retries_and_pools(mocker):
+    mock_model = mocker.Mock()
+    # First call (convert_to_numpy=True) fails like numpy stack error
+    # Then we retry per-text (convert_to_numpy=True) which succeeds.
+    mock_model.encode.side_effect = [
+        ValueError("all input arrays must have the same shape"),
+        np.ones((1, 4), dtype=np.float32),
+        np.zeros((1, 4), dtype=np.float32),
+    ]
+    mock_model.get_sentence_embedding_dimension.return_value = 4
+    mocker.patch("memori.llm._embeddings._get_model", return_value=mock_model)
+
+    out = embed_texts(["a", "b"], model="test-model", fallback_dimension=1024)
+
+    assert out == [[1.0, 1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0]]
+    assert mock_model.encode.call_count == 3
 
 
 def test_embed_texts_encode_failure_with_dimension_error():
@@ -237,34 +283,35 @@ def test_embed_texts_encode_failure_with_dimension_error():
         )
         mock_get_model.return_value = mock_model
 
-        result = embed_texts(["Hello"])
+        result = embed_texts(["Hello"], model="test-model", fallback_dimension=11)
 
         assert len(result) == 1
-        assert result[0] == [0.0] * 768
+        assert result[0] == [0.0] * 11
 
 
 def test_embed_texts_model_load_runtime_error():
     with patch("memori.llm._embeddings._get_model") as mock_get_model:
         mock_get_model.side_effect = RuntimeError("Runtime error")
 
-        result = embed_texts("test")
+        result = embed_texts("test", model="test-model", fallback_dimension=9)
 
         assert len(result) == 1
-        assert result[0] == [0.0] * 768
+        assert result[0] == [0.0] * 9
 
 
 def test_embed_texts_model_load_value_error():
     with patch("memori.llm._embeddings._get_model") as mock_get_model:
         mock_get_model.side_effect = ValueError("Value error")
 
-        result = embed_texts("test")
+        result = embed_texts("test", model="test-model", fallback_dimension=9)
 
         assert len(result) == 1
-        assert result[0] == [0.0] * 768
+        assert result[0] == [0.0] * 9
 
 
 @pytest.mark.asyncio
 async def test_embed_texts_async_single_string():
+    cfg = Config()
     mock_result = [[0.1, 0.2, 0.3]]
 
     async def mock_run_in_executor(executor, func, *args):
@@ -273,7 +320,11 @@ async def test_embed_texts_async_single_string():
     with patch("asyncio.get_event_loop") as mock_loop:
         mock_loop.return_value.run_in_executor = mock_run_in_executor
 
-        result = await embed_texts_async("Hello world")
+        result = await embed_texts_async(
+            "Hello world",
+            model=cfg.embeddings.model,
+            fallback_dimension=cfg.embeddings.fallback_dimension,
+        )
 
         assert len(result) == 1
         assert result[0] == pytest.approx([0.1, 0.2, 0.3])
@@ -281,6 +332,7 @@ async def test_embed_texts_async_single_string():
 
 @pytest.mark.asyncio
 async def test_embed_texts_async_list():
+    cfg = Config()
     mock_result = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
 
     async def mock_run_in_executor(executor, func, *args):
@@ -289,7 +341,11 @@ async def test_embed_texts_async_list():
     with patch("asyncio.get_event_loop") as mock_loop:
         mock_loop.return_value.run_in_executor = mock_run_in_executor
 
-        result = await embed_texts_async(["Hello", "World"])
+        result = await embed_texts_async(
+            ["Hello", "World"],
+            model=cfg.embeddings.model,
+            fallback_dimension=cfg.embeddings.fallback_dimension,
+        )
 
         assert len(result) == 2
         assert result[0] == pytest.approx([0.1, 0.2, 0.3])
@@ -306,7 +362,9 @@ async def test_embed_texts_async_custom_model():
     with patch("asyncio.get_event_loop") as mock_loop:
         mock_loop.return_value.run_in_executor = mock_run_in_executor
 
-        result = await embed_texts_async("test", model="custom-model")
+        result = await embed_texts_async(
+            "test", model="custom-model", fallback_dimension=1024
+        )
 
         assert len(result) == 1
         assert result[0] == pytest.approx([0.1, 0.2, 0.3])

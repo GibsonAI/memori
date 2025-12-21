@@ -40,7 +40,7 @@ def postgres_db_connection():
         postgres_uri,
         pool_pre_ping=True,
         pool_recycle=300,
-        connect_args=connect_args if connect_args else None,
+        connect_args=connect_args,
     )
 
     try:
@@ -156,7 +156,11 @@ def entity_with_n_facts(memori_instance, fact_content_size, request):
     memori_instance.attribution(entity_id=entity_id, process_id="benchmark-process")
 
     facts = generate_facts_with_size(fact_count, fact_content_size)
-    fact_embeddings = embed_texts(facts)
+    fact_embeddings = embed_texts(
+        facts,
+        model=memori_instance.config.embeddings.model,
+        fallback_dimension=memori_instance.config.embeddings.fallback_dimension,
+    )
 
     entity_db_id = memori_instance.config.storage.driver.entity.create(entity_id)
     memori_instance.config.storage.driver.entity_fact.create(

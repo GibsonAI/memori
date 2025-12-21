@@ -149,6 +149,19 @@ def test_find_similar_embeddings_dimension_mismatch():
     assert result == []
 
 
+def test_find_similar_embeddings_mixed_dimensions():
+    embeddings = [
+        (1, [1.0, 0.0, 0.0]),  # 3D
+        (2, [0.0, 1.0]),  # 2D
+        (3, [0.0, 0.0, 1.0]),  # 3D
+    ]
+    query = [1.0, 0.0, 0.0]
+    result = find_similar_embeddings(embeddings, query, limit=5)
+
+    # Should ignore mismatched dimensions, not crash.
+    assert [fact_id for fact_id, _ in result] == [1, 3]
+
+
 def test_find_similar_embeddings_mixed_formats():
     embeddings = [
         (1, json.dumps([1.0, 0.0, 0.0])),
