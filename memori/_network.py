@@ -214,8 +214,7 @@ class Api:
         attempts = 0
         max_retries = 5
         backoff_factor = 1
-
-        logger.debug("Async %s request to %s", method.upper(), url)
+        print(url)
 
         while True:
             try:

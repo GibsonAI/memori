@@ -18,7 +18,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from memori._config import Config
-from memori._logging import sanitize_payload
 
 
 class Api:
@@ -122,6 +121,6 @@ class Collector:
                     if self.config.raise_final_request_attempt is True:
                         raise
         else:
-            pprint.pprint(sanitize_payload(payload))
+            pprint.pprint(payload)
 
         return self

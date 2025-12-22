@@ -19,6 +19,9 @@ from google.protobuf import json_format
 from memori._config import Config
 from memori._logging import truncate
 from memori._utils import merge_chunk
+
+if TYPE_CHECKING:
+    pass
 from memori.llm._utils import (
     agno_is_anthropic,
     agno_is_google,
@@ -31,9 +34,6 @@ from memori.llm._utils import (
     llm_is_xai,
     provider_is_langchain,
 )
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -638,6 +638,7 @@ class BaseInvoke:
             self._format_kwargs(kwargs),
             self._format_response(self.get_response_content(raw_response)),
         )
+
         MemoryManager(self.config).execute(payload)
 
         if self.config.augmentation is not None:
