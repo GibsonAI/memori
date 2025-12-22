@@ -13,7 +13,7 @@ from collections.abc import Callable
 from typing import Any
 from uuid import uuid4
 
-import psycopg
+# Import psycopg lazily in _get_default_connection to avoid requiring it at import time
 
 from memori._config import Config
 from memori._exceptions import (
@@ -94,6 +94,13 @@ class Memori:
     def _get_default_connection(self) -> Callable[[], Any]:
         connection_string = os.environ.get("MEMORI_COCKROACHDB_CONNECTION_STRING")
         if connection_string:
+            try:
+                import psycopg
+            except ImportError as e:
+                raise RuntimeError(
+                    "psycopg is required to use the default connection. Install 'psycopg' or pass a connection factory via 'conn'."
+                ) from e
+
             return lambda: psycopg.connect(connection_string)
 
         raise RuntimeError(
