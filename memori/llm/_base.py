@@ -629,21 +629,15 @@ class BaseInvoke:
         if "model" in kwargs:
             self.config.llm.version = kwargs["model"]
 
-        end_time = __import__("time").time()
-        latency = end_time - start_time
-        logger.debug("LLM response received - latency: %.2fs", latency)
-
         payload = self._format_payload(
             self.config.framework.provider,
             self.config.llm.provider,
             self.config.llm.version,
             start_time,
-            end_time,
+            __import__("time").time(),
             self._format_kwargs(kwargs),
             self._format_response(self.get_response_content(raw_response)),
         )
-
-        logger.debug("Executing memory manager to store response")
         MemoryManager(self.config).execute(payload)
 
         if self.config.augmentation is not None:

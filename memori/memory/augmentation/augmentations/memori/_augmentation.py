@@ -126,18 +126,6 @@ class AdvancedAugmentation(BaseAugmentation):
 
         memories = await self._process_api_response(api_response)
 
-        fact_count = len(memories.entity.facts) if memories.entity.facts else 0
-        triple_count = (
-            len(memories.entity.semantic_triples)
-            if memories.entity.semantic_triples
-            else 0
-        )
-        logger.debug(
-            "AA response received - extracted %d facts, %d triples",
-            fact_count,
-            triple_count,
-        )
-
         ctx.data["memories"] = memories
 
         await self._schedule_entity_writes(ctx, driver, memories)

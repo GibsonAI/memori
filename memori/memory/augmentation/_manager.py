@@ -6,11 +6,6 @@ r"""
 |_|  |_|\___|_| |_| |_|\___/|_|  |_|
                  perfectam memoriam
                       memorilabs.ai
-
-Augmentation Manager - Async processing of memory extraction.
-
-Debug logging: Set logging.getLogger("memori").setLevel(logging.DEBUG)
-Full content: Initialize with Memori(conn, debug_truncate=False)
 """
 
 import asyncio

@@ -6,21 +6,6 @@ r"""
 |_|  |_|\___|_| |_| |_|\___/|_|  |_|
                  perfectam memoriam
                       memorilabs.ai
-
-Debug Logging Utilities
------------------------
-This module provides utilities for debug logging in the Memori SDK.
-
-To enable debug logging:
-    import logging
-    logging.getLogger("memori").setLevel(logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG)
-
-By default, long content (prompts, responses, embeddings) is truncated in logs.
-To see full content, set debug_truncate=False when initializing Memori:
-    memori = Memori(conn, debug_truncate=False)
-
-Security: API keys and sensitive data are automatically redacted from logs.
 """
 
 import copy

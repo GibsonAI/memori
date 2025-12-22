@@ -6,11 +6,6 @@ r"""
 |_|  |_|\___|_| |_| |_|\___/|_|  |_|
                  perfectam memoriam
                       memorilabs.ai
-
-Recall Module - Memory retrieval via semantic search.
-
-Debug logging: Set logging.getLogger("memori").setLevel(logging.DEBUG)
-Full content: Initialize with Memori(conn, debug_truncate=False)
 """
 
 import logging
