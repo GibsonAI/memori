@@ -24,6 +24,9 @@ Security: API keys and sensitive data are automatically redacted from logs.
 """
 
 import copy
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Global setting for truncation (controlled by Config.debug_truncate)
 _truncate_enabled = True
@@ -33,6 +36,7 @@ def set_truncate_enabled(enabled: bool) -> None:
     """Set whether truncation is enabled for debug logs."""
     global _truncate_enabled
     _truncate_enabled = enabled
+    logger.debug("Debug truncation %s", "enabled" if enabled else "disabled")
 
 
 def truncate(text: str, max_len: int = 200) -> str:
