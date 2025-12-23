@@ -114,16 +114,6 @@ print(response.choices[0].message.content + "\n")
 - Reduced development overhead to a single line of code.
 - Automatic schema migrations.
 
-## Example with OpenAI
-
-```python
-from openai import OpenAI
-from memori import Memori
-
-client = OpenAI(...)
-mem = Memori().llm.register(client)
-```
-
 ## Attribution
 
 To get the most out of Memori, you want to attribute your LLM interactions to an entity (think person, place or thing; like a user) and a process (think your agent, LLM interaction or program).
