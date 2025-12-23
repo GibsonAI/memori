@@ -98,8 +98,13 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content + "\n")
 ```
 
+## Explore the Memories
+
 ```bash
+/bin/echo "select * from memori_conversation_message" | /usr/bin/sqlite3 memori.db
 /bin/echo "select * from memori_entity_fact" | /usr/bin/sqlite3 memori.db
+/bin/echo "select * from memori_process_attribute" | /usr/bin/sqlite3 memori.db
+/bin/echo "select * from memori_knowledge_graph" | /usr/bin/sqlite3 memori.db
 ```
 
 ## What's New In v3?
