@@ -404,6 +404,8 @@ def _detect_platform(client):
         base_url = str(client.base_url).lower()
         if "nebius" in base_url:
             return "nebius"
+        if "deepseek" in base_url:
+            return "deepseek"
     return None
 
 
@@ -447,6 +449,9 @@ class OpenAi(BaseClient):
             client._memori_installed = True
 
         return self
+
+
+
 
 
 @Registry.register_client(

@@ -20,6 +20,7 @@ from memori.llm._clients import PydanticAi as PydanticAiMemoriClient
 from memori.llm._clients import XAi as XAiMemoriClient
 
 
+
 class Agno(BaseProvider):
     def register(self, openai_chat=None, claude=None, gemini=None, xai=None):
         warnings.warn(
@@ -49,6 +50,9 @@ class Anthropic(BaseProvider):
             self.client = AnthropicMemoriClient(self.config).register(client)
 
         return self.entity
+
+
+
 
 
 class Google(BaseProvider):
