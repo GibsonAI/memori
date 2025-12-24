@@ -97,13 +97,16 @@ Execute your Python file:
 python quickstart.py
 ```
 
+You should see the AI respond to both questions, with the second response correctly recalling that your favorite color is blue!
+
 ## Step 5: Check the memories created
 
 ```bash
+/bin/echo "select * from memori_conversation_message" | /usr/bin/sqlite3 memori.db
 /bin/echo "select * from memori_entity_fact" | /usr/bin/sqlite3 memori.db
+/bin/echo "select * from memori_process_attribute" | /usr/bin/sqlite3 memori.db
+/bin/echo "select * from memori_knowledge_graph" | /usr/bin/sqlite3 memori.db
 ```
-
-You should see the AI respond to both questions, with the second response correctly recalling that your favorite color is blue!
 
 ## What Just Happened?
 
