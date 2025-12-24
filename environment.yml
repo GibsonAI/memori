@@ -1,0 +1,58 @@
+name: memori-dev
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  # Base environment and build tools
+  - python=3.10
+  - pip
+  - setuptools>=60
+  - wheel
+
+  # Core binary dependencies (Conda is more stable for C++ bindings)
+  - faiss-cpu>=1.7.0
+  - numpy>=1.24.0
+  - grpcio>=1.60.0
+  - protobuf>=4.25.0,<6.0.0
+  - psycopg>=3.1.0        # Handles psycopg[binary] (v3)
+  - psycopg2>=2.9.0       # Handles psycopg2-binary (v2)
+  - pyfiglet>=0.8.0
+  - pandas                # Often needed for data manipulation, good to have pre-compiled
+  
+  # Development and code quality tools
+  - ruff>=0.8.0
+  - pre-commit>=4.0.0
+  - pytest>=8.4.2
+  - pytest-asyncio>=0.24.0
+  - pytest-cov>=6.0.0
+  - pytest-mock>=3.15.1
+  - bandit>=1.8.0
+
+  # Pip dependencies
+  # Used for PyPI-only packages or fast-moving AI SDKs
+  - pip:
+    # Core project dependencies
+    - aiohttp>=3.9.0
+    - botocore>=1.34.0
+    - requests>=2.32.5
+    - sentence-transformers>=3.0.0
+    
+    # Development & AI SDKs (Mapped from dependency-groups)
+    - anthropic>=0.71.0
+    - google-genai>=1.46.0
+    - langchain-community>=0.3.0
+    - langchain-core>=1.0.1
+    - langchain-google-genai>=3.0.0
+    - langchain-google-vertexai>=2.0.0
+    - langchain-openai>=1.0.1
+    - openai>=2.6.0
+    - xai-sdk>=1.3.1
+    - oracledb>=3.0.0
+    - pip-audit>=2.8.0
+    - pymongo>=4.15.3
+    - pymysql>=1.1.2
+    - sqlalchemy>=2.0.44
+    - sqlalchemy-cockroachdb>=1.4.0
+    
+    # Install the current project in editable mode
+    - -e .
