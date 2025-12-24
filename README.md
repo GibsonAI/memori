@@ -47,6 +47,66 @@ Install Memori:
 pip install memori
 ```
 
+## Quickstart Example
+
+```python
+import os
+import sqlite3
+
+from memori import Memori
+from openai import OpenAI
+
+
+def get_sqlite_connection():
+    return sqlite3.connect("memori.db")
+
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+memori = Memori(conn=get_sqlite_connection).llm.register(client)
+memori.attribution(entity_id="123456", process_id="test-ai-agent")
+memori.config.storage.build()
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=[
+        {"role": "user", "content": "My favorite color is blue."}
+    ]
+)
+print(response.choices[0].message.content + "\n")
+
+# Advanced Augmentation runs asynchronously to efficiently
+# create memories. For this example, a short lived command
+# line program, we need to wait for it to finish.
+
+memori.augmentation.wait()
+
+# Memori stored that your favorite color is blue in SQLite.
+# Now reset everything so there's no prior context.
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+memori = Memori(conn=get_sqlite_connection).llm.register(client)
+memori.attribution(entity_id="123456", process_id="test-ai-agent")
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=[
+        {"role": "user", "content": "What's my favorite color?"}
+    ]
+)
+print(response.choices[0].message.content + "\n")
+```
+
+## Explore the Memories
+
+```bash
+/bin/echo "select * from memori_conversation_message" | /usr/bin/sqlite3 memori.db
+/bin/echo "select * from memori_entity_fact" | /usr/bin/sqlite3 memori.db
+/bin/echo "select * from memori_process_attribute" | /usr/bin/sqlite3 memori.db
+/bin/echo "select * from memori_knowledge_graph" | /usr/bin/sqlite3 memori.db
+```
+
 ## What's New In v3?
 
 - Significant performance improvements using Advanced Augmentation.
@@ -58,16 +118,6 @@ pip install memori
 - Third normal form schema including storage of semantic triples for a knowledge graph.
 - Reduced development overhead to a single line of code.
 - Automatic schema migrations.
-
-## Example with OpenAI
-
-```python
-from openai import OpenAI
-from memori import Memori
-
-client = OpenAI(...)
-mem = Memori().llm.register(client)
-```
 
 ## Attribution
 
@@ -126,57 +176,6 @@ This step is not necessary but will prep your environment for faster execution. 
     client = OpenAI(...)
     mem = Memori(conn=db_session_factory).llm.register(client)
     ```
-
-## Quickstart Example
-
-```python
-import os
-import sqlite3
-
-from memori import Memori
-from openai import OpenAI
-
-
-def get_sqlite_connection():
-    return sqlite3.connect("memori.db")
-
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-memori = Memori(conn=get_sqlite_connection).llm.register(client)
-memori.attribution(entity_id="123456", process_id="test-ai-agent")
-memori.config.storage.build()
-
-response = client.chat.completions.create(
-    model="gpt-4.1-mini",
-    messages=[
-        {"role": "user", "content": "My favorite color is blue."}
-    ]
-)
-print(response.choices[0].message.content + "\n")
-
-# Advanced Augmentation runs asynchronously to efficiently
-# create memories. For this example, a short lived command
-# line program, we need to wait for it to finish.
-
-memori.augmentation.wait()
-
-# Memori stored that your favorite color is blue in SQLite.
-# Now reset everything so there's no prior context.
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-memori = Memori(conn=get_sqlite_connection).llm.register(client)
-memori.attribution(entity_id="123456", process_id="test-ai-agent")
-
-response = client.chat.completions.create(
-    model="gpt-4.1-mini",
-    messages=[
-        {"role": "user", "content": "What's my favorite color?"}
-    ]
-)
-print(response.choices[0].message.content + "\n")
-```
 
 ## Supported LLM
 
