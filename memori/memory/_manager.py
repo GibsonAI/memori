@@ -8,10 +8,13 @@ r"""
                        memorilabs.ai
 """
 
+import logging
 import warnings
 
 from memori._config import Config
 from memori.memory._writer import Writer
+
+logger = logging.getLogger(__name__)
 
 
 class Manager:
@@ -19,6 +22,7 @@ class Manager:
         self.config = config
 
     def execute(self, payload):
+        logger.debug("Memory manager execution started")
         if self.config.enterprise is True:
             warnings.warn(
                 "Memori Enterprise is not available yet.",
@@ -30,5 +34,6 @@ class Manager:
             # Collector(self.config).fire_and_forget(payload)
 
         Writer(self.config).execute(payload)
+        logger.debug("Memory manager execution completed")
 
         return self

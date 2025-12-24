@@ -69,11 +69,19 @@ class LlmRegistry:
 
 
 class Memori:
-    def __init__(self, conn: Callable[[], Any] | Any | None = None):
+    def __init__(
+        self,
+        conn: Callable[[], Any] | Any | None = None,
+        debug_truncate: bool = True,
+    ):
+        from memori._logging import set_truncate_enabled
+
         self.config = Config()
         self.config.api_key = os.environ.get("MEMORI_API_KEY", None)
         self.config.enterprise = os.environ.get("MEMORI_ENTERPRISE", "0") == "1"
         self.config.session_id = uuid4()
+        self.config.debug_truncate = debug_truncate
+        set_truncate_enabled(debug_truncate)
 
         if conn is None:
             conn = self._get_default_connection()

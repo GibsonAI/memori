@@ -9,12 +9,14 @@ r"""
 """
 
 import inspect
+import logging
 import time
 from collections.abc import AsyncIterator, Iterator
 
 from botocore.eventstream import EventStream
 from grpc.experimental.aio import UnaryStreamCall
 
+from memori._logging import truncate
 from memori._utils import merge_chunk
 from memori.llm._base import BaseInvoke
 from memori.llm._iterable import Iterable as MemoriIterable
@@ -22,6 +24,8 @@ from memori.llm._iterator import AsyncIterator as MemoriAsyncIterator
 from memori.llm._iterator import Iterator as MemoriIterator
 from memori.llm._streaming import StreamingBody as MemoriStreamingBody
 from memori.llm._utils import client_is_bedrock
+
+logger = logging.getLogger(__name__)
 
 
 class Invoke(BaseInvoke):
@@ -32,6 +36,11 @@ class Invoke(BaseInvoke):
             self.inject_recalled_facts(self.configure_for_streaming_usage(kwargs))
         )
 
+        logger.debug(
+            "Sending request to LLM - provider: %s, model: %s",
+            self.config.llm.provider,
+            truncate(str(kwargs.get("model", "unknown")), 100),
+        )
         raw_response = self._method(**kwargs)
 
         if isinstance(raw_response, Iterator) or inspect.isgenerator(raw_response):
@@ -70,6 +79,11 @@ class InvokeAsync(BaseInvoke):
             self.inject_recalled_facts(self.configure_for_streaming_usage(kwargs))
         )
 
+        logger.debug(
+            "Sending async request to LLM - provider: %s, model: %s",
+            self.config.llm.provider,
+            truncate(str(kwargs.get("model", "unknown")), 100),
+        )
         raw_response = await self._method(**kwargs)
         self.handle_post_response(kwargs, start, raw_response)
         return raw_response

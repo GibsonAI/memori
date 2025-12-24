@@ -8,6 +8,8 @@ r"""
                        memorilabs.ai
 """
 
+import logging
+
 from memori._network import Api
 from memori.llm._embeddings import embed_texts_async
 from memori.memory._struct import Memories
@@ -29,6 +31,8 @@ from memori.memory.augmentation._models import (
     hash_id,
 )
 from memori.memory.augmentation._registry import Registry
+
+logger = logging.getLogger(__name__)
 
 
 @Registry.register("advanced_augmentation")
@@ -105,6 +109,7 @@ class AdvancedAugmentation(BaseAugmentation):
             ctx.payload.process_id,
         )
 
+        logger.debug("AA submitting payload to API")
         try:
             api_response = await api.augmentation_async(payload)
         except Exception as e:
@@ -112,9 +117,11 @@ class AdvancedAugmentation(BaseAugmentation):
 
             if isinstance(e, QuotaExceededError):
                 raise
+            logger.debug("AA API call failed: %s", type(e).__name__)
             return ctx
 
         if not api_response:
+            logger.debug("AA API returned empty response")
             return ctx
 
         memories = await self._process_api_response(api_response)

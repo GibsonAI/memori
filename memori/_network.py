@@ -9,6 +9,7 @@ r"""
 """
 
 import asyncio
+import logging
 import os
 import ssl
 
@@ -26,6 +27,8 @@ from memori._exceptions import (
     MemoriApiValidationError,
     QuotaExceededError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class Api:
@@ -53,6 +56,7 @@ class Api:
         url = self.url("sdk/augmentation")
         headers = self.headers()
         ssl_context = ssl.create_default_context(cafile=certifi.where())
+        logger.debug("Sending augmentation request to %s", url)
 
         def _default_client_error_message(status_code: int) -> str:
             if status_code == 422:
@@ -88,7 +92,10 @@ class Api:
                     json=payload,
                     timeout=aiohttp.ClientTimeout(total=30),
                 ) as r:
+                    logger.debug("Augmentation response - status: %d", r.status)
+
                     if r.status == 429:
+                        logger.warning("Rate limit exceeded (429)")
                         if self._is_anonymous():
                             message, _data = await _read_error_payload(r)
 
@@ -100,6 +107,7 @@ class Api:
 
                     if r.status == 422:
                         message, data = await _read_error_payload(r)
+                        logger.error("Validation error (422): %s", message)
                         raise MemoriApiValidationError(
                             status_code=422,
                             message=message or _default_client_error_message(422),
@@ -108,6 +116,7 @@ class Api:
 
                     if r.status == 433:
                         message, data = await _read_error_payload(r)
+                        logger.error("Request rejected (433): %s", message)
                         raise MemoriApiRequestRejectedError(
                             status_code=433,
                             message=message or _default_client_error_message(433),
@@ -116,6 +125,7 @@ class Api:
 
                     if 400 <= r.status <= 499:
                         message, data = await _read_error_payload(r)
+                        logger.error("Client error (%d): %s", r.status, message)
                         raise MemoriApiClientError(
                             status_code=r.status,
                             message=message or _default_client_error_message(r.status),
@@ -123,30 +133,37 @@ class Api:
                         )
 
                     r.raise_for_status()
+                    logger.debug("Augmentation request successful")
                     return await r.json()
             except aiohttp.ClientResponseError:
                 raise
             except (ssl.SSLError, aiohttp.ClientSSLError) as e:
+                logger.error("SSL/TLS error during augmentation request: %s", e)
                 raise MemoriApiError(
                     "Memori API request failed due to an SSL/TLS certificate error. "
                     "This is often caused by corporate proxies/SSL inspection. "
                     "Try updating your CA certificates and try again."
                 ) from e
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                logger.error("Network/timeout error during augmentation request: %s", e)
                 raise MemoriApiError(
                     "Memori API request failed (network/timeout). "
                     "Check your connection and try again."
                 ) from e
 
     def delete(self, route):
+        logger.debug("DELETE request to %s", route)
         r = self.__session().delete(self.url(route), headers=self.headers())
+        logger.debug("DELETE response - status: %d", r.status_code)
 
         r.raise_for_status()
 
         return r.json()
 
     def get(self, route):
+        logger.debug("GET request to %s", route)
         r = self.__session().get(self.url(route), headers=self.headers())
+        logger.debug("GET response - status: %d", r.status_code)
 
         r.raise_for_status()
 
@@ -156,7 +173,9 @@ class Api:
         return await self.__request_async("GET", route)
 
     def patch(self, route, json=None):
+        logger.debug("PATCH request to %s", route)
         r = self.__session().patch(self.url(route), headers=self.headers(), json=json)
+        logger.debug("PATCH response - status: %d", r.status_code)
 
         r.raise_for_status()
 
@@ -166,7 +185,9 @@ class Api:
         return await self.__request_async("PATCH", route, json=json)
 
     def post(self, route, json=None):
+        logger.debug("POST request to %s", route)
         r = self.__session().post(self.url(route), headers=self.headers(), json=json)
+        logger.debug("POST response - status: %d", r.status_code)
 
         r.raise_for_status()
 
@@ -205,23 +226,66 @@ class Api:
                         json=json,
                         timeout=aiohttp.ClientTimeout(total=30),
                     ) as r:
+                        logger.debug(
+                            "Async %s response - status: %d, attempt: %d",
+                            method.upper(),
+                            r.status,
+                            attempts + 1,
+                        )
                         r.raise_for_status()
                         return await r.json()
             except aiohttp.ClientResponseError as e:
                 if e.status < 500 or e.status > 599:
+                    logger.error(
+                        "Non-retryable error %d for %s %s",
+                        e.status,
+                        method.upper(),
+                        url,
+                    )
                     raise
 
                 if attempts >= max_retries:
+                    logger.error(
+                        "Max retries (%d) exceeded for %s %s",
+                        max_retries,
+                        method.upper(),
+                        url,
+                    )
                     raise
 
                 sleep = backoff_factor * (2**attempts)
+                logger.debug(
+                    "Retrying %s %s in %.1fs (attempt %d/%d) after status %d",
+                    method.upper(),
+                    url,
+                    sleep,
+                    attempts + 2,
+                    max_retries,
+                    e.status,
+                )
                 await asyncio.sleep(sleep)
                 attempts += 1
-            except Exception:
+            except Exception as e:
                 if attempts >= max_retries:
+                    logger.error(
+                        "Max retries (%d) exceeded for %s %s: %s",
+                        max_retries,
+                        method.upper(),
+                        url,
+                        e,
+                    )
                     raise
 
                 sleep = backoff_factor * (2**attempts)
+                logger.debug(
+                    "Retrying %s %s in %.1fs (attempt %d/%d) after error: %s",
+                    method.upper(),
+                    url,
+                    sleep,
+                    attempts + 2,
+                    max_retries,
+                    e,
+                )
                 await asyncio.sleep(sleep)
                 attempts += 1
 

@@ -11,11 +11,13 @@ r"""
 import asyncio
 import copy
 import json
+import logging
 from typing import TYPE_CHECKING
 
 from google.protobuf import json_format
 
 from memori._config import Config
+from memori._logging import truncate
 from memori._utils import merge_chunk
 
 if TYPE_CHECKING:
@@ -32,6 +34,8 @@ from memori.llm._utils import (
     llm_is_xai,
     provider_is_langchain,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class BaseClient:
@@ -419,11 +423,14 @@ class BaseInvoke:
         if not user_query:
             return kwargs
 
+        logger.debug("User query: %s", truncate(user_query))
+
         from memori.memory.recall import Recall
 
         facts = Recall(self.config).search_facts(user_query, entity_id=entity_id)
 
         if not facts:
+            logger.debug("No facts found to inject into prompt")
             return kwargs
 
         relevant_facts = [
@@ -433,8 +440,13 @@ class BaseInvoke:
         ]
 
         if not relevant_facts:
+            logger.debug(
+                "No facts above relevance threshold (%.2f)",
+                self.config.recall_relevance_threshold,
+            )
             return kwargs
 
+        logger.debug("Injecting %d recalled facts into prompt", len(relevant_facts))
         fact_lines = [f"- {fact['content']}" for fact in relevant_facts]
         recall_context = (
             "\n\n<memori_context>\n"
@@ -480,6 +492,7 @@ class BaseInvoke:
             return kwargs
 
         self._injected_message_count = len(messages)
+        logger.debug("Injecting %d conversation messages from history", len(messages))
 
         if (
             llm_is_openai(self.config.framework.provider, self.config.llm.provider)
@@ -657,6 +670,9 @@ class BaseInvoke:
             else:
                 content = ""
 
+            if content:
+                logger.debug("Response content: %s", truncate(str(content)))
+
             messages_for_aug.append(
                 {
                     "role": "assistant",
@@ -679,6 +695,7 @@ class BaseInvoke:
                 conversation_messages=messages_for_aug,
                 system_prompt=system_prompt,
             )
+            logger.debug("Kicking off AA - enqueueing augmentation")
             self.config.augmentation.enqueue(augmentation_input)
 
 

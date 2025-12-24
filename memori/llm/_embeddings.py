@@ -9,6 +9,7 @@ r"""
 """
 
 import asyncio
+import logging
 import os
 import struct
 from collections.abc import Iterable
@@ -17,6 +18,8 @@ from typing import Any
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 from sentence_transformers import SentenceTransformer
+
+logger = logging.getLogger(__name__)
 
 _MODEL_CACHE: dict[str, SentenceTransformer] = {}
 
@@ -65,16 +68,29 @@ def embed_texts(
 ) -> list[list[float]]:
     inputs = _prepare_text_inputs(texts)
     if not inputs:
+        logger.debug("embed_texts called with empty input")
         return []
+
+    logger.debug(
+        "Generating embedding using model: %s for %d text(s)", model, len(inputs)
+    )
 
     try:
         encoder = _get_model(model)
     except (OSError, RuntimeError, ValueError):
+        logger.debug("Failed to load model %s, returning zero embeddings", model)
         return _zero_vectors(len(inputs), fallback_dimension)
 
     try:
         embeddings = encoder.encode(inputs, convert_to_numpy=True)
-        return embeddings.tolist()
+        result = embeddings.tolist()
+        if result:
+            logger.debug(
+                "Embedding generated - dimension: %d, count: %d",
+                len(result[0]),
+                len(result),
+            )
+        return result
     except ValueError as e:
         # Some models can raise "all input arrays must have the same shape" when
         # encoding batches. Retry one-by-one to avoid internal stacking.
@@ -91,12 +107,24 @@ def embed_texts(
             if len(dim_set) != 1:
                 raise ValueError("all input arrays must have the same shape") from e
 
+            if vectors:
+                logger.debug(
+                    "Embedding generated (one-by-one) - dimension: %d, count: %d",
+                    len(vectors[0]),
+                    len(vectors),
+                )
             return vectors
         except Exception:
             dim = _embedding_dimension(encoder, default=fallback_dimension)
+            logger.debug(
+                "Embedding encode failed, returning zero embeddings of dim %d", dim
+            )
             return _zero_vectors(len(inputs), dim)
     except RuntimeError:
         dim = _embedding_dimension(encoder, default=fallback_dimension)
+        logger.debug(
+            "Embedding encode failed, returning zero embeddings of dim %d", dim
+        )
         return _zero_vectors(len(inputs), dim)
 
 

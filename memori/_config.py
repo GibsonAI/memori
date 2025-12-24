@@ -37,6 +37,7 @@ class Config:
         self.api_key = None
         self.augmentation = None
         self.cache = Cache()
+        self.debug_truncate = True  # Truncate long content in debug logs
         self.embeddings = Embeddings()
         self.enterprise = False
         self.llm = Llm()

@@ -200,3 +200,21 @@ for fact in facts:
 2. Vector similarity search across fact embeddings
 3. Results ranked by cosine similarity
 4. Returns top N most relevant facts
+
+## Debug Logging
+
+Enable debug logging to see what Memori is doing internally:
+
+```python
+import logging
+
+# Enable BEFORE importing Memori
+logging.basicConfig(level=logging.DEBUG)
+
+from memori import Memori
+
+# Optional: show full content instead of truncated
+memori = Memori(conn, debug_truncate=False)
+```
+
+See [Troubleshooting > Debug Logging](../troubleshooting.md#debug-logging) for more details.
