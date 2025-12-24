@@ -123,3 +123,96 @@ def test_execute_skips_system_messages(config, mocker):
     assert calls[0][0][3] == "Hello"
     assert calls[1][0][1] == "assistant"
     assert calls[1][0][3] == "Hi there!"
+
+
+def test_execute_multiple_turns_ingests_all_messages(config, mocker):
+    """Test that multiple conversation turns properly ingest all user and assistant messages."""
+    from unittest.mock import Mock
+
+    # Mock the conversation.create to return a consistent conversation_id
+    conversation_id = 123
+    config.storage.driver.conversation.create.return_value = conversation_id
+    config.cache.conversation_id = None  # Start with no conversation_id
+
+    # First turn: user message + assistant response
+    mock_messages_turn1 = [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi there!"},
+    ]
+    config.storage.adapter.execute.return_value.mappings.return_value.fetchall.return_value = (
+        mock_messages_turn1
+    )
+
+    payload_turn1 = {
+        "conversation": {
+            "client": {"provider": None, "title": OPENAI_LLM_PROVIDER},
+            "query": {"messages": [{"content": "Hello", "role": "user"}]},
+            "response": {
+                "choices": [{"message": {"content": "Hi there!", "role": "assistant"}}]
+            },
+        }
+    }
+
+    Writer(config).execute(payload_turn1)
+
+    # Verify first turn was written
+    assert config.cache.conversation_id == conversation_id
+    assert config.storage.driver.conversation.message.create.call_count == 2
+
+    calls_turn1 = config.storage.driver.conversation.message.create.call_args_list
+    assert calls_turn1[0][0][1] == "user"
+    assert calls_turn1[0][0][3] == "Hello"
+    assert calls_turn1[1][0][1] == "assistant"
+    assert calls_turn1[1][0][3] == "Hi there!"
+
+    # Reset mocks for second turn
+    config.storage.driver.conversation.message.create.reset_mock()
+
+    # Second turn: new user message + assistant response
+    # The conversation should have previous messages injected, but only new messages should be written
+    mock_messages_turn2 = [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi there!"},
+        {"role": "user", "content": "What's the weather?"},
+        {"role": "assistant", "content": "I don't have access to weather data."},
+    ]
+    config.storage.adapter.execute.return_value.mappings.return_value.fetchall.return_value = (
+        mock_messages_turn2
+    )
+
+    # Simulate that previous messages were injected (so they're excluded from writing)
+    payload_turn2 = {
+        "conversation": {
+            "client": {"provider": None, "title": OPENAI_LLM_PROVIDER},
+            "query": {
+                "messages": [
+                    {"content": "Hello", "role": "user"},
+                    {"content": "Hi there!", "role": "assistant"},
+                    {"content": "What's the weather?", "role": "user"},
+                ],
+                "_memori_injected_count": 2,  # First 2 messages were injected
+            },
+            "response": {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "I don't have access to weather data.",
+                            "role": "assistant",
+                        }
+                    }
+                ]
+            },
+        }
+    }
+
+    Writer(config).execute(payload_turn2)
+
+    # Verify second turn was written (only new messages, not injected ones)
+    assert config.cache.conversation_id == conversation_id
+    assert config.storage.driver.conversation.message.create.call_count == 2
+
+    calls_turn2 = config.storage.driver.conversation.message.create.call_args_list
+    assert calls_turn2[0][0][1] == "user"
+    assert calls_turn2[0][0][3] == "What's the weather?"
+    assert calls_turn2[1][0][1] == "assistant"
+    assert calls_turn2[1][0][3] == "I don't have access to weather data."
