@@ -485,7 +485,7 @@ def get_sqlite_connection():
     return sqlite3.connect("memori.db")
 
 chat = ChatOpenAI()
-mem = Memori(conn=get_sqlite_connection).llm.register(chat)
+mem = Memori(conn=get_sqlite_connection).llm.register(chatopenai=chat)
 mem.attribution(entity_id="user-123", process_id="my-app")
 ```
 
