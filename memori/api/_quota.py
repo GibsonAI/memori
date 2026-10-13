@@ -22,6 +22,22 @@ class Manager:
 
         response = Api(self.config).get("sdk/quota")
 
-        cli.notice("Maximum # of Memories: " + f"{response['memories']['max']:,}")
-        cli.notice("Current # of Memories: " + f"{response['memories']['num']:,}\n")
-        cli.notice(f"{response['message']}\n")
+        if not isinstance(response, dict):
+            raise ValueError("Unexpected quota response format")
+
+        memories = response.get("memories")
+        if not isinstance(memories, dict):
+            raise ValueError("Missing or invalid 'memories' field in quota response")
+
+        max_memories = memories.get("max")
+        current_memories = memories.get("num")
+        if max_memories is None or current_memories is None:
+            raise ValueError("Missing 'max' or 'num' field in quota response")
+
+        message = response.get("message")
+        if not isinstance(message, str):
+            raise ValueError("Missing or invalid 'message' field in quota response")
+
+        cli.notice("Maximum # of Memories: " + f"{max_memories:,}")
+        cli.notice("Current # of Memories: " + f"{current_memories:,}\n")
+        cli.notice(f"{message}\n")
