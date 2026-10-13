@@ -195,7 +195,11 @@ class Recall:
             logger.debug("Entity memory deletion aborted - storage not configured")
             return
 
-        resolved_external_id = entity_external_id or self.config.entity_id
+        resolved_external_id = (
+            entity_external_id
+            if entity_external_id is not None
+            else self.config.entity_id
+        )
         if resolved_external_id is None:
             logger.debug("Entity memory deletion aborted - no entity_id configured")
             return

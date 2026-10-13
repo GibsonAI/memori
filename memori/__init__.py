@@ -258,6 +258,8 @@ class Memori:
 
         if entity_id is not None and not isinstance(entity_id, str):
             raise TypeError("entity_id must be a string or None")
+        if entity_id is not None and not entity_id:
+            raise ValueError("entity_id cannot be empty")
         if entity_id is not None and len(entity_id) > 100:
             raise RuntimeError("entity_id cannot be greater than 100 characters")
 

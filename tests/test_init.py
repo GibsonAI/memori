@@ -399,3 +399,18 @@ def test_delete_entity_memories_rejected_for_cockroach_connection_string(
 
     assert mem.config.byodb is False
     assert str(e.value) == "delete_entity_memories is only available in BYODB mode"
+
+
+def test_delete_entity_memories_rejects_empty_entity_id(mocker):
+    mock_conn = mocker.Mock(spec=["cursor", "commit", "rollback"])
+    mock_conn.__module__ = "psycopg"
+    type(mock_conn).__module__ = "psycopg"
+    mock_cursor = mocker.MagicMock()
+    mock_conn.cursor = mocker.MagicMock(return_value=mock_cursor)
+
+    mem = Memori(conn=lambda: mock_conn)
+
+    with pytest.raises(ValueError) as e:
+        mem.delete_entity_memories("")
+
+    assert str(e.value) == "entity_id cannot be empty"
