@@ -2349,7 +2349,7 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=2.0.44" },
     { name = "sqlalchemy-cockroachdb", marker = "extra == 'cockroachdb'", specifier = ">=1.4.0" },
 ]
-provides-extras = ["embeddings", "sqlalchemy", "tidb-zero", "cockroachdb"]
+provides-extras = ["embeddings", "sqlalchemy", "tidb-zero", "neon-launchpad", "cockroachdb"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added Neon Launchpad BYODB provisioning via `Memori.provision(provider="neon-launchpad", ...)`,
+  the `python -m memori provision neon-launchpad` CLI command, and the `neon-launchpad` optional
+  dependency extra. The provider creates a disposable serverless PostgreSQL database through the
+  Neon Launchpad API and returns a standard PostgreSQL DSN for the existing PostgreSQL storage path. (Refs #566)
 - Added input validation for the `query` argument of `Memori.recall(...)`: a
   non-string `query` now raises `TypeError` and an empty or whitespace-only
   `query` raises `ValueError`, matching the existing `limit` validation and

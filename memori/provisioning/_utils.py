@@ -6,9 +6,10 @@ from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
 
 import certifi
 
-from memori._exceptions import MissingPyMySQLError
+from memori._exceptions import MissingPsycopgError, MissingPyMySQLError
 
 DEFAULT_MYSQL_DATABASE = "memori"
+DEFAULT_POSTGRESQL_DATABASE = "memori"
 
 
 def mysql_tls_connect_args() -> dict[str, Any]:
@@ -123,3 +124,16 @@ def _first(query: dict[str, list[str]], key: str) -> str | None:
     if not values:
         return None
     return values[0]
+
+
+def require_psycopg_driver(database: str = "PostgreSQL") -> Any:
+    try:
+        import psycopg
+    except ImportError as e:
+        raise MissingPsycopgError(database) from e
+    return psycopg
+
+
+def postgresql_connection_factory(dsn: str) -> Callable[[], Any]:
+    psycopg = require_psycopg_driver("Neon Launchpad")
+    return lambda: psycopg.connect(dsn)

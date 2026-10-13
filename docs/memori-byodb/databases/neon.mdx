@@ -1,0 +1,111 @@
+---
+title: Neon
+description: Set up Memori with Neon — serverless Postgres with a built-in Launchpad provisioning path for disposable development databases.
+---
+
+# Neon
+
+Neon is a serverless Postgres platform. Memori integrates with it through the standard PostgreSQL storage path and also supports Neon Launchpad for zero-config disposable databases in development workflows.
+
+## Install
+
+```bash
+pip install memori psycopg[binary] sqlalchemy
+```
+
+## Quick Start
+
+<CodeGroup title="Neon Connection">
+
+```python {{ title: 'Neon (standard)' }}
+from memori import Memori
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+engine = create_engine(
+    "postgresql+psycopg://user:password@ep-cool-darkness-123456.us-east-2.aws.neon.tech/neondb?sslmode=require",
+    pool_pre_ping=True,
+)
+SessionLocal = sessionmaker(bind=engine)
+
+mem = Memori(conn=SessionLocal)
+mem.config.storage.build()
+```
+
+</CodeGroup>
+
+## Neon Launchpad Provisioning
+
+For disposable development databases, Memori can provision a Neon Launchpad instance — no sign-up or API key required:
+
+```bash
+pip install "memori[neon-launchpad]"
+```
+
+```python
+from memori import Memori
+
+mem = Memori.provision(provider="neon-launchpad", build=True)
+```
+
+You can also use the CLI:
+
+```bash
+python -m memori provision neon-launchpad
+python -m memori provision --provider neon-launchpad
+```
+
+Launchpad databases are claimable and expire after roughly 3 days. Use the `claim_url` in the provisioning result to permanently claim the database to a Neon account.
+
+<Note>
+  Provisioned results are cached in
+  `$MEMORI_HOME/.memori/provisioning.json` or `~/.memori/provisioning.json`.
+  This file contains the full database DSN, including credentials. Memori writes
+  it with owner-only permissions where supported. Treat it as a secrets file and
+  delete or rotate it when the database is no longer needed.
+</Note>
+
+## Connection Strings
+
+| Environment        | Connection String                                                                                          |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| **Neon Serverless** | `postgresql+psycopg://user:pass@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require`                   |
+| **Neon Launchpad** | Provisioned automatically — no manual connection string needed                                              |
+| **Local / Self-hosted** | `postgresql+psycopg://user:pass@localhost:5432/memori_db`                                            |
+
+## Complete Example
+
+```python
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from memori import Memori
+from openai import OpenAI
+
+engine = create_engine(
+    os.getenv("DATABASE_URL"),
+    pool_pre_ping=True,
+)
+SessionLocal = sessionmaker(bind=engine)
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+mem = Memori(conn=SessionLocal).llm.register(client)
+mem.attribution(entity_id="user_123", process_id="my_agent")
+mem.config.storage.build()
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=[{"role": "user", "content": "I build with serverless Postgres."}]
+)
+print(response.choices[0].message.content)
+
+mem.augmentation.wait()
+facts = mem.recall("serverless Postgres")
+print(facts)
+```
+
+## Why Neon?
+
+- **Serverless**: Scales to zero between requests, great for dev and staging environments.
+- **Launchpad**: Instant claimable databases with no sign-up, ideal for demos, CI, and quickstarts.
+- **Standard Postgres**: Works with any SQLAlchemy-compatible Postgres driver, no special adapter needed.
