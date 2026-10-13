@@ -16,7 +16,16 @@ from typing import Any
 
 
 def format_embedding_for_db(embedding: list[float], dialect: str) -> Any:
-    binary_data = struct.pack(f"<{len(embedding)}f", *embedding)
+    if not isinstance(embedding, list):
+        raise TypeError(f"embedding must be a list, got {type(embedding).__name__}")
+
+    if not embedding:
+        raise ValueError("embedding cannot be empty")
+
+    try:
+        binary_data = struct.pack(f"<{len(embedding)}f", *embedding)
+    except (struct.error, TypeError) as e:
+        raise ValueError(f"embedding values must be numeric floats: {e}") from e
 
     if dialect == "mongodb":
         try:
