@@ -88,7 +88,7 @@ stream = client.chat.completions.create(
     stream=True
 )
 for chunk in stream:
-    if chunk.choices[0].delta.content:
+    if chunk.choices and chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="")
 ```
 
@@ -113,10 +113,12 @@ mem.attribution(entity_id="user_123", process_id="minimax_assistant")
 
 response = client.messages.create(
     model="MiniMax-M3.1-Flash",
-    max_tokens=256,
+    max_tokens=4096,
     messages=[{"role": "user", "content": "Hello!"}]
 )
-print(response.content[0].text)
+for block in response.content:
+    if block.type == "text":
+        print(block.text)
 ```
 
 To use the mainland-China endpoint, set `base_url="https://api.minimaxi.com/anthropic"`.
