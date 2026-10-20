@@ -250,6 +250,55 @@ def test_deepseek_platform(openai_client, mocker):
     assert openai_client.config.llm.provider_sdk_version == "2.8.1"
 
 
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://api.minimax.io/v1",
+        "https://api.minimaxi.com/v1",
+    ],
+)
+def test_minimax_openai_platform(openai_client, mocker, base_url):
+    """MiniMax is detected from the OpenAI-compatible base URL on both regions."""
+    mock_client = mocker.MagicMock()
+    mock_client._version = "2.8.1"
+    mock_client.base_url = base_url
+    mock_client.chat.completions.create = mocker.MagicMock()
+    mock_client.beta.chat.completions.parse = mocker.MagicMock()
+    del mock_client._memori_installed
+
+    mocker.patch("asyncio.get_running_loop", side_effect=RuntimeError)
+
+    openai_client.register(mock_client)
+
+    assert openai_client.config.platform.provider == "minimax"
+    assert openai_client.config.llm.provider_sdk_version == "2.8.1"
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://api.minimax.io/anthropic",
+        "https://api.minimaxi.com/anthropic",
+    ],
+)
+def test_minimax_anthropic_platform(anthropic_client, mocker, base_url):
+    """MiniMax is detected from the Anthropic-compatible base URL on both regions."""
+    mock_client = mocker.MagicMock()
+    mock_client.base_url = base_url
+    mock_client.messages.create = mocker.MagicMock()
+    mock_client.beta.messages.create = mocker.MagicMock()
+    del mock_client._memori_installed
+
+    mock_anthropic_module = mocker.MagicMock()
+    mock_anthropic_module.__version__ = "0.75.0"
+    mocker.patch.dict("sys.modules", {"anthropic": mock_anthropic_module})
+    mocker.patch("asyncio.get_running_loop", side_effect=RuntimeError)
+
+    anthropic_client.register(mock_client)
+
+    assert anthropic_client.config.platform.provider == "minimax"
+
+
 def test_provider_sdk_version_separate_from_model_version(openai_client, mocker):
     """Test that provider_sdk_version is separate from model version (llm.version)."""
     mock_client = mocker.MagicMock()

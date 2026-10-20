@@ -28,6 +28,10 @@ class Anthropic(BaseClient):
             raise RuntimeError("client provided is not instance of Anthropic")
 
         if not hasattr(client, "_memori_installed"):
+            platform = _detect_platform(client)
+            if platform:
+                self.config.platform.provider = platform
+
             client.beta._messages_create = client.beta.messages.create
             client._messages_create = client.messages.create
 
@@ -149,6 +153,8 @@ def _detect_platform(client):
             return "deepseek"
         if "nvidia" in base_url:
             return "nvidia_nim"
+        if "minimax" in base_url:
+            return "minimax"
     return None
 
 
