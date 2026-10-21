@@ -6,8 +6,7 @@ from memori._utils import bytes_to_json
 from memori.llm._base import BaseInvoke
 from memori.llm._utils import client_is_bedrock
 from memori.llm.helpers.serialization import format_kwargs, format_response
-from memori.llm.pipelines.post_invoke import format_payload
-from memori.memory._manager import Manager as MemoryManager
+from memori.llm.pipelines.post_invoke import format_payload, run_post_invoke
 
 
 class StreamingBody:
@@ -35,7 +34,9 @@ class StreamingBody:
     def read(self, *args, **kwargs):
         data = self.source_streaming_body.read(*args, **kwargs)
 
-        MemoryManager(self.config).execute(
+        run_post_invoke(
+            self.invoke,
+            self._kwargs,
             format_payload(
                 self.invoke,
                 self.config.framework.provider,
@@ -52,7 +53,7 @@ class StreamingBody:
                 format_response(
                     json.loads(data.decode()), uses_protobuf=self.invoke._uses_protobuf
                 ),
-            )
+            ),
         )
 
         return data

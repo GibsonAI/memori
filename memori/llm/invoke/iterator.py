@@ -2,8 +2,7 @@ import time
 
 from memori.llm._base import BaseIterator
 from memori.llm.helpers.serialization import format_kwargs, format_response
-from memori.llm.pipelines.post_invoke import format_payload
-from memori.memory._manager import Manager as MemoryManager
+from memori.llm.pipelines.post_invoke import format_payload, run_post_invoke
 
 
 class AsyncIterator(BaseIterator):
@@ -22,7 +21,9 @@ class AsyncIterator(BaseIterator):
 
             return chunk
         except StopAsyncIteration:
-            MemoryManager(self.config).execute(
+            run_post_invoke(
+                self.invoke,
+                self._kwargs,
                 format_payload(
                     self.invoke,
                     self.config.framework.provider,
@@ -39,7 +40,7 @@ class AsyncIterator(BaseIterator):
                     format_response(
                         self.raw_response, uses_protobuf=self.invoke._uses_protobuf
                     ),
-                )
+                ),
             )
             raise
 
@@ -67,7 +68,9 @@ class Iterator(BaseIterator):
 
             return chunk
         except StopIteration:
-            MemoryManager(self.config).execute(
+            run_post_invoke(
+                self.invoke,
+                self._kwargs,
                 format_payload(
                     self.invoke,
                     self.config.framework.provider,
@@ -84,7 +87,7 @@ class Iterator(BaseIterator):
                     format_response(
                         self.raw_response, uses_protobuf=self.invoke._uses_protobuf
                     ),
-                )
+                ),
             )
 
             raise

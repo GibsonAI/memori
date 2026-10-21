@@ -233,9 +233,9 @@ def test_iterator_iter_returns_self():
     assert iterator.__iter__() is iterator
 
 
-@patch("memori.llm.invoke.iterator.MemoryManager")
+@patch("memori.llm.invoke.iterator.run_post_invoke")
 @patch("memori.llm.invoke.iterator.format_payload", return_value={})
-def test_iterator_yields_all_events(mock_format_payload, mock_memory_manager):
+def test_iterator_yields_all_events(mock_format_payload, mock_run_post_invoke):
     config = Config()
     events = [
         MockEvent("response.created"),
@@ -256,10 +256,10 @@ def test_iterator_yields_all_events(mock_format_payload, mock_memory_manager):
     assert len(collected) == 2
 
 
-@patch("memori.llm.invoke.iterator.MemoryManager")
+@patch("memori.llm.invoke.iterator.run_post_invoke")
 @patch("memori.llm.invoke.iterator.format_payload", return_value={})
 def test_iterator_captures_response_on_completed_event(
-    mock_format_payload, mock_memory_manager
+    mock_format_payload, mock_run_post_invoke
 ):
     config = Config()
     mock_response = MockResponse("Test output")
@@ -288,10 +288,10 @@ def test_async_iterator_aiter_returns_self():
 
 
 @pytest.mark.asyncio
-@patch("memori.llm.invoke.iterator.MemoryManager")
+@patch("memori.llm.invoke.iterator.run_post_invoke")
 @patch("memori.llm.invoke.iterator.format_payload", return_value={})
 async def test_async_iterator_yields_all_events(
-    mock_format_payload, mock_memory_manager
+    mock_format_payload, mock_run_post_invoke
 ):
     config = Config()
     events = [

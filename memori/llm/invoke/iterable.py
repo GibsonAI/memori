@@ -6,8 +6,7 @@ from memori._utils import bytes_to_json
 from memori.llm._base import BaseInvoke
 from memori.llm._utils import client_is_bedrock
 from memori.llm.helpers.serialization import format_kwargs, format_response
-from memori.llm.pipelines.post_invoke import format_payload
-from memori.memory._manager import Manager as MemoryManager
+from memori.llm.pipelines.post_invoke import format_payload, run_post_invoke
 
 
 class Iterable:
@@ -42,7 +41,9 @@ class Iterable:
 
                 yield raw_event
         finally:
-            MemoryManager(self.config).execute(
+            run_post_invoke(
+                self.invoke,
+                self._kwargs,
                 format_payload(
                     self.invoke,
                     self.config.framework.provider,
@@ -59,5 +60,5 @@ class Iterable:
                     format_response(
                         self.raw_response, uses_protobuf=self.invoke._uses_protobuf
                     ),
-                )
+                ),
             )
