@@ -91,9 +91,28 @@ def format_augmentation_input(invoke, payload: dict) -> AugmentationInputData:
     )
 
 
-def handle_post_response(invoke, kwargs, start_time, raw_response):
+def run_post_invoke(invoke, kwargs, payload):
+    """Persist the completed turn and, when configured, run memory augmentation."""
     from memori.memory._manager import Manager as MemoryManager
 
+    MemoryManager(invoke.config).execute(payload)
+    if invoke.config.augmentation is not None:
+        from memori.memory.augmentation._handler import handle_augmentation
+
+        aug_input = format_augmentation_input(invoke, payload)
+
+        handle_augmentation(
+            config=invoke.config,
+            payload=aug_input,
+            kwargs=kwargs,
+            augmentation_manager=invoke.config.augmentation,
+            log_content=lambda c: logger.debug(
+                "Response content: %s", truncate(str(c))
+            ),
+        )
+
+
+def handle_post_response(invoke, kwargs, start_time, raw_response):
     if "model" in kwargs:
         invoke.config.llm.version = kwargs["model"]
 
@@ -127,18 +146,4 @@ def handle_post_response(invoke, kwargs, start_time, raw_response):
         f"messages_count={msg_count}, responses_count={resp_count}"
     )
 
-    MemoryManager(invoke.config).execute(payload)
-    if invoke.config.augmentation is not None:
-        from memori.memory.augmentation._handler import handle_augmentation
-
-        aug_input = format_augmentation_input(invoke, payload)
-
-        handle_augmentation(
-            config=invoke.config,
-            payload=aug_input,
-            kwargs=kwargs,
-            augmentation_manager=invoke.config.augmentation,
-            log_content=lambda c: logger.debug(
-                "Response content: %s", truncate(str(c))
-            ),
-        )
+    run_post_invoke(invoke, kwargs, payload)
