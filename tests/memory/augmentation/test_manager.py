@@ -168,36 +168,31 @@ def test_manager_wait_with_timeout():
         assert result is False
 
 
-def test_manager_wait_for_db_writer_queue():
+def test_manager_wait_for_db_writer_queue(mocker):
     from queue import Queue
 
-    from memori.memory.augmentation._db_writer import WriteTask, get_db_writer
+    from memori.memory.augmentation._db_writer import DbWriterRuntime, WriteTask
 
     config = Config()
     manager = Manager(config)
     mock_conn = Mock()
-    manager.start(mock_conn)
+    db_writer = DbWriterRuntime()
+    db_writer.queue = Queue()
+    mocker.patch(
+        "memori.memory.augmentation._manager.get_db_writer", return_value=db_writer
+    )
+    task = WriteTask(
+        conn_factory=mock_conn, method_path="test.method", args=(), kwargs={}
+    )
+    db_writer.enqueue_write(task)
 
-    db_writer = get_db_writer()
-    original_queue = db_writer.queue
+    def complete_write():
+        db_writer.queue.get()
+        db_writer.queue.task_done()
 
-    try:
-        test_queue = Queue()
-        db_writer.queue = test_queue
-
-        task = WriteTask(
-            conn_factory=mock_conn, method_path="test.method", args=(), kwargs={}
-        )
-        test_queue.put(task)
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.submit(lambda: test_queue.get())
-
-            result = manager.wait(timeout=1.0)
-
-            assert result is True
-    finally:
-        db_writer.queue = original_queue
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.submit(complete_write)
+        assert manager.wait(timeout=1.0) is True
 
 
 def test_manager_wait_calls_rust_core_wait():

@@ -88,6 +88,17 @@ class DbWriterRuntime:
         except queue_module.Full:
             return False
 
+    def wait(self, timeout: float | None = None) -> bool:
+        """Wait for queued and in-flight batches to finish within the timeout."""
+        if self.queue is None:
+            return True
+        # Queue emptiness excludes tasks already being processed. Its completion
+        # condition includes them until task_done(), without a polling grace period.
+        with self.queue.all_tasks_done:
+            return self.queue.all_tasks_done.wait_for(
+                lambda: self.queue.unfinished_tasks == 0, timeout=timeout
+            )
+
     def _run_loop(self) -> None:
         logger.debug("AA DB writer thread started")
         while True:
@@ -114,31 +125,37 @@ class DbWriterRuntime:
             return
 
         while batch:
-            by_factory: dict[Callable, list[WriteTask]] = {}
-            for task in batch:
-                by_factory.setdefault(task.conn_factory, []).append(task)
+            try:
+                by_factory: dict[Callable, list[WriteTask]] = {}
+                for task in batch:
+                    by_factory.setdefault(task.conn_factory, []).append(task)
 
-            for factory, tasks in by_factory.items():
-                with connection_context(factory) as (_conn, adapter, driver):
-                    logger.debug("AA DB writer batch started - %d writes", len(tasks))
-                    try:
-                        for task in tasks:
-                            task.execute(driver)
+                for factory, tasks in by_factory.items():
+                    with connection_context(factory) as (_conn, adapter, driver):
+                        logger.debug(
+                            "AA DB writer batch started - %d writes", len(tasks)
+                        )
+                        try:
+                            for task in tasks:
+                                task.execute(driver)
 
-                        if adapter:
-                            adapter.flush()
-                            adapter.commit()
-                        logger.debug("AA DB writer completing - batch committed")
-                    except Exception:
-                        import traceback
+                            if adapter:
+                                adapter.flush()
+                                adapter.commit()
+                            logger.debug("AA DB writer completing - batch committed")
+                        except Exception:
+                            import traceback
 
-                        logger.debug("AA DB writer batch failed - rolling back")
-                        traceback.print_exc()
-                        if adapter:
-                            try:
-                                adapter.rollback()
-                            except Exception:  # nosec B110
-                                pass
+                            logger.debug("AA DB writer batch failed - rolling back")
+                            traceback.print_exc()
+                            if adapter:
+                                try:
+                                    adapter.rollback()
+                                except Exception:  # nosec B110
+                                    pass
+            finally:
+                for _ in batch:
+                    self.queue.task_done()
 
             batch = self._collect_batch()
 

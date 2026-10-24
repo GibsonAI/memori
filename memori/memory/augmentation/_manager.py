@@ -169,7 +169,7 @@ class Manager:
         import concurrent.futures
         import time
 
-        start_time = time.time()
+        start_time = time.monotonic()
 
         # Wait for pending futures to complete
         if self._pending_futures:
@@ -185,27 +185,15 @@ class Manager:
             if self._pending_futures:
                 return False
 
-        # Wait for db_writer queue to drain and batch to process
+        # Queue completion includes the transaction that owns the final batch.
         db_writer = get_db_writer()
-        if db_writer.queue is None:
-            return True
-
-        deadline = None if timeout is None else start_time + timeout
-        poll_interval = 0.01
-
-        # Wait for queue to be empty
-        while not db_writer.queue.empty():
-            if deadline and time.time() >= deadline:
-                return False
-            time.sleep(poll_interval)
-
-        # Wait for final batch processing (2x batch_timeout)
-        extra_wait = db_writer.batch_timeout * 2
-        if deadline:
-            extra_wait = min(extra_wait, deadline - time.time())
-
-        if extra_wait > 0:
-            time.sleep(extra_wait)
+        remaining = (
+            None
+            if timeout is None
+            else max(0.0, timeout - (time.monotonic() - start_time))
+        )
+        if not db_writer.wait(remaining):
+            return False
 
         rust_core = getattr(self.config, "rust_core", None)
         wait_for_augmentation = getattr(rust_core, "wait_for_augmentation", None)
@@ -214,7 +202,7 @@ class Manager:
             if timeout is None:
                 remaining_timeout = None
             else:
-                remaining_timeout = max(0.0, timeout - (time.time() - start_time))
+                remaining_timeout = max(0.0, timeout - (time.monotonic() - start_time))
             return bool(wait_for_augmentation(remaining_timeout))
 
         return True
