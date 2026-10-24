@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `augmentation.wait()` now waits for in-flight database batches to finish rather
+  than treating an empty write queue as completed persistence. The timeout also
+  applies to pending native augmentation when no Python write queue exists.
+
 ### Added
 
 - Added input validation for the `query` argument of `Memori.recall(...)`: a
